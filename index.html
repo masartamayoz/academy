@@ -3,790 +3,2051 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>منصة مسار التميز التعليمية</title>
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Fonts & Icons -->
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+  <title>أكاديمية مسار التميز | التعليم الثانوي في تونس</title>
+  <meta name="description" content="منصة تعليمية تونسية متخصصة في الرياضيات للسنوات السابعة والثامنة والتاسعة أساسي. حصص مباشرة وتسجيلات عالية الجودة.">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     :root {
-      --primary-color: #0056b3;
-      --secondary-color: #003366;
-      --accent-color: #ff6b00;
-      --light-color: #f8f9fa;
-      --dark-color: #212529;
-      --success-color: #28a745;
+      --blue-dark:   #0a1628;
+      --blue-mid:    #0d2147;
+      --blue:        #1a3a6e;
+      --blue-light:  #2563eb;
+      --gold:        #f59e0b;
+      --gold-light:  #fbbf24;
+      --white:       #ffffff;
+      --gray-50:     #f8fafc;
+      --gray-100:    #f1f5f9;
+      --gray-200:    #e2e8f0;
+      --gray-400:    #94a3b8;
+      --gray-600:    #475569;
+      --gray-800:    #1e293b;
+      --success:     #10b981;
+      --danger:      #ef4444;
+      --radius:      12px;
+      --radius-lg:   20px;
+      --shadow:      0 4px 24px rgba(10,22,40,.12);
+      --shadow-lg:   0 12px 48px rgba(10,22,40,.18);
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
 
     body {
       font-family: 'Tajawal', sans-serif;
-      background-color: var(--light-color);
-      color: var(--dark-color);
-      line-height: 1.6;
+      background: var(--gray-50);
+      color: var(--gray-800);
+      line-height: 1.7;
+      overflow-x: hidden;
     }
 
-    /* Header Styles */
-    header {
-      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-      color: white;
-      padding: 1rem 0;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    }
+    a { text-decoration: none; color: inherit; }
+    img { max-width: 100%; }
 
-    .header-container {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    .container {
       max-width: 1200px;
       margin: 0 auto;
       padding: 0 20px;
     }
 
-    .logo-container {
-      display: flex;
-      align-items: center;
-    }
-
-    header img {
-      max-width: 80px;
-      height: auto;
-      margin-left: 15px;
-    }
-
-    .header-text h1 {
-      font-size: 1.8rem;
-      margin-bottom: 0.3rem;
-    }
-
-    .header-text p {
-      font-size: 0.9rem;
-      opacity: 0.9;
-    }
-
-    /* Navigation */
-    nav.navbar {
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    /* ══════════════════════════════
+       HEADER
+    ══════════════════════════════ */
+    header {
+      background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue-mid) 60%, var(--blue) 100%);
+      padding: 14px 0;
       position: sticky;
       top: 0;
-      z-index: 100;
+      z-index: 900;
+      box-shadow: 0 2px 20px rgba(0,0,0,.25);
     }
 
-    .main-nav a {
-      font-weight: 500;
-      transition: all 0.3s ease;
-    }
-
-    .main-nav a:hover {
-      color: var(--primary-color);
-    }
-
-    .search-box {
+    .header-inner {
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      gap: 16px;
     }
 
-    .search-box input {
-      padding: 0.5rem;
-      border: 1px solid #ddd;
-      border-radius: 5px 0 0 5px;
-      font-family: inherit;
-    }
-
-    .search-box button {
-      padding: 0.5rem 1rem;
-      border: none;
-      background-color: var(--primary-color);
-      color: white;
-      border-radius: 0 5px 5px 0;
-      cursor: pointer;
-    }
-
-    /* Auth Modal */
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
-    }
-
-    .modal-content {
-      background-color: white;
-      margin: 5% auto;
-      padding: 2rem;
-      border-radius: 10px;
-      width: 90%;
-      max-width: 500px;
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-      animation: modalFade 0.3s;
-    }
-
-    @keyframes modalFade {
-      from { opacity: 0; transform: translateY(-50px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .close-btn {
-      color: #aaa;
-      float: left;
-      font-size: 1.5rem;
-      cursor: pointer;
-    }
-
-    .close-btn:hover {
-      color: var(--dark-color);
-    }
-
-    .auth-tabs {
+    .logo {
       display: flex;
-      margin-bottom: 1.5rem;
-      border-bottom: 1px solid #ddd;
+      align-items: center;
+      gap: 12px;
     }
 
-    .auth-tab {
-      padding: 0.8rem 1.5rem;
-      cursor: pointer;
+    .logo img {
+      width: 52px;
+      height: 52px;
+      border-radius: 10px;
+      object-fit: contain;
+      background: white;
+      padding: 4px;
+    }
+
+    .logo-text h1 {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--white);
+      line-height: 1.2;
+    }
+
+    .logo-text span {
+      font-size: 0.75rem;
+      color: var(--gold-light);
+      font-weight: 400;
+    }
+
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .header-nav a {
+      color: rgba(255,255,255,.85);
+      font-size: 0.9rem;
       font-weight: 500;
+      padding: 7px 14px;
+      border-radius: 8px;
+      transition: all .2s;
     }
 
-    .auth-tab.active {
-      color: var(--primary-color);
-      border-bottom: 3px solid var(--primary-color);
+    .header-nav a:hover {
+      background: rgba(255,255,255,.1);
+      color: var(--white);
     }
 
-    .auth-form {
-      display: none;
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
-    .auth-form.active {
-      display: block;
-    }
-
-    .form-group {
-      margin-bottom: 1.5rem;
-    }
-
-    .form-group label {
-      display: block;
-      margin-bottom: 0.5rem;
-      font-weight: 500;
-    }
-
-    .form-control {
-      width: 100%;
-      padding: 0.8rem;
-      border: 1px solid #ddd;
-      border-radius: 5px;
+    .btn-login {
+      background: transparent;
+      border: 1.5px solid rgba(255,255,255,.4);
+      color: var(--white);
+      padding: 8px 20px;
+      border-radius: 8px;
       font-family: inherit;
-      font-size: 1rem;
-    }
-
-    .btn-primary {
-      background-color: var(--primary-color);
-      color: white;
-      width: 100%;
-      padding: 0.8rem;
-      border-radius: 5px;
-      border: none;
+      font-size: 0.9rem;
+      font-weight: 600;
       cursor: pointer;
+      transition: all .2s;
     }
 
-    .btn-primary:hover {
-      background-color: var(--secondary-color);
+    .btn-login:hover {
+      border-color: var(--white);
+      background: rgba(255,255,255,.1);
     }
 
-    .social-auth {
-      margin-top: 1.5rem;
-      text-align: center;
+    .btn-signup {
+      background: var(--gold);
+      border: none;
+      color: var(--blue-dark);
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
     }
 
-    .social-btn {
-      padding: 0.7rem 1rem;
-      margin: 0 0.3rem;
-      border-radius: 5px;
-      color: white;
-      font-weight: 500;
+    .btn-signup:hover {
+      background: var(--gold-light);
+      transform: translateY(-1px);
     }
 
-    .google-btn {
-      background-color: #DB4437;
-    }
-
-    .facebook-btn {
-      background-color: #4267B2;
-    }
-
-    /* User Dropdown */
-    .user-dropdown {
-      position: relative;
-    }
+    /* User section after login */
+    .user-section { display: none; position: relative; }
 
     .user-avatar {
       width: 40px;
       height: 40px;
       border-radius: 50%;
-      background-color: var(--primary-color);
-      color: white;
+      background: var(--gold);
+      color: var(--blue-dark);
       display: flex;
       align-items: center;
       justify-content: center;
+      font-weight: 800;
+      font-size: 1rem;
       cursor: pointer;
+      border: 2px solid rgba(255,255,255,.3);
+      overflow: hidden;
     }
 
-    .dropdown-content {
+    .user-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
+    .user-dropdown-menu {
       display: none;
       position: absolute;
       left: 0;
-      background-color: white;
-      min-width: 160px;
-      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-      border-radius: 5px;
+      top: calc(100% + 10px);
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      min-width: 200px;
+      overflow: hidden;
+      border: 1px solid var(--gray-200);
+    }
+
+    .user-dropdown-menu.open { display: block; }
+
+    .user-dropdown-menu a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      color: var(--gray-800);
+      font-size: 0.9rem;
+      transition: background .15s;
+    }
+
+    .user-dropdown-menu a:hover { background: var(--gray-50); }
+    .user-dropdown-menu a i { color: var(--blue-light); width: 16px; }
+    .user-dropdown-menu .divider { height: 1px; background: var(--gray-200); }
+
+    .hamburger {
+      display: none;
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.4rem;
+      cursor: pointer;
+    }
+
+    /* ══════════════════════════════
+       HERO
+    ══════════════════════════════ */
+    .hero {
+      background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue-mid) 50%, var(--blue) 100%);
+      position: relative;
+      overflow: hidden;
+      padding: 80px 0 100px;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 10% 50%, rgba(245,158,11,.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 90% 20%, rgba(37,99,235,.2) 0%, transparent 50%);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+      position: relative;
       z-index: 1;
     }
 
-    .dropdown-content a {
-      color: var(--dark-color);
-      padding: 12px 16px;
-      text-decoration: none;
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(245,158,11,.15);
+      border: 1px solid rgba(245,158,11,.3);
+      color: var(--gold-light);
+      padding: 6px 16px;
+      border-radius: 50px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      font-weight: 900;
+      color: var(--white);
+      line-height: 1.2;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 span { color: var(--gold); }
+
+    .hero p {
+      font-size: 1.1rem;
+      color: rgba(255,255,255,.8);
+      margin-bottom: 36px;
+      max-width: 500px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .btn-hero-primary {
+      background: var(--gold);
+      color: var(--blue-dark);
+      padding: 14px 32px;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      transition: all .25s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-hero-primary:hover {
+      background: var(--gold-light);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(245,158,11,.35);
+    }
+
+    .btn-hero-secondary {
+      background: rgba(255,255,255,.1);
+      color: var(--white);
+      padding: 14px 32px;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 600;
+      border: 1.5px solid rgba(255,255,255,.3);
+      cursor: pointer;
+      transition: all .25s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-hero-secondary:hover {
+      background: rgba(255,255,255,.18);
+      border-color: rgba(255,255,255,.6);
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 28px;
+      margin-top: 44px;
+      padding-top: 32px;
+      border-top: 1px solid rgba(255,255,255,.12);
+    }
+
+    .hero-stat strong {
       display: block;
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: var(--gold);
     }
 
-    .dropdown-content a:hover {
-      background-color: #f1f1f1;
+    .hero-stat span {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,.65);
     }
 
-    .show {
-      display: block;
+    /* Hero visual card */
+    .hero-visual {
+      position: relative;
     }
 
-    /* Hero Section */
-    .hero {
-      background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
-      color: white;
+    .hero-card {
+      background: rgba(255,255,255,.08);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      color: var(--white);
+    }
+
+    .hero-card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 18px;
+      color: var(--gold-light);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .subject-list { list-style: none; }
+
+    .subject-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: rgba(255,255,255,.06);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      border: 1px solid rgba(255,255,255,.08);
+      transition: all .2s;
+    }
+
+    .subject-item:hover { background: rgba(255,255,255,.12); }
+
+    .subject-info { display: flex; align-items: center; gap: 12px; }
+
+    .subject-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+
+    .subject-name { font-size: 0.9rem; font-weight: 600; }
+    .subject-level { font-size: 0.75rem; color: rgba(255,255,255,.55); }
+
+    .badge-live {
+      background: rgba(16,185,129,.2);
+      color: #6ee7b7;
+      border: 1px solid rgba(16,185,129,.3);
+      padding: 3px 10px;
+      border-radius: 50px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .badge-new {
+      background: rgba(245,158,11,.2);
+      color: var(--gold-light);
+      border: 1px solid rgba(245,158,11,.3);
+      padding: 3px 10px;
+      border-radius: 50px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    /* ══════════════════════════════
+       SECTION TITLES
+    ══════════════════════════════ */
+    .section-header {
       text-align: center;
-      padding: 5rem 0;
+      margin-bottom: 56px;
     }
 
-    /* Card Hover Effect */
-    .card {
-      transition: transform 0.3s;
+    .section-tag {
+      display: inline-block;
+      background: rgba(37,99,235,.1);
+      color: var(--blue-light);
+      border: 1px solid rgba(37,99,235,.2);
+      padding: 5px 16px;
+      border-radius: 50px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 14px;
     }
 
-    .card:hover {
-      transform: scale(1.05);
+    .section-header h2 {
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+      font-weight: 900;
+      color: var(--blue-dark);
+      margin-bottom: 12px;
     }
 
-    /* Footer */
+    .section-header p {
+      color: var(--gray-600);
+      font-size: 1rem;
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    /* ══════════════════════════════
+       WHY US
+    ══════════════════════════════ */
+    .why-us { padding: 90px 0; background: var(--white); }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 28px;
+    }
+
+    .feature-card {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 32px 24px;
+      transition: all .3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(to left, var(--blue-light), var(--gold));
+      opacity: 0;
+      transition: opacity .3s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-6px);
+      box-shadow: var(--shadow-lg);
+      border-color: transparent;
+    }
+
+    .feature-card:hover::before { opacity: 1; }
+
+    .feature-icon {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, var(--blue-light), var(--blue-mid));
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      color: var(--white);
+      margin-bottom: 20px;
+    }
+
+    .feature-card h3 {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--blue-dark);
+      margin-bottom: 10px;
+    }
+
+    .feature-card p {
+      font-size: 0.92rem;
+      color: var(--gray-600);
+      line-height: 1.7;
+    }
+
+    /* ══════════════════════════════
+       PRICING
+    ══════════════════════════════ */
+    .pricing { padding: 90px 0; background: var(--gray-50); }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 28px;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .pricing-card {
+      background: var(--white);
+      border: 2px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 36px 30px;
+      position: relative;
+      transition: all .3s;
+    }
+
+    .pricing-card.featured {
+      border-color: var(--blue-light);
+      background: linear-gradient(135deg, var(--blue-dark), var(--blue-mid));
+      color: var(--white);
+    }
+
+    .pricing-card:hover {
+      transform: translateY(-6px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .popular-badge {
+      position: absolute;
+      top: -14px;
+      right: 24px;
+      background: var(--gold);
+      color: var(--blue-dark);
+      padding: 4px 18px;
+      border-radius: 50px;
+      font-size: 0.8rem;
+      font-weight: 800;
+    }
+
+    .plan-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .pricing-card.featured .plan-name { color: var(--gold-light); }
+
+    .plan-desc {
+      font-size: 0.88rem;
+      color: var(--gray-600);
+      margin-bottom: 24px;
+    }
+
+    .pricing-card.featured .plan-desc { color: rgba(255,255,255,.65); }
+
+    .plan-price {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-bottom: 28px;
+    }
+
+    .price-amount {
+      font-size: 3rem;
+      font-weight: 900;
+      color: var(--blue-dark);
+      line-height: 1;
+    }
+
+    .pricing-card.featured .price-amount { color: var(--gold); }
+
+    .price-currency {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--gray-600);
+    }
+
+    .pricing-card.featured .price-currency { color: rgba(255,255,255,.7); }
+
+    .price-period {
+      font-size: 0.85rem;
+      color: var(--gray-400);
+    }
+
+    .pricing-card.featured .price-period { color: rgba(255,255,255,.5); }
+
+    .plan-features {
+      list-style: none;
+      margin-bottom: 30px;
+    }
+
+    .plan-features li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      font-size: 0.92rem;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    .pricing-card.featured .plan-features li { border-color: rgba(255,255,255,.1); }
+
+    .plan-features li:last-child { border-bottom: none; }
+
+    .plan-features li i {
+      color: var(--success);
+      margin-top: 3px;
+      flex-shrink: 0;
+    }
+
+    .pricing-card.featured .plan-features li i { color: var(--gold-light); }
+
+    .btn-plan {
+      width: 100%;
+      padding: 14px;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all .25s;
+    }
+
+    .btn-plan-outline {
+      background: transparent;
+      border: 2px solid var(--blue-light);
+      color: var(--blue-light);
+    }
+
+    .btn-plan-outline:hover {
+      background: var(--blue-light);
+      color: var(--white);
+    }
+
+    .btn-plan-gold {
+      background: var(--gold);
+      color: var(--blue-dark);
+    }
+
+    .btn-plan-gold:hover {
+      background: var(--gold-light);
+      transform: translateY(-2px);
+    }
+
+    /* ══════════════════════════════
+       HOW IT WORKS
+    ══════════════════════════════ */
+    .how-it-works { padding: 90px 0; background: var(--white); }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 28px;
+      position: relative;
+    }
+
+    .steps-grid::before {
+      content: '';
+      position: absolute;
+      top: 32px;
+      right: 12%;
+      left: 12%;
+      height: 2px;
+      background: linear-gradient(to left, var(--blue-light), var(--gold));
+      z-index: 0;
+    }
+
+    .step-card {
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .step-number {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, var(--blue-light), var(--blue-mid));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: var(--white);
+      margin: 0 auto 20px;
+      border: 4px solid var(--white);
+      box-shadow: 0 4px 16px rgba(37,99,235,.3);
+    }
+
+    .step-card h3 {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--blue-dark);
+      margin-bottom: 8px;
+    }
+
+    .step-card p {
+      font-size: 0.88rem;
+      color: var(--gray-600);
+    }
+
+    /* ══════════════════════════════
+       LEVELS
+    ══════════════════════════════ */
+    .levels { padding: 90px 0; background: var(--gray-50); }
+
+    .levels-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .level-card {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 28px 24px;
+      transition: all .3s;
+      cursor: pointer;
+    }
+
+    .level-card:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--blue-light);
+    }
+
+    .level-number {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--blue-light), var(--blue-mid));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--white);
+      font-size: 1.3rem;
+      font-weight: 900;
+      margin-bottom: 16px;
+    }
+
+    .level-card h3 {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--blue-dark);
+      margin-bottom: 6px;
+    }
+
+    .level-card p {
+      font-size: 0.88rem;
+      color: var(--gray-600);
+      margin-bottom: 16px;
+    }
+
+    .level-topics {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .topic-tag {
+      background: rgba(37,99,235,.08);
+      color: var(--blue-light);
+      border: 1px solid rgba(37,99,235,.15);
+      padding: 3px 10px;
+      border-radius: 50px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    /* ══════════════════════════════
+       PAYMENT
+    ══════════════════════════════ */
+    .payment { padding: 90px 0; background: var(--white); }
+
+    .payment-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+
+    .payment-methods {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin-top: 28px;
+    }
+
+    .payment-method {
+      background: var(--gray-50);
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all .2s;
+    }
+
+    .payment-method:hover {
+      border-color: var(--blue-light);
+      background: rgba(37,99,235,.04);
+    }
+
+    .payment-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+
+    .payment-method h4 { font-size: 0.9rem; font-weight: 700; color: var(--blue-dark); }
+    .payment-method p { font-size: 0.78rem; color: var(--gray-600); }
+
+    .payment-steps { list-style: none; }
+
+    .payment-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    .payment-step:last-child { border-bottom: none; }
+
+    .step-num {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--blue-light), var(--blue-mid));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--white);
+      font-size: 0.85rem;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .payment-step h4 { font-size: 0.95rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 3px; }
+    .payment-step p { font-size: 0.85rem; color: var(--gray-600); }
+
+    /* ══════════════════════════════
+       CTA
+    ══════════════════════════════ */
+    .cta {
+      padding: 90px 0;
+      background: linear-gradient(135deg, var(--blue-dark), var(--blue-mid));
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(245,158,11,.15) 0%, transparent 60%);
+    }
+
+    .cta-content { position: relative; z-index: 1; }
+
+    .cta h2 {
+      font-size: clamp(1.8rem, 3vw, 2.8rem);
+      font-weight: 900;
+      color: var(--white);
+      margin-bottom: 14px;
+    }
+
+    .cta h2 span { color: var(--gold); }
+
+    .cta p {
+      color: rgba(255,255,255,.75);
+      font-size: 1.05rem;
+      margin-bottom: 36px;
+    }
+
+    /* ══════════════════════════════
+       FOOTER
+    ══════════════════════════════ */
     footer {
-      background-color: var(--dark-color);
-      color: white;
-      text-align: center;
-      padding: 1rem 0;
+      background: var(--blue-dark);
+      color: rgba(255,255,255,.7);
+      padding: 60px 0 30px;
     }
 
-    /* Responsive Design */
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 48px;
+    }
+
+    .footer-brand p {
+      font-size: 0.88rem;
+      line-height: 1.8;
+      margin-top: 14px;
+      max-width: 280px;
+    }
+
+    .footer-col h4 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--white);
+      margin-bottom: 16px;
+    }
+
+    .footer-col ul { list-style: none; }
+
+    .footer-col ul li a {
+      color: rgba(255,255,255,.6);
+      font-size: 0.88rem;
+      display: block;
+      padding: 4px 0;
+      transition: color .2s;
+    }
+
+    .footer-col ul li a:hover { color: var(--gold-light); }
+
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,.1);
+      padding-top: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+
+    .social-links { display: flex; gap: 10px; }
+
+    .social-link {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: rgba(255,255,255,.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,.7);
+      transition: all .2s;
+    }
+
+    .social-link:hover {
+      background: var(--gold);
+      color: var(--blue-dark);
+    }
+
+    /* ══════════════════════════════
+       MODAL
+    ══════════════════════════════ */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10,22,40,.7);
+      z-index: 9999;
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal-box {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      padding: 36px;
+      width: 90%;
+      max-width: 480px;
+      position: relative;
+      animation: modalIn .3s ease;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: translateY(-24px) scale(.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: var(--gray-100);
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1rem;
+      color: var(--gray-600);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .2s;
+    }
+
+    .modal-close:hover { background: var(--gray-200); }
+
+    .modal-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--blue-dark);
+      margin-bottom: 6px;
+    }
+
+    .modal-subtitle {
+      font-size: 0.88rem;
+      color: var(--gray-600);
+      margin-bottom: 28px;
+    }
+
+    .auth-tabs {
+      display: flex;
+      border-bottom: 2px solid var(--gray-200);
+      margin-bottom: 24px;
+    }
+
+    .auth-tab {
+      padding: 10px 20px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--gray-600);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all .2s;
+    }
+
+    .auth-tab.active {
+      color: var(--blue-light);
+      border-color: var(--blue-light);
+    }
+
+    .auth-form { display: none; }
+    .auth-form.active { display: block; }
+
+    .form-group { margin-bottom: 18px; }
+
+    .form-group label {
+      display: block;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--gray-800);
+      margin-bottom: 6px;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 0.95rem;
+      color: var(--gray-800);
+      background: var(--white);
+      transition: border-color .2s;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--blue-light);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--blue-light), var(--blue-mid));
+      color: var(--white);
+      border: none;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .25s;
+      margin-top: 8px;
+    }
+
+    .btn-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(37,99,235,.35);
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 20px 0;
+      color: var(--gray-400);
+      font-size: 0.85rem;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--gray-200);
+    }
+
+    .social-auth { display: flex; gap: 10px; }
+
+    .btn-social {
+      flex: 1;
+      padding: 11px;
+      border-radius: var(--radius);
+      border: 1.5px solid var(--gray-200);
+      background: var(--white);
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all .2s;
+      color: var(--gray-800);
+    }
+
+    .btn-social:hover { background: var(--gray-50); border-color: var(--gray-400); }
+
+    /* ══════════════════════════════
+       RECEIPT MODAL
+    ══════════════════════════════ */
+    .receipt-steps {
+      counter-reset: step;
+      list-style: none;
+    }
+
+    .receipt-step {
+      display: flex;
+      gap: 14px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    .receipt-step:last-child { border-bottom: none; }
+
+    .receipt-step-num {
+      width: 28px;
+      height: 28px;
+      background: var(--blue-light);
+      border-radius: 50%;
+      color: white;
+      font-size: 0.8rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .receipt-step p { font-size: 0.88rem; color: var(--gray-600); line-height: 1.6; }
+    .receipt-step strong { color: var(--blue-dark); }
+
+    /* ══════════════════════════════
+       MOBILE NAV
+    ══════════════════════════════ */
+    .mobile-nav {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: var(--blue-dark);
+      z-index: 800;
+      padding: 80px 24px 40px;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .mobile-nav.open { display: flex; }
+
+    .mobile-nav a {
+      color: rgba(255,255,255,.85);
+      font-size: 1.1rem;
+      font-weight: 600;
+      padding: 14px 0;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+    }
+
+    .mobile-nav-close {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(255,255,255,.1);
+      border: none;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ══════════════════════════════
+       RESPONSIVE
+    ══════════════════════════════ */
+    @media (max-width: 1024px) {
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+      .steps-grid { grid-template-columns: repeat(2, 1fr); }
+      .steps-grid::before { display: none; }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+    }
+
     @media (max-width: 768px) {
-      .header-container {
-        flex-direction: column;
-        text-align: center;
-      }
-
-      header img {
-        margin-left: 0;
-        margin-bottom: 1rem;
-      }
-
-      .search-box {
-        margin-top: 1rem;
-      }
+      .header-nav { display: none; }
+      .hamburger { display: flex; }
+      .hero-grid { grid-template-columns: 1fr; gap: 40px; }
+      .hero-visual { display: none; }
+      .features-grid { grid-template-columns: 1fr; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .steps-grid { grid-template-columns: 1fr 1fr; }
+      .levels-grid { grid-template-columns: 1fr; }
+      .payment-grid { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr; }
+      .footer-bottom { flex-direction: column; gap: 14px; text-align: center; }
+      .hero-stats { flex-wrap: wrap; gap: 20px; }
     }
   </style>
 </head>
 <body>
-  <!-- Header -->
-  <header>
-    <div class="header-container">
-      <div class="logo-container">
-        <img src="assets/logo.png" alt="شعار منصة مسار التميز">
-        <div class="header-text">
-          <h1>منصة مسار التميز التعليمية</h1>
-          <p>نحو تعليم متميز لمستقبل مشرق</p>
-        </div>
+
+<!-- ══════ HEADER ══════ -->
+<header>
+  <div class="container header-inner">
+    <a href="index.html" class="logo">
+      <img src="assets/logo.png" alt="مسار التميز">
+      <div class="logo-text">
+        <h1>أكاديمية مسار التميز</h1>
+        <span>التعليم الثانوي في تونس</span>
       </div>
-      <div id="authButtons" class="auth-buttons">
-        <a href="#" class="btn btn-outline-light me-2" id="loginBtn">تسجيل الدخول</a>
-        <a href="#" class="btn btn-primary" id="signupBtn">إنشاء حساب</a>
+    </a>
+
+    <nav class="header-nav">
+      <a href="#about">عن المنصة</a>
+      <a href="#levels">المستويات</a>
+      <a href="#pricing">العروض</a>
+      <a href="#how">كيف تشترك</a>
+      <a href="contact.html">تواصل معنا</a>
+    </nav>
+
+    <div class="header-actions">
+      <div id="authButtons">
+        <button class="btn-login" id="loginBtn">تسجيل الدخول</button>
+        <button class="btn-signup" id="signupBtn">إنشاء حساب</button>
       </div>
-      <div id="userSection" class="user-dropdown" style="display: none;">
+      <div class="user-section" id="userSection">
         <div class="user-avatar" id="userAvatar">
           <i class="fas fa-user"></i>
         </div>
-        <div class="dropdown-content" id="dropdownMenu">
-          <a href="dashboard.html"><i class="fas fa-user-circle"></i> الملف الشخصي</a>
+        <div class="user-dropdown-menu" id="dropdownMenu">
+          <a href="dashboard.html"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a>
           <a href="courses.html"><i class="fas fa-book"></i> دوراتي</a>
-          <a href="#"><i class="fas fa-cog"></i> الإعدادات</a>
+          <div class="divider" style="margin:4px 0;height:1px;background:var(--gray-200)"></div>
           <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
         </div>
       </div>
+      <button class="hamburger" id="hamburger"><i class="fas fa-bars"></i></button>
     </div>
-  </header>
+  </div>
+</header>
 
-  <!-- Navigation -->
-  <nav class="navbar navbar-expand-lg navbar-light bg-light">
-    <div class="nav-container container">
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-        <span class="navbar-toggler-icon"></span>
+<!-- Mobile Nav -->
+<div class="mobile-nav" id="mobileNav">
+  <button class="mobile-nav-close" id="mobileNavClose"><i class="fas fa-times"></i></button>
+  <a href="#about">عن المنصة</a>
+  <a href="#levels">المستويات</a>
+  <a href="#pricing">العروض</a>
+  <a href="#how">كيف تشترك</a>
+  <a href="contact.html">تواصل معنا</a>
+</div>
+
+<!-- ══════ HERO ══════ -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <i class="fas fa-star"></i>
+          منصة تعليمية تونسية متخصصة
+        </div>
+        <h1>تعلّم <span>الرياضيات</span> مع أفضل المدرّسين</h1>
+        <p>حصص مباشرة وتسجيلات عالية الجودة للسنوات السابعة والثامنة والتاسعة أساسي. تعليم تفاعلي يضمن لك النجاح.</p>
+        <div class="hero-actions">
+          <button class="btn-hero-primary" onclick="document.getElementById('signupBtn').click()">
+            <i class="fas fa-rocket"></i>
+            ابدأ الآن مجاناً
+          </button>
+          <a href="#pricing" class="btn-hero-secondary">
+            <i class="fas fa-tags"></i>
+            اكتشف العروض
+          </a>
+        </div>
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <strong>+500</strong>
+            <span>طالب مسجّل</span>
+          </div>
+          <div class="hero-stat">
+            <strong>3</strong>
+            <span>مستويات دراسية</span>
+          </div>
+          <div class="hero-stat">
+            <strong>5</strong>
+            <span>مدرّسون متخصصون</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-visual">
+        <div class="hero-card">
+          <div class="hero-card-title">
+            <i class="fas fa-graduation-cap"></i>
+            الدورات المتاحة
+          </div>
+          <ul class="subject-list">
+            <li class="subject-item">
+              <div class="subject-info">
+                <div class="subject-icon" style="background:rgba(245,158,11,.2)">➗</div>
+                <div>
+                  <div class="subject-name">الرياضيات</div>
+                  <div class="subject-level">السنة السابعة أساسي</div>
+                </div>
+              </div>
+              <span class="badge-live">متاح</span>
+            </li>
+            <li class="subject-item">
+              <div class="subject-info">
+                <div class="subject-icon" style="background:rgba(16,185,129,.2)">➗</div>
+                <div>
+                  <div class="subject-name">الرياضيات</div>
+                  <div class="subject-level">السنة الثامنة أساسي</div>
+                </div>
+              </div>
+              <span class="badge-live">متاح</span>
+            </li>
+            <li class="subject-item">
+              <div class="subject-info">
+                <div class="subject-icon" style="background:rgba(37,99,235,.2)">➗</div>
+                <div>
+                  <div class="subject-name">الرياضيات</div>
+                  <div class="subject-level">السنة التاسعة أساسي</div>
+                </div>
+              </div>
+              <span class="badge-new">جديد</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ WHY US ══════ -->
+<section class="why-us" id="about">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">لماذا مسار التميز؟</div>
+      <h2>التعليم الذي يصنع الفارق</h2>
+      <p>منصة تعليمية تونسية مبنية خصيصاً لاحتياجات الطلاب التونسيين</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-video"></i></div>
+        <h3>حصص مباشرة تفاعلية</h3>
+        <p>حصص مباشرة عبر Google Meet مع مدرسين متخصصين، تفاعل مباشر وإجابات فورية على أسئلتك.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-play-circle"></i></div>
+        <h3>تسجيلات عالية الجودة</h3>
+        <p>مشاهدة تسجيلات الدروس في أي وقت وأي مكان عبر قناة مسار التميز على YouTube.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-users"></i></div>
+        <h3>متابعة ولي الأمر</h3>
+        <p>نظام متكامل يتيح لولي الأمر متابعة تقدم أبنائه ومشاهدة نتائجهم بشكل مستمر.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-chalkboard-teacher"></i></div>
+        <h3>مدرسون متخصصون</h3>
+        <p>فريق من أفضل أساتذة الرياضيات في تونس، خبرة عالية ومنهج تدريسي محكم.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-mobile-alt"></i></div>
+        <h3>متاح على كل الأجهزة</h3>
+        <p>تصفح المنصة من هاتفك أو حاسوبك أو جهازك اللوحي بسهولة تامة.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+        <h3>تتبع التقدم</h3>
+        <p>لوحة تحكم شخصية تظهر لك تقدمك في كل مادة وتساعدك على التركيز على نقاط الضعف.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ LEVELS ══════ -->
+<section class="levels" id="levels">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">المستويات الدراسية</div>
+      <h2>ثلاثة مستويات — مادة واحدة متقنة</h2>
+      <p>نبدأ بالرياضيات ونوسّع تدريجياً لتشمل جميع المواد</p>
+    </div>
+    <div class="levels-grid">
+      <div class="level-card">
+        <div class="level-number">7</div>
+        <h3>السنة السابعة أساسي</h3>
+        <p>أسس الرياضيات ومفاهيمها الأولية بأسلوب تفاعلي ممتع</p>
+        <div class="level-topics">
+          <span class="topic-tag">الأعداد</span>
+          <span class="topic-tag">الهندسة</span>
+          <span class="topic-tag">القياس</span>
+          <span class="topic-tag">المعطيات</span>
+        </div>
+      </div>
+      <div class="level-card">
+        <div class="level-number">8</div>
+        <h3>السنة الثامنة أساسي</h3>
+        <p>تعمّق في الرياضيات والتحضير الجيد للمرحلة المتقدمة</p>
+        <div class="level-topics">
+          <span class="topic-tag">الجبر</span>
+          <span class="topic-tag">الهندسة</span>
+          <span class="topic-tag">الإحصاء</span>
+          <span class="topic-tag">الأعداد</span>
+        </div>
+      </div>
+      <div class="level-card">
+        <div class="level-number">9</div>
+        <h3>السنة التاسعة أساسي</h3>
+        <p>التحضير المكثف لمناظرة التاسعة مع مراجعة شاملة</p>
+        <div class="level-topics">
+          <span class="topic-tag">مناظرة</span>
+          <span class="topic-tag">مراجعة</span>
+          <span class="topic-tag">تمارين</span>
+          <span class="topic-tag">اختبارات</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ PRICING ══════ -->
+<section class="pricing" id="pricing">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">العروض والأسعار</div>
+      <h2>اختر العرض المناسب لك</h2>
+      <p>عرضان مرنان يناسبان جميع الاحتياجات بأسعار في متناول الجميع</p>
+    </div>
+    <div class="pricing-grid">
+
+      <!-- العرض الأول -->
+      <div class="pricing-card">
+        <div class="plan-name">عرض التسجيلات</div>
+        <div class="plan-desc">مشاهدة جميع الدروس المسجلة في أي وقت</div>
+        <div class="plan-price">
+          <span class="price-amount">50</span>
+          <span class="price-currency">د.ت</span>
+          <span class="price-period">/ سنوياً</span>
+        </div>
+        <ul class="plan-features">
+          <li><i class="fas fa-check"></i> مشاهدة جميع التسجيلات</li>
+          <li><i class="fas fa-check"></i> الرياضيات 7 + 8 + 9</li>
+          <li><i class="fas fa-check"></i> تحديثات مستمرة طوال السنة</li>
+          <li><i class="fas fa-check"></i> لوحة تحكم شخصية</li>
+          <li><i class="fas fa-check"></i> متابعة ولي الأمر</li>
+        </ul>
+        <button class="btn-plan btn-plan-outline" onclick="openReceiptModal('recordings')">
+          اشترك الآن
+        </button>
+      </div>
+
+      <!-- العرض الثاني -->
+      <div class="pricing-card featured">
+        <div class="popular-badge">الأكثر طلباً</div>
+        <div class="plan-name">عرض الحصص المباشرة</div>
+        <div class="plan-desc">8 حصص مباشرة مع مدرس متخصص + التسجيلات</div>
+        <div class="plan-price">
+          <span class="price-amount">40</span>
+          <span class="price-currency">د.ت</span>
+          <span class="price-period">/ 8 حصص</span>
+        </div>
+        <ul class="plan-features">
+          <li><i class="fas fa-check"></i> 8 حصص مباشرة عبر Google Meet</li>
+          <li><i class="fas fa-check"></i> مشاهدة التسجيلات مجاناً</li>
+          <li><i class="fas fa-check"></i> تفاعل مباشر مع المدرس</li>
+          <li><i class="fas fa-check"></i> تصحيح تمارين وواجبات</li>
+          <li><i class="fas fa-check"></i> متابعة مستمرة لولي الأمر</li>
+        </ul>
+        <button class="btn-plan btn-plan-gold" onclick="openReceiptModal('sessions')">
+          احجز حصصك الآن
+        </button>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════ HOW IT WORKS ══════ -->
+<section class="how-it-works" id="how">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">كيف تشترك؟</div>
+      <h2>4 خطوات بسيطة وأنت جاهز</h2>
+      <p>نظام اشتراك سهل وآمن بدون تعقيدات</p>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-number">1</div>
+        <h3>إنشاء حساب</h3>
+        <p>سجّل حسابك كطالب أو ولي أمر في دقيقة واحدة</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">2</div>
+        <h3>اختر العرض</h3>
+        <p>اختر بين عرض التسجيلات أو الحصص المباشرة</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">3</div>
+        <h3>ادفع وأرسل الوصل</h3>
+        <p>حوّل المبلغ عبر البنك أو البريد أو D17 وأرسل الوصل</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">4</div>
+        <h3>ابدأ التعلم</h3>
+        <p>يتم تفعيل حسابك خلال 24 ساعة وتبدأ رحلتك</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ PAYMENT ══════ -->
+<section class="payment" id="payment">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">طرق الدفع</div>
+      <h2>طرق دفع متعددة في متناولك</h2>
+      <p>اختر الطريقة الأنسب لك لإرسال وصل الخلاص</p>
+    </div>
+    <div class="payment-grid">
+      <div>
+        <div class="payment-methods">
+          <div class="payment-method">
+            <div class="payment-icon" style="background:rgba(37,99,235,.1)">🏦</div>
+            <div>
+              <h4>تحويل بنكي</h4>
+              <p>عبر أي بنك تونسي</p>
+            </div>
+          </div>
+          <div class="payment-method">
+            <div class="payment-icon" style="background:rgba(245,158,11,.1)">📮</div>
+            <div>
+              <h4>البريد التونسي</h4>
+              <p>تحويل بريدي مباشر</p>
+            </div>
+          </div>
+          <div class="payment-method">
+            <div class="payment-icon" style="background:rgba(16,185,129,.1)">📱</div>
+            <div>
+              <h4>تطبيق D17</h4>
+              <p>دفع إلكتروني سريع</p>
+            </div>
+          </div>
+          <div class="payment-method">
+            <div class="payment-icon" style="background:rgba(139,92,246,.1)">💳</div>
+            <div>
+              <h4>Carte eDinar</h4>
+              <p>بطاقة الدينار الإلكتروني</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3 style="font-size:1.2rem;font-weight:800;color:var(--blue-dark);margin-bottom:20px">
+          كيف ترسل وصل الخلاص؟
+        </h3>
+        <ol class="payment-steps">
+          <li class="payment-step">
+            <div class="step-num">1</div>
+            <div>
+              <h4>قم بعملية الدفع</h4>
+              <p>حوّل المبلغ عبر طريقة الدفع التي تناسبك واحتفظ بوصل الخلاص</p>
+            </div>
+          </li>
+          <li class="payment-step">
+            <div class="step-num">2</div>
+            <div>
+              <h4>سجّل دخولك للمنصة</h4>
+              <p>ادخل إلى حسابك على أكاديمية مسار التميز</p>
+            </div>
+          </li>
+          <li class="payment-step">
+            <div class="step-num">3</div>
+            <div>
+              <h4>أرسل صورة الوصل</h4>
+              <p>ارفع صورة وصل الخلاص عبر نموذج الاشتراك في لوحة التحكم</p>
+            </div>
+          </li>
+          <li class="payment-step">
+            <div class="step-num">4</div>
+            <div>
+              <h4>انتظر التفعيل</h4>
+              <p>يتم مراجعة وصلك وتفعيل اشتراكك خلال <strong>24 ساعة</strong> كحد أقصى</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ CTA ══════ -->
+<section class="cta">
+  <div class="container">
+    <div class="cta-content">
+      <h2>ابدأ رحلتك نحو <span>التميز</span> اليوم</h2>
+      <p>انضم لمئات الطلاب الذين يتعلمون مع أفضل المدرسين في تونس</p>
+      <button class="btn-hero-primary" onclick="document.getElementById('signupBtn').click()" style="margin:0 auto">
+        <i class="fas fa-user-plus"></i>
+        أنشئ حسابك الآن — مجاناً
       </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <div class="main-nav navbar-nav me-auto">
-          <a class="nav-link active" href="index.html">الرئيسية</a>
-          <a class="nav-link" href="#about">عن المنصة</a>
-          <a class="nav-link" href="#levels">المستويات</a>
-          <a class="nav-link" href="courses.html">الدورات</a>
-          <a class="nav-link" href="#teachers">المعلمون</a>
-          <a class="nav-link" href="contact.html">اتصل بنا</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ FOOTER ══════ -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="logo">
+          <img src="assets/logo.png" alt="مسار التميز" style="width:44px;height:44px">
+          <div class="logo-text">
+            <h1 style="font-size:1rem">أكاديمية مسار التميز</h1>
+          </div>
         </div>
-        <div class="search-box">
-          <input type="text" placeholder="ابحث عن دورات...">
-          <button><i class="fas fa-search"></i></button>
-        </div>
+        <p>منصة تعليمية تونسية متخصصة في تعليم الرياضيات للمرحلة الإعدادية. نحو تعليم متميز لمستقبل مشرق.</p>
+      </div>
+      <div class="footer-col">
+        <h4>روابط سريعة</h4>
+        <ul>
+          <li><a href="#about">عن المنصة</a></li>
+          <li><a href="#levels">المستويات</a></li>
+          <li><a href="#pricing">العروض</a></li>
+          <li><a href="#how">كيف تشترك</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>الدعم</h4>
+        <ul>
+          <li><a href="contact.html">تواصل معنا</a></li>
+          <li><a href="#">الأسئلة الشائعة</a></li>
+          <li><a href="#">سياسة الاستخدام</a></li>
+          <li><a href="#">سياسة الخصوصية</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>تواصل معنا</h4>
+        <ul>
+          <li><a href="https://masartamayoz.com" target="_blank">الموقع الرئيسي</a></li>
+          <li><a href="https://www.facebook.com/masartamayoz" target="_blank">فيسبوك</a></li>
+          <li><a href="https://www.youtube.com/@masartamayoz" target="_blank">يوتيوب</a></li>
+          <li><a href="https://t.me/masartamayoz" target="_blank">تيليغرام</a></li>
+        </ul>
       </div>
     </div>
-  </nav>
-
-  <!-- Main Content -->
-  <main>
-    <!-- Hero Section -->
-    <section class="hero">
-      <div class="container">
-        <h1>مرحبًا بكم في مسار التميز</h1>
-        <p class="lead">منصة تعليمية تونسية لتقديم دورات تفاعلية عالية الجودة</p>
-        <a href="courses.html" class="btn btn-light btn-lg">استكشف الدورات</a>
-      </div>
-    </section>
-
-    <!-- Why Us Section -->
-    <section class="why-us py-5" id="about">
-      <div class="container">
-        <h2 class="text-center mb-4">لماذا مسار التميز؟</h2>
-        <div class="row">
-          <div class="col-md-4 text-center">
-            <h4>دورات تفاعلية</h4>
-            <p>تعلم من خلال فيديوهات وتمارين عملية بمساعدة مدربين خبراء.</p>
-          </div>
-          <div class="col-md-4 text-center">
-            <h4>دعم مستمر</h4>
-            <p>فريق دعم متاح على مدار الساعة للإجابة على استفساراتك.</p>
-          </div>
-          <div class="col-md-4 text-center">
-            <h4>شهادات معتمدة</h4>
-            <p>احصل على شهادات تثبت مهاراتك لتعزيز مسيرتك المهنية.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Featured Courses -->
-    <section class="courses bg-light py-5" id="courses">
-      <div class="container">
-        <h2 class="text-center mb-4">دوراتنا المميزة</h2>
-        <div class="row">
-          <div class="col-md-4 mb-4">
-            <div class="card">
-              <img src="https://via.placeholder.com/300x200" class="card-img-top" alt="Course 1">
-              <div class="card-body">
-                <h5 class="card-title">دورة البرمجة بلغة بايثون</h5>
-                <p class="card-text">تعلم أساسيات البرمجة باستخدام بايثون.</p>
-                <a href="courses.html" class="btn btn-primary">التفاصيل</a>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4 mb-4">
-            <div class="card">
-              <img src="https://via.placeholder.com/300x200" class="card-img-top" alt="Course 2">
-              <div class="card-body">
-                <h5 class="card-title">دورة الرياضيات المتقدمة</h5>
-                <p class="card-text">إتقان الرياضيات للتحضير للامتحانات الوطنية.</p>
-                <a href="courses.html" class="btn btn-primary">التفاصيل</a>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4 mb-4">
-            <div class="card">
-              <img src="https://via.placeholder.com/300x200" class="card-img-top" alt="Course 3">
-              <div class="card-body">
-                <h5 class="card-title">دورة اللغة الإنجليزية</h5>
-                <p class="card-text">تحسين مهاراتك في اللغة الإنجليزية بسهولة.</p>
-                <a href="courses.html" class="btn btn-primary">التفاصيل</a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Pricing Section -->
-    <section class="pricing py-5" id="levels">
-      <div class="container">
-        <h2 class="text-center mb-4">خطط الأسعار</h2>
-        <div class="row" id="pricingContent">
-          <!-- الأسعار ستُعرض هنا ديناميكيًا -->
-        </div>
-      </div>
-    </section>
-
-    <!-- Teachers Section -->
-    <section class="teachers py-5 bg-light" id="teachers">
-      <div class="container">
-        <h2 class="text-center mb-4">معلمونا المتميزون</h2>
-        <div class="row">
-          <div class="col-md-4 mb-4">
-            <div class="card text-center">
-              <img src="https://via.placeholder.com/150" class="card-img-top rounded-circle mx-auto mt-3" style="width: 150px; height: 150px;" alt="Teacher 1">
-              <div class="card-body">
-                <h5 class="card-title">أ. محمد علي</h5>
-                <p class="card-text">خبير في البرمجة وتطوير الويب</p>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4 mb-4">
-            <div class="card text-center">
-              <img src="https://via.placeholder.com/150" class="card-img-top rounded-circle mx-auto mt-3" style="width: 150px; height: 150px;" alt="Teacher 2">
-              <div class="card-body">
-                <h5 class="card-title">أ. فاطمة بنت الحسن</h5>
-                <p class="card-text">مدربة رياضيات معتمدة</p>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4 mb-4">
-            <div class="card text-center">
-              <img src="https://via.placeholder.com/150" class="card-img-top rounded-circle mx-auto mt-3" style="width: 150px; height: 150px;" alt="Teacher 3">
-              <div class="card-body">
-                <h5 class="card-title">أ. سميرة سالم</h5>
-                <p class="card-text">مدربة لغة إنجليزية محترفة</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Auth Modal -->
-    <div id="authModal" class="modal">
-      <div class="modal-content">
-        <span class="close-btn">×</span>
-        <div class="auth-tabs">
-          <div class="auth-tab active" id="loginTab">تسجيل الدخول</div>
-          <div class="auth-tab" id="registerTab">إنشاء حساب</div>
-        </div>
-
-        <!-- Login Form -->
-        <div id="loginForm" class="auth-form active">
-          <form id="loginUserForm">
-            <div class="form-group">
-              <label for="loginEmail">البريد الإلكتروني</label>
-              <input type="email" id="loginEmail" class="form-control" required>
-            </div>
-            <div class="form-group">
-              <label for="loginPassword">كلمة المرور</label>
-              <input type="password" id="loginPassword" class="form-control" required>
-            </div>
-            <button type="submit" class="btn btn-primary">تسجيل الدخول</button>
-          </form>
-          <div class="social-auth">
-            <p>أو سجل الدخول باستخدام</p>
-            <button class="social-btn google-btn" id="googleLogin">
-              <i class="fab fa-google"></i> جوجل
-            </button>
-            <button class="social-btn facebook-btn" id="facebookLogin">
-              <i class="fab fa-facebook-f"></i> فيسبوك
-            </button>
-          </div>
-        </div>
-
-        <!-- Register Form -->
-        <div id="registerForm" class="auth-form">
-          <form id="registerUserForm">
-            <div class="form-group">
-              <label for="registerName">الاسم الكامل</label>
-              <input type="text" id="registerName" class="form-control" required>
-            </div>
-            <div class="form-group">
-              <label for="registerEmail">البريد الإلكتروني</label>
-              <input type="email" id="registerEmail" class="form-control" required>
-            </div>
-            <div class="form-group">
-              <label for="registerPassword">كلمة المرور</label>
-              <input type="password" id="registerPassword" class="form-control" required minlength="6">
-            </div>
-            <div class="form-group">
-              <label for="registerConfirmPassword">تأكيد كلمة المرور</label>
-              <input type="password" id="registerConfirmPassword" class="form-control" required>
-            </div>
-            <div class="form-group">
-              <label for="userType">نوع الحساب</label>
-              <select id="userType" class="form-control" required>
-                <option value="">اختر نوع الحساب</option>
-                <option value="student">طالب</option>
-                <option value="teacher">معلم</option>
-                <option value="parent">ولي أمر</option>
-              </select>
-            </div>
-            <button type="submit" class="btn btn-primary">إنشاء حساب</button>
-          </form>
-        </div>
+    <div class="footer-bottom">
+      <span>© 2026 أكاديمية مسار التميز. جميع الحقوق محفوظة.</span>
+      <div class="social-links">
+        <a href="https://www.facebook.com/masartamayoz" target="_blank" class="social-link"><i class="fab fa-facebook-f"></i></a>
+        <a href="https://www.youtube.com/@masartamayoz" target="_blank" class="social-link"><i class="fab fa-youtube"></i></a>
+        <a href="https://t.me/masartamayoz" target="_blank" class="social-link"><i class="fab fa-telegram-plane"></i></a>
+        <a href="https://twitter.com/masartamayoz" target="_blank" class="social-link"><i class="fab fa-twitter"></i></a>
       </div>
     </div>
-  </main>
+  </div>
+</footer>
 
-  <!-- Footer -->
-  <footer>
-    <div class="container">
-      <p>© 2025 مسار التميز. جميع الحقوق محفوظة.</p>
+<!-- ══════ AUTH MODAL ══════ -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal-box">
+    <button class="modal-close" id="modalClose"><i class="fas fa-times"></i></button>
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="loginTab">تسجيل الدخول</div>
+      <div class="auth-tab" id="registerTab">إنشاء حساب</div>
     </div>
-  </footer>
 
-  <!-- Firebase SDK -->
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js';
-    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup, updateProfile } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-auth.js';
-    import { getFirestore, collection, getDocs, doc, setDoc, getDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js';
+    <!-- Login Form -->
+    <div class="auth-form active" id="loginForm">
+      <form id="loginUserForm">
+        <div class="form-group">
+          <label>البريد الإلكتروني</label>
+          <input type="email" id="loginEmail" class="form-control" required placeholder="example@email.com">
+        </div>
+        <div class="form-group">
+          <label>كلمة المرور</label>
+          <input type="password" id="loginPassword" class="form-control" required placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn-submit">تسجيل الدخول</button>
+      </form>
+      <div class="divider">أو</div>
+      <div class="social-auth">
+        <button class="btn-social" id="googleLogin">
+          <i class="fab fa-google" style="color:#DB4437"></i> جوجل
+        </button>
+      </div>
+    </div>
 
-    // Firebase configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyD2jKFMjuy462JPxOJ8vOk0DJtmUyAqNvc",
-      authDomain: "masartamayoz-682af.firebaseapp.com",
-      projectId: "masartamayoz-682af",
-      storageBucket: "masartamayoz-682af.appspot.com",
-      messagingSenderId: "527464088229",
-      appId: "1:527464088229:web:2575dd046f6379f8c5034c"
-    };
+    <!-- Register Form -->
+    <div class="auth-form" id="registerForm">
+      <form id="registerUserForm">
+        <div class="form-group">
+          <label>الاسم الكامل</label>
+          <input type="text" id="registerName" class="form-control" required placeholder="أدخل اسمك الكامل">
+        </div>
+        <div class="form-group">
+          <label>البريد الإلكتروني</label>
+          <input type="email" id="registerEmail" class="form-control" required placeholder="example@email.com">
+        </div>
+        <div class="form-group">
+          <label>كلمة المرور</label>
+          <input type="password" id="registerPassword" class="form-control" required placeholder="••••••••" minlength="6">
+        </div>
+        <div class="form-group">
+          <label>تأكيد كلمة المرور</label>
+          <input type="password" id="registerConfirmPassword" class="form-control" required placeholder="••••••••">
+        </div>
+        <div class="form-group">
+          <label>نوع الحساب</label>
+          <select id="userType" class="form-control" required>
+            <option value="">اختر نوع الحساب</option>
+            <option value="student">تلميذ</option>
+            <option value="parent">ولي أمر</option>
+          </select>
+        </div>
+        <button type="submit" class="btn-submit">إنشاء الحساب</button>
+      </form>
+    </div>
+  </div>
+</div>
 
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+<!-- ══════ RECEIPT MODAL ══════ -->
+<div class="modal-overlay" id="receiptModal">
+  <div class="modal-box">
+    <button class="modal-close" id="receiptModalClose"><i class="fas fa-times"></i></button>
+    <div class="modal-title">إرسال وصل الخلاص</div>
+    <div class="modal-subtitle" id="receiptPlanInfo">عرض التسجيلات — 50 دينار سنوياً</div>
 
-    // DOM Elements
-    const authModal = document.getElementById('authModal');
-    const loginBtn = document.getElementById('loginBtn');
-    const signupBtn = document.getElementById('signupBtn');
-    const closeBtn = document.querySelector('.close-btn');
-    const loginTab = document.getElementById('loginTab');
-    const registerTab = document.getElementById('registerTab');
-    const loginForm = document.getElementById('loginForm');
-    const registerForm = document.getElementById('registerForm');
-    const authButtons = document.getElementById('authButtons');
-    const userSection = document.getElementById('userSection');
-    const userAvatar = document.getElementById('userAvatar');
-    const dropdownMenu = document.getElementById('dropdownMenu');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const googleLogin = document.getElementById('googleLogin');
-    const facebookLogin = document.getElementById('facebookLogin');
-    const loginUserForm = document.getElementById('loginUserForm');
-    const registerUserForm = document.getElementById('registerUserForm');
-    const pricingContent = document.getElementById('pricingContent');
+    <ol class="receipt-steps">
+      <li class="receipt-step">
+        <div class="receipt-step-num">1</div>
+        <p>قم بتحويل المبلغ عبر <strong>البنك أو البريد التونسي أو تطبيق D17 أو Carte eDinar</strong></p>
+      </li>
+      <li class="receipt-step">
+        <div class="receipt-step-num">2</div>
+        <p>احتفظ بصورة وصل الخلاص وتأكد من وضوحها</p>
+      </li>
+      <li class="receipt-step">
+        <div class="receipt-step-num">3</div>
+        <p>أرسل الوصل عبر النموذج أدناه مع ذكر اسمك الكامل ونوع الاشتراك</p>
+      </li>
+      <li class="receipt-step">
+        <div class="receipt-step-num">4</div>
+        <p>سيتم تفعيل حسابك خلال <strong>24 ساعة</strong> من استلام الوصل</p>
+      </li>
+    </ol>
 
-    // Modal functionality
-    function openModal(formType) {
-      authModal.style.display = 'block';
-      if (formType === 'login') {
-        loginTab.classList.add('active');
-        registerTab.classList.remove('active');
-        loginForm.classList.add('active');
-        registerForm.classList.remove('active');
-      } else {
-        loginTab.classList.remove('active');
-        registerTab.classList.add('active');
-        loginForm.classList.remove('active');
-        registerForm.classList.add('active');
-      }
+    <form id="receiptForm" style="margin-top:20px">
+      <div class="form-group">
+        <label>الاسم الكامل</label>
+        <input type="text" id="receiptName" class="form-control" required placeholder="أدخل اسمك الكامل">
+      </div>
+      <div class="form-group">
+        <label>البريد الإلكتروني</label>
+        <input type="email" id="receiptEmail" class="form-control" required placeholder="example@email.com">
+      </div>
+      <div class="form-group">
+        <label>صورة وصل الخلاص</label>
+        <input type="file" id="receiptFile" class="form-control" required accept="image/*,.pdf">
+      </div>
+      <div class="form-group">
+        <label>ملاحظات (اختياري)</label>
+        <textarea id="receiptNotes" class="form-control" rows="2" placeholder="أي معلومات إضافية..."></textarea>
+      </div>
+      <button type="submit" class="btn-submit">
+        <i class="fas fa-paper-plane"></i> إرسال الوصل
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ══════ FIREBASE + JS ══════ -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js';
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+           signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup,
+           updateProfile } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-auth.js';
+  import { getFirestore, doc, setDoc, getDoc, collection, addDoc,
+           serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js';
+  import { getStorage, ref, uploadBytes, getDownloadURL }
+           from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-storage.js';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyD2jKFMjuy462JPxOJ8vOk0DJtmUyAqNvc",
+    authDomain: "masartamayoz-682af.firebaseapp.com",
+    projectId: "masartamayoz-682af",
+    storageBucket: "masartamayoz-682af.appspot.com",
+    messagingSenderId: "527464088229",
+    appId: "1:527464088229:web:2575dd046f6379f8c5034c"
+  };
+
+  const app      = initializeApp(firebaseConfig);
+  const auth     = getAuth(app);
+  const db       = getFirestore(app);
+  const storage  = getStorage(app);
+
+  // ── DOM refs ──
+  const authModal       = document.getElementById('authModal');
+  const receiptModal    = document.getElementById('receiptModal');
+  const loginBtn        = document.getElementById('loginBtn');
+  const signupBtn       = document.getElementById('signupBtn');
+  const modalClose      = document.getElementById('modalClose');
+  const receiptClose    = document.getElementById('receiptModalClose');
+  const loginTab        = document.getElementById('loginTab');
+  const registerTab     = document.getElementById('registerTab');
+  const loginForm       = document.getElementById('loginForm');
+  const registerForm    = document.getElementById('registerForm');
+  const authButtons     = document.getElementById('authButtons');
+  const userSection     = document.getElementById('userSection');
+  const userAvatar      = document.getElementById('userAvatar');
+  const dropdownMenu    = document.getElementById('dropdownMenu');
+  const logoutBtn       = document.getElementById('logoutBtn');
+  const hamburger       = document.getElementById('hamburger');
+  const mobileNav       = document.getElementById('mobileNav');
+  const mobileNavClose  = document.getElementById('mobileNavClose');
+
+  // ── Modal helpers ──
+  function openModal(tab = 'login') {
+    authModal.classList.add('open');
+    if (tab === 'login') {
+      loginTab.classList.add('active'); registerTab.classList.remove('active');
+      loginForm.classList.add('active'); registerForm.classList.remove('active');
+    } else {
+      registerTab.classList.add('active'); loginTab.classList.remove('active');
+      registerForm.classList.add('active'); loginForm.classList.remove('active');
     }
+  }
 
-    function closeModal() {
-      authModal.style.display = 'none';
+  function closeModal() { authModal.classList.remove('open'); }
+
+  loginBtn.addEventListener('click', () => openModal('login'));
+  signupBtn.addEventListener('click', () => openModal('register'));
+  modalClose.addEventListener('click', closeModal);
+  authModal.addEventListener('click', e => { if (e.target === authModal) closeModal(); });
+
+  loginTab.addEventListener('click', () => openModal('login'));
+  registerTab.addEventListener('click', () => openModal('register'));
+
+  // ── Receipt modal ──
+  window.openReceiptModal = function(plan) {
+    const info = document.getElementById('receiptPlanInfo');
+    info.textContent = plan === 'sessions'
+      ? 'عرض الحصص المباشرة — 40 دينار / 8 حصص'
+      : 'عرض التسجيلات — 50 دينار سنوياً';
+    receiptModal.classList.add('open');
+  };
+
+  receiptClose.addEventListener('click', () => receiptModal.classList.remove('open'));
+  receiptModal.addEventListener('click', e => { if (e.target === receiptModal) receiptModal.classList.remove('open'); });
+
+  // ── Mobile nav ──
+  hamburger.addEventListener('click', () => mobileNav.classList.add('open'));
+  mobileNavClose.addEventListener('click', () => mobileNav.classList.remove('open'));
+
+  // ── Auth state ──
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      authButtons.style.display = 'none';
+      userSection.style.display = 'block';
+      const initial = (user.displayName || user.email).charAt(0).toUpperCase();
+      userAvatar.innerHTML = user.photoURL
+        ? `<img src="${user.photoURL}" alt="avatar">`
+        : initial;
+    } else {
+      authButtons.style.display = 'flex';
+      userSection.style.display = 'none';
     }
+  });
 
-    // Event Listeners
-    loginBtn.addEventListener('click', () => openModal('login'));
-    signupBtn.addEventListener('click', () => openModal('register'));
-    closeBtn.addEventListener('click', closeModal);
-    loginTab.addEventListener('click', () => {
-      loginTab.classList.add('active');
-      registerTab.classList.remove('active');
-      loginForm.classList.add('active');
-      registerForm.classList.remove('active');
-    });
-    registerTab.addEventListener('click', () => {
-      loginTab.classList.remove('active');
-      registerTab.classList.add('active');
-      loginForm.classList.remove('active');
-      registerForm.classList.add('active');
-    });
-    window.addEventListener('click', (e) => {
-      if (e.target === authModal) closeModal();
-    });
+  // ── Dropdown ──
+  userAvatar.addEventListener('click', () => dropdownMenu.classList.toggle('open'));
+  document.addEventListener('click', e => {
+    if (!userAvatar.contains(e.target)) dropdownMenu.classList.remove('open');
+  });
 
-    // User dropdown
-    userAvatar.addEventListener('click', () => {
-      dropdownMenu.classList.toggle('show');
-    });
+  // ── Login ──
+  document.getElementById('loginUserForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const email    = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      closeModal();
+      window.location.href = 'dashboard.html';
+    } catch (err) {
+      alert('خطأ في تسجيل الدخول: ' + err.message);
+    }
+  });
 
-    window.addEventListener('click', (e) => {
-      if (!e.target.matches('.user-avatar') && !e.target.closest('.user-avatar')) {
-        if (dropdownMenu.classList.contains('show')) {
-          dropdownMenu.classList.remove('show');
-        }
-      }
-    });
+  // ── Register ──
+  document.getElementById('registerUserForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const name     = document.getElementById('registerName').value;
+    const email    = document.getElementById('registerEmail').value;
+    const password = document.getElementById('registerPassword').value;
+    const confirm  = document.getElementById('registerConfirmPassword').value;
+    const userType = document.getElementById('userType').value;
 
-    // Auth State Listener
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        authButtons.style.display = 'none';
-        userSection.style.display = 'block';
-        if (user.photoURL) {
-          userAvatar.innerHTML = `<img src="${user.photoURL}" alt="User Avatar" style="width:100%; border-radius:50%;">`;
-        } else {
-          const userInitial = user.displayName ? user.displayName.charAt(0) : user.email.charAt(0);
-          userAvatar.textContent = userInitial.toUpperCase();
-        }
-        loadPricing();
-      } else {
-        authButtons.style.display = 'block';
-        userSection.style.display = 'none';
-        pricingContent.innerHTML = '<p class="text-center">يرجى تسجيل الدخول لعرض الخطط.</p>';
-      }
-    });
+    if (password !== confirm) { alert('كلمة المرور غير متطابقة!'); return; }
 
-    // Login with Email/Password
-    loginUserForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const email = document.getElementById('loginEmail').value;
-      const password = document.getElementById('loginPassword').value;
-      signInWithEmailAndPassword(auth, email, password)
-        .then(() => {
-          closeModal();
-          loginUserForm.reset();
-        })
-        .catch((error) => {
-          alert(error.message);
-        });
-    });
+    try {
+      const { user } = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(user, { displayName: name });
+      await setDoc(doc(db, 'users', user.uid), {
+        name, email, userType,
+        subscriptionStatus: 'pending',
+        createdAt: serverTimestamp()
+      });
+      closeModal();
+      window.location.href = 'dashboard.html';
+    } catch (err) {
+      alert('خطأ في إنشاء الحساب: ' + err.message);
+    }
+  });
 
-    // Register new user
-    registerUserForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const email = document.getElementById('registerEmail').value;
-      const password = document.getElementById('registerPassword').value;
-      const name = document.getElementById('registerName').value;
-      const userType = document.getElementById('userType').value;
-      const confirmPassword = document.getElementById('registerConfirmPassword').value;
-
-      if (password !== confirmPassword) {
-        alert('كلمة المرور غير متطابقة!');
-        return;
-      }
-
-      createUserWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
-          const user = userCredential.user;
-          return Promise.all([
-            updateProfile(user, { displayName: name }),
-            setDoc(doc(db, 'users', user.uid), {
-              name,
-              email,
-              userType,
-              createdAt: serverTimestamp()
-            })
-          ]);
-        })
-        .then(() => {
-          closeModal();
-          registerUserForm.reset();
-        })
-        .catch((error) => {
-          alert(error.message);
-        });
-    });
-
-    // Google Sign-In
-    googleLogin.addEventListener('click', () => {
+  // ── Google login ──
+  document.getElementById('googleLogin').addEventListener('click', async () => {
+    try {
       const provider = new GoogleAuthProvider();
-      signInWithPopup(auth, provider)
-        .then(() => {
-          closeModal();
-        })
-        .catch((error) => {
-          alert(error.message);
-        });
-    });
-
-    // Facebook Sign-In
-    facebookLogin.addEventListener('click', () => {
-      const provider = new FacebookAuthProvider();
-      signInWithPopup(auth, provider)
-        .then(() => {
-          closeModal();
-        })
-        .catch((error) => {
-          alert(error.message);
-        });
-    });
-
-    // Logout
-    logoutBtn.addEventListener('click', () => {
-      signOut(auth)
-        .then(() => {
-          // Sign-out successful
-        })
-        .catch((error) => {
-          alert(error.message);
-        });
-    });
-
-    // Load Pricing from Firestore
-    async function loadPricing() {
-      const querySnapshot = await getDocs(collection(db, 'pricing'));
-      let content = '';
-
-      if (querySnapshot.empty) {
-        content = '<p class="text-center">لا توجد خطط متاحة حاليًا.</p>';
-      } else {
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          content += `
-            <div class="col-md-4 mb-4">
-              <div class="card text-center">
-                <div class="card-header">
-                  <h4>${data.title}</h4>
-                </div>
-                <div class="card-body">
-                  <h3>${data.price} د.ت/شهر</h3>
-                  <ul class="list-unstyled">
-                    ${data.features.map(feature => `<li>${feature}</li>`).join('')}
-                  </ul>
-                  <a href="dashboard.html" class="btn btn-primary">اشترك الآن</a>
-                </div>
-              </div>
-            </div>
-          `;
+      const { user } = await signInWithPopup(auth, provider);
+      const userRef = doc(db, 'users', user.uid);
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) {
+        await setDoc(userRef, {
+          name: user.displayName,
+          email: user.email,
+          userType: 'student',
+          subscriptionStatus: 'pending',
+          createdAt: serverTimestamp()
         });
       }
-
-      pricingContent.innerHTML = content;
+      closeModal();
+      window.location.href = 'dashboard.html';
+    } catch (err) {
+      alert('خطأ: ' + err.message);
     }
+  });
 
-    // Bootstrap JS
-    import 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js';
-  </script>
+  // ── Logout ──
+  logoutBtn.addEventListener('click', async () => {
+    await signOut(auth);
+    window.location.href = 'index.html';
+  });
+
+  // ── Receipt form ──
+  document.getElementById('receiptForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const user = auth.currentUser;
+    if (!user) { alert('يجب تسجيل الدخول أولاً!'); openModal('login'); return; }
+
+    const name     = document.getElementById('receiptName').value;
+    const email    = document.getElementById('receiptEmail').value;
+    const file     = document.getElementById('receiptFile').files[0];
+    const notes    = document.getElementById('receiptNotes').value;
+    const planInfo = document.getElementById('receiptPlanInfo').textContent;
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'جاري الإرسال...';
+
+    try {
+      // Upload receipt image to Firebase Storage
+      const fileRef = ref(storage, `receipts/${user.uid}_${Date.now()}_${file.name}`);
+      await uploadBytes(fileRef, file);
+      const fileURL = await getDownloadURL(fileRef);
+
+      // Save to Firestore
+      await addDoc(collection(db, 'receipts'), {
+        userId: user.uid,
+        name, email, notes,
+        plan: planInfo,
+        receiptURL: fileURL,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
+
+      alert('✅ تم إرسال وصل الخلاص بنجاح! سيتم تفعيل حسابك خلال 24 ساعة.');
+      receiptModal.classList.remove('open');
+      e.target.reset();
+    } catch (err) {
+      alert('خطأ في الإرسال: ' + err.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال الوصل';
+    }
+  });
+</script>
+
+</body>
+</html>
