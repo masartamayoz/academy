@@ -680,14 +680,14 @@
       const { initializeApp } = await import('https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js');
       const { getFirestore, addDoc, collection, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js');
 
-      const app = initializeApp({
-        apiKey: "AIzaSyD2jKFMjuy462JPxOJ8vOk0DJtmUyAqNvc",
-        authDomain: "masartamayoz-682af.firebaseapp.com",
-        projectId: "masartamayoz-682af",
-        storageBucket: "masartamayoz-682af.appspot.com",
-        messagingSenderId: "527464088229",
-        appId: "1:527464088229:web:2575dd046f6379f8c5034c"
-      }, 'contact-app');
+     const firebaseConfig = {
+  apiKey: "AIzaSyAF_ktwHXPw6gDkoolCI77XeB_NGHTmAFA",
+  authDomain: "masartamayoz.firebaseapp.com",
+  projectId: "masartamayoz",
+  storageBucket: "masartamayoz.firebasestorage.app",
+  messagingSenderId: "589955939618",
+  appId: "1:589955939618:web:728ddeb7027b2becd1f97b"
+};
 
       const db = getFirestore(app);
       await addDoc(collection(db, 'contacts'), {
