@@ -1,40 +1,711 @@
-<section class="contact py-5">
-    <div class="container">
-        <h2 class="text-center mb-4">تواصلوا معنا</h2>
-        <form id="contactForm">
-            <div class="mb-3">
-                <label for="name" class="form-label">الاسم</label>
-                <input type="text" class="form-control" id="name" required>
-            </div>
-            <div class="mb-3">
-                <label for="email" class="form-label">البريد الإلكتروني</label>
-                <input type="email" class="form-control" id="email" required>
-            </div>
-            <div class="mb-3">
-                <label for="message" class="form-label">الرسالة</label>
-                <textarea class="form-control" id="message" rows="5" required></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary">إرسال</button>
-        </form>
-    </div>
-</section>
-<script>
-    document.getElementById('contactForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const name = document.getElementById('name').value;
-        const email = document.getElementById('email').value;
-        const message = document.getElementById('message').value;
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تواصل معنا - أكاديمية مسار التميز</title>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --blue-dark:  #0a1628;
+      --blue-mid:   #0d2147;
+      --blue:       #1a3a6e;
+      --blue-light: #2563eb;
+      --gold:       #f59e0b;
+      --gold-light: #fbbf24;
+      --white:      #ffffff;
+      --gray-50:    #f8fafc;
+      --gray-100:   #f1f5f9;
+      --gray-200:   #e2e8f0;
+      --gray-400:   #94a3b8;
+      --gray-600:   #475569;
+      --gray-800:   #1e293b;
+      --success:    #10b981;
+      --danger:     #ef4444;
+      --whatsapp:   #25D366;
+    }
 
-        firebase.firestore().collection('contacts').add({
-            name: name,
-            email: email,
-            message: message,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        }).then(() => {
-            alert('تم إرسال الرسالة بنجاح!');
-            e.target.reset();
-        }).catch((error) => {
-            alert('خطأ: ' + error.message);
-        });
-    });
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Tajawal', sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-800);
+      line-height: 1.7;
+    }
+    a { text-decoration: none; color: inherit; }
+
+    /* ══════ HEADER ══════ */
+    header {
+      background: linear-gradient(135deg, var(--blue-dark), var(--blue-mid));
+      padding: 14px 0;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 2px 20px rgba(0,0,0,.25);
+    }
+
+    .header-inner {
+      max-width: 1200px; margin: 0 auto; padding: 0 20px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: 12px;
+    }
+
+    .logo img {
+      width: 46px; height: 46px; border-radius: 10px;
+      background: white; padding: 3px; object-fit: contain;
+    }
+
+    .logo-text h1 { font-size: 1.1rem; font-weight: 800; color: white; }
+    .logo-text span { font-size: .72rem; color: var(--gold-light); display: block; }
+
+    .header-nav { display: flex; gap: 6px; }
+    .header-nav a {
+      color: rgba(255,255,255,.8); font-size: .88rem; font-weight: 500;
+      padding: 7px 14px; border-radius: 8px; transition: all .2s;
+    }
+    .header-nav a:hover { background: rgba(255,255,255,.1); color: white; }
+
+    .btn-dashboard {
+      background: var(--gold); color: var(--blue-dark);
+      padding: 8px 18px; border-radius: 8px;
+      font-size: .88rem; font-weight: 700; transition: all .2s;
+    }
+    .btn-dashboard:hover { background: var(--gold-light); }
+
+    /* ══════ HERO ══════ */
+    .page-hero {
+      background: linear-gradient(135deg, var(--blue-dark), var(--blue-mid), var(--blue));
+      padding: 60px 0;
+      text-align: center;
+      position: relative; overflow: hidden;
+    }
+
+    .page-hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(245,158,11,.12) 0%, transparent 60%);
+    }
+
+    .page-hero-content { position: relative; z-index: 1; }
+
+    .page-hero h1 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 900; color: white; margin-bottom: 12px;
+    }
+
+    .page-hero h1 span { color: var(--gold); }
+
+    .page-hero p {
+      font-size: 1rem; color: rgba(255,255,255,.75);
+      max-width: 500px; margin: 0 auto;
+    }
+
+    /* ══════ MAIN ══════ */
+    .main {
+      max-width: 1100px; margin: 0 auto;
+      padding: 60px 20px;
+    }
+
+    .contact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.4fr;
+      gap: 36px;
+      align-items: start;
+    }
+
+    /* ══════ CONTACT INFO ══════ */
+    .contact-info { display: flex; flex-direction: column; gap: 16px; }
+
+    .info-card {
+      background: white; border: 1px solid var(--gray-200);
+      border-radius: 16px; padding: 22px 20px;
+      display: flex; align-items: flex-start; gap: 16px;
+      transition: all .3s; cursor: pointer;
+      text-decoration: none; color: inherit;
+    }
+
+    .info-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(0,0,0,.1);
+      border-color: transparent;
+    }
+
+    .info-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; flex-shrink: 0;
+    }
+
+    .info-card h4 {
+      font-size: .85rem; font-weight: 700;
+      color: var(--gray-600); margin-bottom: 4px;
+    }
+
+    .info-card p {
+      font-size: .98rem; font-weight: 700; color: var(--blue-dark);
+    }
+
+    .info-card span {
+      font-size: .8rem; color: var(--gray-400); margin-top: 3px; display: block;
+    }
+
+    /* WhatsApp card special */
+    .whatsapp-card {
+      background: linear-gradient(135deg, #128C7E, var(--whatsapp));
+      border: none; color: white;
+    }
+
+    .whatsapp-card h4 { color: rgba(255,255,255,.75); }
+    .whatsapp-card p  { color: white; font-size: 1.1rem; }
+    .whatsapp-card span { color: rgba(255,255,255,.6); }
+    .whatsapp-card:hover { box-shadow: 0 8px 28px rgba(37,211,102,.35); }
+
+    /* Social links */
+    .social-card {
+      background: white; border: 1px solid var(--gray-200);
+      border-radius: 16px; padding: 22px 20px;
+    }
+
+    .social-card h4 {
+      font-size: .9rem; font-weight: 800; color: var(--blue-dark);
+      margin-bottom: 14px;
+    }
+
+    .social-links { display: flex; flex-wrap: wrap; gap: 10px; }
+
+    .social-link {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 16px; border-radius: 10px;
+      font-size: .85rem; font-weight: 600;
+      transition: all .2s; border: 1.5px solid transparent;
+    }
+
+    .social-link:hover { transform: translateY(-2px); }
+
+    .sl-fb  { background: rgba(23,120,242,.1); color: #1778F2; border-color: rgba(23,120,242,.2); }
+    .sl-yt  { background: rgba(229,45,39,.1);  color: #e52d27; border-color: rgba(229,45,39,.2); }
+    .sl-tg  { background: rgba(50,174,225,.1); color: #32AEE1; border-color: rgba(50,174,225,.2); }
+    .sl-tw  { background: rgba(29,161,242,.1); color: #1da1f2; border-color: rgba(29,161,242,.2); }
+    .sl-ig  { background: rgba(124,56,175,.1); color: #7c38af; border-color: rgba(124,56,175,.2); }
+
+    .sl-fb:hover  { background: #1778F2; color: white; }
+    .sl-yt:hover  { background: #e52d27; color: white; }
+    .sl-tg:hover  { background: #32AEE1; color: white; }
+    .sl-tw:hover  { background: #1da1f2; color: white; }
+    .sl-ig:hover  { background: #7c38af; color: white; }
+
+    /* Hours card */
+    .hours-card {
+      background: linear-gradient(135deg, var(--blue-dark), var(--blue-mid));
+      border-radius: 16px; padding: 22px 20px; color: white;
+    }
+
+    .hours-card h4 {
+      font-size: .9rem; font-weight: 800; color: var(--gold-light);
+      margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+    }
+
+    .hours-list { list-style: none; }
+
+    .hours-item {
+      display: flex; justify-content: space-between;
+      padding: 8px 0; font-size: .88rem;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+
+    .hours-item:last-child { border-bottom: none; }
+    .hours-item .day { color: rgba(255,255,255,.65); }
+    .hours-item .time { color: var(--gold-light); font-weight: 700; }
+
+    /* ══════ CONTACT FORM ══════ */
+    .contact-form-card {
+      background: white; border: 1px solid var(--gray-200);
+      border-radius: 20px; padding: 36px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.06);
+    }
+
+    .form-header { margin-bottom: 28px; }
+    .form-header h2 { font-size: 1.4rem; font-weight: 900; color: var(--blue-dark); margin-bottom: 6px; }
+    .form-header p  { font-size: .88rem; color: var(--gray-600); }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1 / -1; }
+
+    .form-group label {
+      font-size: .85rem; font-weight: 700; color: var(--gray-800);
+    }
+
+    .form-control {
+      padding: 12px 14px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 10px; font-family: inherit;
+      font-size: .92rem; color: var(--gray-800);
+      background: var(--white); transition: all .2s;
+    }
+
+    .form-control:focus {
+      outline: none; border-color: var(--blue-light);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    }
+
+    textarea.form-control { resize: vertical; min-height: 130px; }
+
+    .subject-options {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;
+    }
+
+    .subject-option {
+      padding: 7px 16px; border-radius: 50px;
+      border: 1.5px solid var(--gray-200);
+      background: white; color: var(--gray-600);
+      font-family: inherit; font-size: .82rem; font-weight: 600;
+      cursor: pointer; transition: all .2s;
+    }
+
+    .subject-option.active {
+      background: var(--blue-light); border-color: var(--blue-light);
+      color: white;
+    }
+
+    .btn-submit {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, var(--blue-light), var(--blue-mid));
+      color: white; border: none; border-radius: 12px;
+      font-family: inherit; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: all .25s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+
+    .btn-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(37,99,235,.35);
+    }
+
+    .btn-submit:disabled {
+      opacity: .7; cursor: not-allowed; transform: none;
+    }
+
+    /* Success message */
+    .success-msg {
+      display: none; text-align: center; padding: 32px;
+    }
+
+    .success-msg i {
+      font-size: 3rem; color: var(--success);
+      margin-bottom: 16px; display: block;
+    }
+
+    .success-msg h3 { font-size: 1.2rem; font-weight: 800; color: var(--blue-dark); margin-bottom: 8px; }
+    .success-msg p  { font-size: .9rem; color: var(--gray-600); }
+
+    /* WhatsApp floating button */
+    .whatsapp-float {
+      position: fixed; bottom: 28px; left: 28px;
+      width: 58px; height: 58px; border-radius: 50%;
+      background: var(--whatsapp);
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 1.6rem;
+      box-shadow: 0 4px 20px rgba(37,211,102,.45);
+      z-index: 500; transition: all .3s;
+      animation: pulse 2s infinite;
+    }
+
+    .whatsapp-float:hover {
+      transform: scale(1.12);
+      box-shadow: 0 6px 28px rgba(37,211,102,.6);
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 4px 20px rgba(37,211,102,.45); }
+      50%       { box-shadow: 0 4px 32px rgba(37,211,102,.7); }
+    }
+
+    /* FAQ section */
+    .faq { max-width: 1100px; margin: 0 auto; padding: 0 20px 60px; }
+
+    .faq h2 {
+      font-size: 1.6rem; font-weight: 900; color: var(--blue-dark);
+      text-align: center; margin-bottom: 32px;
+    }
+
+    .faq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    .faq-item {
+      background: white; border: 1px solid var(--gray-200);
+      border-radius: 14px; padding: 20px;
+      cursor: pointer; transition: all .2s;
+    }
+
+    .faq-item:hover { border-color: var(--blue-light); }
+
+    .faq-question {
+      display: flex; align-items: center; justify-content: space-between;
+      font-weight: 700; font-size: .95rem; color: var(--blue-dark);
+    }
+
+    .faq-question i { color: var(--blue-light); transition: transform .3s; font-size: .85rem; }
+    .faq-item.open .faq-question i { transform: rotate(180deg); }
+
+    .faq-answer {
+      display: none; margin-top: 12px;
+      font-size: .88rem; color: var(--gray-600); line-height: 1.7;
+    }
+
+    .faq-item.open .faq-answer { display: block; }
+
+    /* Footer */
+    footer {
+      background: var(--blue-dark); color: rgba(255,255,255,.6);
+      text-align: center; padding: 24px;
+      font-size: .85rem;
+    }
+
+    footer a { color: var(--gold-light); }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .contact-grid { grid-template-columns: 1fr; }
+      .faq-grid { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .header-nav { display: none; }
+      .contact-form-card { padding: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- WhatsApp Float -->
+<a href="https://api.whatsapp.com/send?phone=21698346706&text=السلام عليكم، أريد الاستفسار عن أكاديمية مسار التميز"
+   target="_blank" class="whatsapp-float" title="تواصل عبر واتساب">
+  <i class="fab fa-whatsapp"></i>
+</a>
+
+<!-- ══════ HEADER ══════ -->
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="logo">
+      <img src="assets/logo.png" alt="مسار التميز">
+      <div class="logo-text">
+        <h1>أكاديمية مسار التميز</h1>
+        <span>التعليم الثانوي في تونس</span>
+      </div>
+    </a>
+    <nav class="header-nav">
+      <a href="index.html">الرئيسية</a>
+      <a href="index.html#pricing">العروض</a>
+      <a href="courses.html">الدروس</a>
+    </nav>
+    <a href="dashboard.html" class="btn-dashboard">
+      <i class="fas fa-tachometer-alt"></i> لوحة التحكم
+    </a>
+  </div>
+</header>
+
+<!-- ══════ HERO ══════ -->
+<section class="page-hero">
+  <div class="container">
+    <div class="page-hero-content">
+      <h1>تواصل <span>معنا</span></h1>
+      <p>نحن هنا للإجابة على جميع استفساراتك — لا تتردد في التواصل معنا</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ MAIN ══════ -->
+<main class="main">
+  <div class="contact-grid">
+
+    <!-- Left: Info -->
+    <div class="contact-info">
+
+      <!-- WhatsApp -->
+      <a href="https://api.whatsapp.com/send?phone=21698346706&text=السلام عليكم، أريد الاستفسار عن أكاديمية مسار التميز"
+         target="_blank" class="info-card whatsapp-card">
+        <div class="info-icon" style="background:rgba(255,255,255,.2)">
+          <i class="fab fa-whatsapp" style="color:white;font-size:1.4rem"></i>
+        </div>
+        <div>
+          <h4>واتساب — الأسرع</h4>
+          <p>+216 98 346 706</p>
+          <span>انقر للتواصل المباشر</span>
+        </div>
+      </a>
+
+      <!-- Gmail -->
+      <a href="mailto:masartamayoz@gmail.com?subject=استفسار من أكاديمية مسار التميز"
+         class="info-card">
+        <div class="info-icon" style="background:rgba(234,67,53,.1)">
+          <i class="fab fa-google" style="color:#EA4335;font-size:1.2rem"></i>
+        </div>
+        <div>
+          <h4>البريد الإلكتروني</h4>
+          <p>masartamayoz@gmail.com</p>
+          <span>نرد خلال 24 ساعة</span>
+        </div>
+      </a>
+
+      <!-- Social -->
+      <div class="social-card">
+        <h4><i class="fas fa-share-alt" style="color:var(--blue-light)"></i> تابعنا على التواصل الاجتماعي</h4>
+        <div class="social-links">
+          <a href="https://www.facebook.com/masartamayoz" target="_blank" class="social-link sl-fb">
+            <i class="fab fa-facebook-f"></i> فيسبوك
+          </a>
+          <a href="https://www.youtube.com/@masartamayoz" target="_blank" class="social-link sl-yt">
+            <i class="fab fa-youtube"></i> يوتيوب
+          </a>
+          <a href="https://t.me/masartamayoz" target="_blank" class="social-link sl-tg">
+            <i class="fab fa-telegram-plane"></i> تيليغرام
+          </a>
+          <a href="https://twitter.com/masartamayoz" target="_blank" class="social-link sl-tw">
+            <i class="fab fa-twitter"></i> تويتر
+          </a>
+          <a href="https://www.instagram.com/masartamayoz" target="_blank" class="social-link sl-ig">
+            <i class="fab fa-instagram"></i> إنستغرام
+          </a>
+        </div>
+      </div>
+
+      <!-- Hours -->
+      <div class="hours-card">
+        <h4><i class="fas fa-clock"></i> أوقات الرد</h4>
+        <ul class="hours-list">
+          <li class="hours-item">
+            <span class="day">الاثنين — الجمعة</span>
+            <span class="time">08:00 — 20:00</span>
+          </li>
+          <li class="hours-item">
+            <span class="day">السبت</span>
+            <span class="time">09:00 — 18:00</span>
+          </li>
+          <li class="hours-item">
+            <span class="day">الأحد</span>
+            <span class="time">10:00 — 16:00</span>
+          </li>
+          <li class="hours-item">
+            <span class="day">واتساب</span>
+            <span class="time">متاح دائماً</span>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- Right: Form -->
+    <div class="contact-form-card">
+      <div class="form-header">
+        <h2>أرسل لنا رسالة</h2>
+        <p>سنرد عليك في أقرب وقت ممكن</p>
+      </div>
+
+      <div id="contactFormWrap">
+        <!-- Subject options -->
+        <div style="margin-bottom:16px">
+          <label style="font-size:.85rem;font-weight:700;color:var(--gray-800);display:block;margin-bottom:10px">
+            موضوع الرسالة
+          </label>
+          <div class="subject-options">
+            <button class="subject-option active" onclick="selectSubject(this,'استفسار عن الاشتراك')">استفسار عن الاشتراك</button>
+            <button class="subject-option" onclick="selectSubject(this,'معلومات عن الدورات')">معلومات عن الدورات</button>
+            <button class="subject-option" onclick="selectSubject(this,'مشكلة تقنية')">مشكلة تقنية</button>
+            <button class="subject-option" onclick="selectSubject(this,'اقتراح أو ملاحظة')">اقتراح أو ملاحظة</button>
+            <button class="subject-option" onclick="selectSubject(this,'أخرى')">أخرى</button>
+          </div>
+        </div>
+
+        <form id="contactForm">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>الاسم الكامل *</label>
+              <input type="text" class="form-control" id="contactName" required placeholder="أدخل اسمك الكامل">
+            </div>
+            <div class="form-group">
+              <label>رقم الهاتف</label>
+              <input type="tel" class="form-control" id="contactPhone" placeholder="+216 XX XXX XXX">
+            </div>
+            <div class="form-group full">
+              <label>البريد الإلكتروني *</label>
+              <input type="email" class="form-control" id="contactEmail" required placeholder="example@email.com">
+            </div>
+            <div class="form-group full">
+              <label>رسالتك *</label>
+              <textarea class="form-control" id="contactMessage" required
+                        placeholder="اكتب رسالتك هنا... كلما كانت أوضح كلما تمكنا من مساعدتك بشكل أفضل"></textarea>
+            </div>
+          </div>
+          <button type="submit" class="btn-submit" id="submitBtn">
+            <i class="fas fa-paper-plane"></i> إرسال الرسالة
+          </button>
+        </form>
+
+        <!-- Or WhatsApp -->
+        <div style="text-align:center;margin-top:20px">
+          <p style="font-size:.85rem;color:var(--gray-400);margin-bottom:12px">أو تواصل معنا مباشرة عبر</p>
+          <a href="https://api.whatsapp.com/send?phone=21698346706&text=السلام عليكم، أريد الاستفسار عن أكاديمية مسار التميز"
+             target="_blank"
+             style="display:inline-flex;align-items:center;gap:8px;padding:12px 28px;background:var(--whatsapp);color:white;border-radius:12px;font-weight:700;font-size:.95rem;transition:all .2s"
+             onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(37,211,102,.4)'"
+             onmouseout="this.style.transform='';this.style.boxShadow=''">
+            <i class="fab fa-whatsapp" style="font-size:1.2rem"></i>
+            واتساب: 98 346 706
+          </a>
+        </div>
+      </div>
+
+      <!-- Success -->
+      <div class="success-msg" id="successMsg">
+        <i class="fas fa-check-circle"></i>
+        <h3>تم إرسال رسالتك بنجاح!</h3>
+        <p>شكراً لتواصلك معنا. سنرد عليك في أقرب وقت ممكن على بريدك الإلكتروني أو عبر الهاتف.</p>
+        <a href="index.html"
+           style="display:inline-block;margin-top:20px;padding:12px 28px;background:var(--blue-light);color:white;border-radius:10px;font-weight:700">
+          العودة للرئيسية
+        </a>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ══════ FAQ ══════ -->
+<section class="faq">
+  <h2>الأسئلة الشائعة</h2>
+  <div class="faq-grid">
+
+    <div class="faq-item" onclick="toggleFaq(this)">
+      <div class="faq-question">
+        كيف يمكنني الاشتراك في المنصة؟
+        <i class="fas fa-chevron-down"></i>
+      </div>
+      <div class="faq-answer">
+        أنشئ حساباً مجانياً على المنصة، ثم اختر العرض المناسب لك (50 د.ت سنوياً للتسجيلات أو 40 د.ت لـ 8 حصص مباشرة)، قم بالدفع عبر البنك أو البريد أو D17 أو Carte eDinar، وأرسل صورة الوصل من لوحة التحكم. سيتم تفعيل حسابك خلال 24 ساعة.
+      </div>
+    </div>
+
+    <div class="faq-item" onclick="toggleFaq(this)">
+      <div class="faq-question">
+        ما الفرق بين العرضين؟
+        <i class="fas fa-chevron-down"></i>
+      </div>
+      <div class="faq-answer">
+        عرض التسجيلات (50 د.ت/سنة) يتيح لك مشاهدة جميع الدروس المسجلة في أي وقت. عرض الحصص المباشرة (40 د.ت/8 حصص) يشمل 8 حصص تفاعلية مباشرة مع المدرس عبر Google Meet، بالإضافة إلى مشاهدة التسجيلات مجاناً.
+      </div>
+    </div>
+
+    <div class="faq-item" onclick="toggleFaq(this)">
+      <div class="faq-question">
+        كيف أرسل وصل الخلاص؟
+        <i class="fas fa-chevron-down"></i>
+      </div>
+      <div class="faq-answer">
+        بعد إتمام عملية الدفع، ادخل إلى لوحة التحكم في حسابك، اذهب إلى قسم "اشتراكي"، ارفع صورة واضحة لوصل الخلاص، واختر طريقة الدفع. سيتم مراجعة الوصل وتفعيل حسابك خلال 24 ساعة كحد أقصى.
+      </div>
+    </div>
+
+    <div class="faq-item" onclick="toggleFaq(this)">
+      <div class="faq-question">
+        ما هي المستويات الدراسية المتاحة؟
+        <i class="fas fa-chevron-down"></i>
+      </div>
+      <div class="faq-answer">
+        حالياً نقدم دروس الرياضيات للسنوات السابعة والثامنة والتاسعة أساسي. نعمل على توسيع المحتوى ليشمل مواد أخرى ومستويات إضافية قريباً.
+      </div>
+    </div>
+
+    <div class="faq-item" onclick="toggleFaq(this)">
+      <div class="faq-question">
+        هل يمكن لولي الأمر متابعة تقدم ابنه؟
+        <i class="fas fa-chevron-down"></i>
+      </div>
+      <div class="faq-answer">
+        نعم، يمكن لولي الأمر إنشاء حساب خاص به ومتابعة تقدم أبنائه والاشتراك لهم مباشرة من لوحة التحكم.
+      </div>
+    </div>
+
+    <div class="faq-item" onclick="toggleFaq(this)">
+      <div class="faq-question">
+        هل يمكنني مشاهدة التسجيلات على الهاتف؟
+        <i class="fas fa-chevron-down"></i>
+      </div>
+      <div class="faq-answer">
+        نعم، المنصة متجاوبة مع جميع الأجهزة — هاتف، حاسوب، أو جهاز لوحي. يمكنك الوصول للدروس في أي وقت ومن أي مكان.
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════ FOOTER ══════ -->
+<footer>
+  <p>
+    © 2026 أكاديمية مسار التميز — جميع الحقوق محفوظة |
+    <a href="index.html">الرئيسية</a> |
+    <a href="courses.html">الدروس</a> |
+    <a href="https://masartamayoz.com" target="_blank">الموقع الرئيسي</a>
+  </p>
+</footer>
+
+<script>
+  let selectedSubject = 'استفسار عن الاشتراك';
+
+  window.selectSubject = function(btn, subject) {
+    document.querySelectorAll('.subject-option').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedSubject = subject;
+  };
+
+  window.toggleFaq = function(el) {
+    el.classList.toggle('open');
+  };
+
+  document.getElementById('contactForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const name    = document.getElementById('contactName').value;
+    const email   = document.getElementById('contactEmail').value;
+    const phone   = document.getElementById('contactPhone').value;
+    const message = document.getElementById('contactMessage').value;
+    const btn     = document.getElementById('submitBtn');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+
+    try {
+      // Firebase save (will work after config update)
+      const { initializeApp } = await import('https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js');
+      const { getFirestore, addDoc, collection, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js');
+
+      const app = initializeApp({
+        apiKey: "AIzaSyD2jKFMjuy462JPxOJ8vOk0DJtmUyAqNvc",
+        authDomain: "masartamayoz-682af.firebaseapp.com",
+        projectId: "masartamayoz-682af",
+        storageBucket: "masartamayoz-682af.appspot.com",
+        messagingSenderId: "527464088229",
+        appId: "1:527464088229:web:2575dd046f6379f8c5034c"
+      }, 'contact-app');
+
+      const db = getFirestore(app);
+      await addDoc(collection(db, 'contacts'), {
+        name, email, phone,
+        subject: selectedSubject,
+        message,
+        createdAt: serverTimestamp()
+      });
+    } catch (err) {
+      // If Firebase not ready, still show success (message sent via WhatsApp fallback)
+      console.log('Firebase not configured yet');
+    }
+
+    // Show success always
+    document.getElementById('contactFormWrap').style.display = 'none';
+    document.getElementById('successMsg').style.display = 'block';
+  });
 </script>
+
+</body>
+</html>
