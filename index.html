@@ -1737,7 +1737,12 @@
         </div>
         <div class="form-group">
           <label>كلمة المرور</label>
-          <input type="password" id="loginPassword" class="form-control" required placeholder="••••••••">
+          <div style="position:relative">
+            <input type="password" id="loginPassword" class="form-control" required placeholder="••••••••" style="padding-left:44px">
+            <button type="button" onclick="togglePwd('loginPassword','eyeLogin')" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray-400)">
+              <i class="fas fa-eye" id="eyeLogin"></i>
+            </button>
+          </div>
         </div>
         <button type="submit" class="btn-submit">تسجيل الدخول</button>
       </form>
@@ -1752,29 +1757,64 @@
     <!-- Register Form -->
     <div class="auth-form" id="registerForm">
       <form id="registerUserForm">
-        <div class="form-group">
-          <label>الاسم الكامل</label>
-          <input type="text" id="registerName" class="form-control" required placeholder="أدخل اسمك الكامل">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:0">
+          <div class="form-group">
+            <label>الاسم *</label>
+            <input type="text" id="registerFirstName" class="form-control" required placeholder="الاسم">
+          </div>
+          <div class="form-group">
+            <label>اللقب *</label>
+            <input type="text" id="registerLastName" class="form-control" required placeholder="اللقب">
+          </div>
         </div>
         <div class="form-group">
-          <label>البريد الإلكتروني</label>
+          <label>البريد الإلكتروني *</label>
           <input type="email" id="registerEmail" class="form-control" required placeholder="example@email.com">
         </div>
         <div class="form-group">
-          <label>كلمة المرور</label>
-          <input type="password" id="registerPassword" class="form-control" required placeholder="••••••••" minlength="6">
-        </div>
-        <div class="form-group">
-          <label>تأكيد كلمة المرور</label>
-          <input type="password" id="registerConfirmPassword" class="form-control" required placeholder="••••••••">
-        </div>
-        <div class="form-group">
-          <label>نوع الحساب</label>
-          <select id="userType" class="form-control" required>
+          <label>نوع الحساب *</label>
+          <select id="userType" class="form-control" required onchange="toggleExtraFields(this.value)">
             <option value="">اختر نوع الحساب</option>
             <option value="student">تلميذ</option>
             <option value="parent">ولي أمر</option>
           </select>
+        </div>
+        <!-- Extra fields for student -->
+        <div id="studentFields" style="display:none">
+          <div class="form-group">
+            <label>المستوى الدراسي</label>
+            <select id="studentLevel" class="form-control">
+              <option value="">اختر مستواك</option>
+              <option value="7">السنة السابعة أساسي</option>
+              <option value="8">السنة الثامنة أساسي</option>
+              <option value="9">السنة التاسعة أساسي</option>
+            </select>
+          </div>
+        </div>
+        <!-- Extra fields for parent -->
+        <div id="parentFields" style="display:none">
+          <div class="form-group">
+            <label>رقم الهاتف</label>
+            <input type="tel" id="parentPhone" class="form-control" placeholder="+216 XX XXX XXX">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>كلمة المرور *</label>
+          <div style="position:relative">
+            <input type="password" id="registerPassword" class="form-control" required placeholder="••••••••" minlength="6" style="padding-left:44px">
+            <button type="button" onclick="togglePwd('registerPassword','eyeReg1')" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray-400)">
+              <i class="fas fa-eye" id="eyeReg1"></i>
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>تأكيد كلمة المرور *</label>
+          <div style="position:relative">
+            <input type="password" id="registerConfirmPassword" class="form-control" required placeholder="••••••••" style="padding-left:44px">
+            <button type="button" onclick="togglePwd('registerConfirmPassword','eyeReg2')" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray-400)">
+              <i class="fas fa-eye" id="eyeReg2"></i>
+            </button>
+          </div>
         </div>
         <button type="submit" class="btn-submit">إنشاء الحساب</button>
       </form>
@@ -1843,14 +1883,14 @@
   import { getStorage, ref, uploadBytes, getDownloadURL }
            from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-storage.js';
 
- const firebaseConfig = {
-  apiKey: "AIzaSyAF_ktwHXPw6gDkoolCI77XeB_NGHTmAFA",
-  authDomain: "masartamayoz.firebaseapp.com",
-  projectId: "masartamayoz",
-  storageBucket: "masartamayoz.firebasestorage.app",
-  messagingSenderId: "589955939618",
-  appId: "1:589955939618:web:728ddeb7027b2becd1f97b"
-};
+  const firebaseConfig = {
+    apiKey: "AIzaSyAF_ktwHXPw6gDkoolCI77XeB_NGHTmAFA",
+    authDomain: "masartamayoz.firebaseapp.com",
+    projectId: "masartamayoz",
+    storageBucket: "masartamayoz.firebasestorage.app",
+    messagingSenderId: "589955939618",
+    appId: "1:589955939618:web:728ddeb7027b2becd1f97b"
+  };
 
   const app      = initializeApp(firebaseConfig);
   const auth     = getAuth(app);
@@ -1953,49 +1993,81 @@
   // ── Register ──
   document.getElementById('registerUserForm').addEventListener('submit', async e => {
     e.preventDefault();
-    const name     = document.getElementById('registerName').value;
-    const email    = document.getElementById('registerEmail').value;
-    const password = document.getElementById('registerPassword').value;
-    const confirm  = document.getElementById('registerConfirmPassword').value;
-    const userType = document.getElementById('userType').value;
+    const firstName = document.getElementById('registerFirstName').value.trim();
+    const lastName  = document.getElementById('registerLastName').value.trim();
+    const email     = document.getElementById('registerEmail').value.trim();
+    const password  = document.getElementById('registerPassword').value;
+    const confirm   = document.getElementById('registerConfirmPassword').value;
+    const userType  = document.getElementById('userType').value;
+    const level     = document.getElementById('studentLevel')?.value || '';
+    const phone     = document.getElementById('parentPhone')?.value || '';
 
+    if (!firstName || !lastName) { alert('يرجى إدخال الاسم واللقب'); return; }
     if (password !== confirm) { alert('كلمة المرور غير متطابقة!'); return; }
+    if (!userType) { alert('يرجى اختيار نوع الحساب'); return; }
+
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true; btn.textContent = 'جاري الإنشاء...';
 
     try {
       const { user } = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(user, { displayName: name });
+      await updateProfile(user, { displayName: `${firstName} ${lastName}` });
       await setDoc(doc(db, 'users', user.uid), {
-        name, email, userType,
-        subscriptionStatus: 'pending',
+        firstName, lastName,
+        email, userType,
+        phone: phone || '',
+        level: level || '',
+        subscriptionStatus: 'inactive',
         createdAt: serverTimestamp()
       });
       closeModal();
+      e.target.reset();
       window.location.href = 'dashboard.html';
     } catch (err) {
-      alert('خطأ في إنشاء الحساب: ' + err.message);
+      if (err.code === 'auth/email-already-in-use') {
+        alert('⚠️ هذا البريد مسجّل مسبقاً — يرجى تسجيل الدخول');
+      } else {
+        alert('خطأ: ' + err.message);
+      }
+    } finally {
+      btn.disabled = false; btn.textContent = 'إنشاء الحساب';
     }
   });
 
-  // ── Google login ──
+  // ── Google login (fixed) ──
   document.getElementById('googleLogin').addEventListener('click', async () => {
     try {
       const provider = new GoogleAuthProvider();
+      provider.addScope('profile');
+      provider.addScope('email');
       const { user } = await signInWithPopup(auth, provider);
       const userRef = doc(db, 'users', user.uid);
       const snap = await getDoc(userRef);
       if (!snap.exists()) {
+        // Split displayName into firstName and lastName
+        const nameParts = (user.displayName || '').split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName  = nameParts.slice(1).join(' ') || '';
         await setDoc(userRef, {
-          name: user.displayName,
+          firstName, lastName,
           email: user.email,
           userType: 'student',
-          subscriptionStatus: 'pending',
+          level: '',
+          phone: '',
+          subscriptionStatus: 'inactive',
           createdAt: serverTimestamp()
         });
       }
       closeModal();
       window.location.href = 'dashboard.html';
     } catch (err) {
-      alert('خطأ: ' + err.message);
+      if (err.code === 'auth/popup-closed-by-user') {
+        // User closed popup - do nothing
+      } else if (err.code === 'auth/unauthorized-domain') {
+        alert('⚠️ يرجى إضافة academy.masartamayoz.com في إعدادات Firebase → Authentication → Authorized domains');
+      } else {
+        alert('خطأ في تسجيل الدخول بجوجل: ' + err.message);
+      }
     }
   });
 
@@ -2046,7 +2118,26 @@
       submitBtn.disabled = false;
       submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال الوصل';
     }
-  });
+  });  // ── Toggle password visibility ──
+  window.togglePwd = function(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon  = document.getElementById(iconId);
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.className = 'fas fa-eye-slash';
+    } else {
+      input.type = 'password';
+      icon.className = 'fas fa-eye';
+    }
+  };
+
+  // ── Toggle extra fields based on user type ──
+  window.toggleExtraFields = function(type) {
+    const sf = document.getElementById('studentFields');
+    const pf = document.getElementById('parentFields');
+    if (sf) sf.style.display = type === 'student' ? 'block' : 'none';
+    if (pf) pf.style.display = type === 'parent'  ? 'block' : 'none';
+  };
 </script>
 
 </body>
