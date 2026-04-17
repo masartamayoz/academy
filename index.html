@@ -3,1316 +3,2160 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>لوحة التحكم - أكاديمية مسار التميز</title>
+  <title>أكاديمية مسار التميز | التعليم الثانوي في تونس</title>
+  <meta name="description" content="منصة تعليمية تونسية متخصصة في الرياضيات للسنوات السابعة والثامنة والتاسعة أساسي. حصص مباشرة وتسجيلات عالية الجودة.">
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     :root {
-      --blue-dark:  #0a1628; --blue-mid: #0d2147; --blue: #1a3a6e;
-      --blue-light: #2563eb; --gold: #f59e0b; --gold-light: #fbbf24;
-      --white: #ffffff; --gray-50: #f8fafc; --gray-100: #f1f5f9;
-      --gray-200: #e2e8f0; --gray-400: #94a3b8; --gray-600: #475569;
-      --gray-800: #1e293b; --success: #10b981; --warning: #f59e0b;
-      --danger: #ef4444; --purple: #8b5cf6; --sidebar-w: 260px;
+      --blue-dark:   #0a1628;
+      --blue-mid:    #0d2147;
+      --blue:        #1a3a6e;
+      --blue-light:  #2563eb;
+      --gold:        #f59e0b;
+      --gold-light:  #fbbf24;
+      --white:       #ffffff;
+      --gray-50:     #f8fafc;
+      --gray-100:    #f1f5f9;
+      --gray-200:    #e2e8f0;
+      --gray-400:    #94a3b8;
+      --gray-600:    #475569;
+      --gray-800:    #1e293b;
+      --success:     #10b981;
+      --danger:      #ef4444;
+      --radius:      12px;
+      --radius-lg:   20px;
+      --shadow:      0 4px 24px rgba(10,22,40,.12);
+      --shadow-lg:   0 12px 48px rgba(10,22,40,.18);
     }
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Tajawal',sans-serif;background:var(--gray-50);color:var(--gray-800);line-height:1.6}
-    a{text-decoration:none;color:inherit}
-    #loadingScreen{position:fixed;inset:0;background:var(--blue-dark);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:16px}
-    .loader-ring{width:56px;height:56px;border:4px solid rgba(255,255,255,.1);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    #loadingScreen p{color:rgba(255,255,255,.7);font-size:.9rem}
-    .app{display:flex;min-height:100vh}
-    .sidebar{width:var(--sidebar-w);background:linear-gradient(180deg,var(--blue-dark),var(--blue-mid));position:fixed;top:0;right:0;bottom:0;display:flex;flex-direction:column;z-index:100;transition:transform .3s;overflow-y:auto}
-    .sidebar-logo{padding:20px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:12px}
-    .sidebar-logo img{width:44px;height:44px;border-radius:10px;background:white;padding:3px;object-fit:contain}
-    .sidebar-logo h2{font-size:.95rem;font-weight:800;color:var(--white)}
-    .sidebar-logo span{font-size:.72rem;color:var(--gold-light);display:block}
-    .sidebar-user{padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:12px}
-    .sidebar-avatar{width:44px;height:44px;border-radius:50%;background:var(--gold);color:var(--blue-dark);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;flex-shrink:0;overflow:hidden}
-    .sidebar-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
-    .sidebar-user-info h4{font-size:.9rem;font-weight:700;color:var(--white)}
-    .role-badge{display:inline-block;padding:2px 10px;border-radius:50px;font-size:.72rem;font-weight:700;margin-top:3px}
-    .role-student{background:rgba(16,185,129,.2);color:#6ee7b7}
-    .role-parent{background:rgba(37,99,235,.2);color:#93c5fd}
-    .role-teacher{background:rgba(245,158,11,.2);color:var(--gold-light)}
-    .role-admin{background:rgba(239,68,68,.2);color:#fca5a5}
-    .sidebar-nav{flex:1;padding:12px 0}
-    .nav-section-title{font-size:.7rem;font-weight:700;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.08em;padding:10px 20px 5px}
-    .nav-item{display:flex;align-items:center;gap:12px;padding:11px 20px;color:rgba(255,255,255,.65);font-size:.88rem;font-weight:500;transition:all .2s;cursor:pointer;border-right:3px solid transparent}
-    .nav-item:hover{background:rgba(255,255,255,.06);color:var(--white)}
-    .nav-item.active{background:rgba(37,99,235,.2);color:var(--white);border-right-color:var(--blue-light)}
-    .nav-item i{width:18px;text-align:center;font-size:.9rem}
-    .sidebar-footer{padding:14px 20px;border-top:1px solid rgba(255,255,255,.08)}
-    .btn-logout{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.5);font-size:.88rem;background:none;border:none;cursor:pointer;font-family:inherit;padding:8px 0;transition:color .2s;width:100%}
-    .btn-logout:hover{color:var(--danger)}
-    .main-content{margin-right:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh}
-    .topbar{background:var(--white);border-bottom:1px solid var(--gray-200);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
-    .topbar-title h1{font-size:1.2rem;font-weight:800;color:var(--blue-dark)}
-    .topbar-title p{font-size:.82rem;color:var(--gray-600)}
-    .topbar-actions{display:flex;align-items:center;gap:12px}
-    .btn-icon{width:38px;height:38px;border-radius:10px;border:1px solid var(--gray-200);background:var(--white);display:flex;align-items:center;justify-content:center;color:var(--gray-600);cursor:pointer;transition:all .2s;font-size:.9rem}
-    .hamburger-btn{display:none;background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--gray-800)}
-    .page{display:none;padding:28px;flex:1}
-    .page.active{display:block}
-    .stats-grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));margin-bottom:28px}
-    .stat-card{background:var(--white);border:1px solid var(--gray-200);border-radius:14px;padding:22px 20px;display:flex;align-items:center;gap:16px;transition:all .3s}
-    .stat-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.08)}
-    .stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
-    .stat-info strong{display:block;font-size:1.6rem;font-weight:900;line-height:1;color:var(--blue-dark)}
-    .stat-info span{font-size:.8rem;color:var(--gray-600)}
-    .card{background:var(--white);border:1px solid var(--gray-200);border-radius:16px;padding:24px;margin-bottom:24px}
-    .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
-    .card-title{font-size:1rem;font-weight:800;color:var(--blue-dark);display:flex;align-items:center;gap:8px}
-    .card-title i{color:var(--blue-light)}
-    .table-wrap{overflow-x:auto}
-    table{width:100%;border-collapse:collapse}
-    th{background:var(--gray-50);padding:11px 14px;font-size:.8rem;font-weight:700;color:var(--gray-600);text-align:right;border-bottom:1px solid var(--gray-200)}
-    td{padding:12px 14px;font-size:.88rem;border-bottom:1px solid var(--gray-100);vertical-align:middle}
-    tr:last-child td{border-bottom:none}
-    tr:hover td{background:var(--gray-50)}
-    .badge{display:inline-block;padding:3px 12px;border-radius:50px;font-size:.75rem;font-weight:700}
-    .badge-success{background:rgba(16,185,129,.12);color:#059669}
-    .badge-warning{background:rgba(245,158,11,.12);color:#d97706}
-    .badge-danger{background:rgba(239,68,68,.12);color:#dc2626}
-    .badge-info{background:rgba(37,99,235,.12);color:var(--blue-light)}
-    .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:10px;font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;border:none;transition:all .2s}
-    .btn-primary{background:linear-gradient(135deg,var(--blue-light),var(--blue-mid));color:var(--white)}
-    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(37,99,235,.35)}
-    .btn-gold{background:var(--gold);color:var(--blue-dark)}
-    .btn-gold:hover{background:var(--gold-light);transform:translateY(-1px)}
-    .btn-success{background:var(--success);color:white}
-    .btn-outline{background:transparent;border:1.5px solid var(--gray-200);color:var(--gray-800)}
-    .btn-outline:hover{border-color:var(--blue-light);color:var(--blue-light)}
-    .btn-danger{background:var(--danger);color:white}
-    .btn-danger-outline{background:transparent;border:1.5px solid var(--danger);color:var(--danger)}
-    .btn-danger-outline:hover{background:var(--danger);color:white}
-    .btn-sm{padding:6px 12px;font-size:.8rem}
-    .form-grid{display:grid;gap:16px;grid-template-columns:1fr 1fr}
-    .form-grid.cols3{grid-template-columns:1fr 1fr 1fr}
-    .form-group{display:flex;flex-direction:column;gap:6px}
-    .form-group.full{grid-column:1/-1}
-    .form-group label{font-size:.85rem;font-weight:600;color:var(--gray-800)}
-    .form-control{padding:10px 14px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:inherit;font-size:.92rem;color:var(--gray-800);background:var(--white);transition:border-color .2s}
-    .form-control:focus{outline:none;border-color:var(--blue-light);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
-    textarea.form-control{resize:vertical;min-height:80px}
-    .sub-status-card{background:linear-gradient(135deg,var(--blue-dark),var(--blue-mid));border-radius:16px;padding:24px;color:var(--white);margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
-    .sub-status-card h3{font-size:1rem;font-weight:700;color:var(--gold-light);margin-bottom:4px}
-    .sub-status-card p{font-size:.88rem;color:rgba(255,255,255,.7)}
-    .sub-pending{background:linear-gradient(135deg,#7c3aed,#5b21b6)}
-    .sub-inactive{background:linear-gradient(135deg,#dc2626,#b91c1c)}
-    .wallet-card{background:linear-gradient(135deg,var(--blue-dark),var(--blue));border-radius:16px;padding:28px;color:var(--white);margin-bottom:24px}
-    .wallet-card h3{font-size:.9rem;color:rgba(255,255,255,.65);margin-bottom:8px}
-    .wallet-amount{font-size:2.8rem;font-weight:900;color:var(--gold);line-height:1;margin-bottom:4px}
-    .wallet-amount span{font-size:1.2rem}
-    .wallet-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px}
-    .wallet-stat{background:rgba(255,255,255,.08);border-radius:10px;padding:14px}
-    .wallet-stat strong{display:block;font-size:1.2rem;font-weight:900;color:var(--gold-light)}
-    .wallet-stat span{font-size:.78rem;color:rgba(255,255,255,.55)}
-    .sessions-list{display:flex;flex-direction:column;gap:12px}
-    .session-item{background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
-    .session-info h4{font-size:.92rem;font-weight:700;color:var(--blue-dark)}
-    .session-info p{font-size:.8rem;color:var(--gray-600);margin-top:3px}
-    .upload-zone{border:2px dashed var(--gray-200);border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:all .2s;background:var(--gray-50)}
-    .upload-zone:hover{border-color:var(--blue-light);background:rgba(37,99,235,.03)}
-    .upload-zone i{font-size:1.8rem;color:var(--gray-400);margin-bottom:8px;display:block}
-    .upload-zone p{font-size:.85rem;color:var(--gray-600)}
-    .upload-zone input{display:none}
-    .video-items{display:flex;flex-direction:column;gap:8px}
-    .video-item{display:flex;align-items:center;gap:10px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:10px 14px}
-    .video-item input{flex:1;padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:.88rem}
-    .video-item input:focus{outline:none;border-color:var(--blue-light)}
-    .btn-remove-video{background:rgba(239,68,68,.1);border:none;color:var(--danger);width:30px;height:30px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;transition:all .2s}
-    .btn-remove-video:hover{background:var(--danger);color:white}
-    .admin-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
-    .admin-tab{padding:9px 20px;border-radius:10px;font-family:inherit;font-size:.88rem;font-weight:600;cursor:pointer;border:1.5px solid var(--gray-200);background:var(--white);color:var(--gray-600);transition:all .2s}
-    .admin-tab.active{background:var(--blue-light);color:var(--white);border-color:var(--blue-light)}
-    .admin-panel{display:none}
-    .admin-panel.active{display:block}
-    .child-link-card{background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:12px;padding:20px;margin-bottom:16px}
-    .child-card{background:white;border:1px solid var(--gray-200);border-radius:12px;padding:18px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
-    .child-info h4{font-size:.95rem;font-weight:700;color:var(--blue-dark)}
-    .child-info p{font-size:.82rem;color:var(--gray-600)}
-    .plan-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
-    .plan-card{border:2px solid var(--gray-200);border-radius:14px;padding:20px;cursor:pointer;transition:all .2s}
-    .plan-card:hover,.plan-card.selected{border-color:var(--blue-light);background:rgba(37,99,235,.04)}
-    .plan-card.featured{background:linear-gradient(135deg,var(--blue-dark),var(--blue-mid));border-color:var(--blue-light);color:white}
-    .plan-card .plan-name{font-weight:800;font-size:1rem;margin-bottom:4px}
-    .plan-card .plan-price{font-size:2rem;font-weight:900;color:var(--blue-light)}
-    .plan-card.featured .plan-price{color:var(--gold)}
-    .plan-card .plan-desc{font-size:.82rem;color:var(--gray-600);margin-top:4px}
-    .plan-card.featured .plan-desc{color:rgba(255,255,255,.65)}
-    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(10,22,40,.7);z-index:9999;backdrop-filter:blur(4px);align-items:center;justify-content:center}
-    .modal-overlay.open{display:flex}
-    .modal-box{background:var(--white);border-radius:18px;padding:32px;width:90%;max-width:560px;position:relative;animation:modalIn .3s ease;max-height:90vh;overflow-y:auto}
-    @keyframes modalIn{from{opacity:0;transform:translateY(-20px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
-    .modal-close{position:absolute;top:16px;left:16px;background:var(--gray-100);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1rem;color:var(--gray-600);display:flex;align-items:center;justify-content:center}
-    .modal-title{font-size:1.2rem;font-weight:800;color:var(--blue-dark);margin-bottom:6px}
-    .modal-subtitle{font-size:.85rem;color:var(--gray-600);margin-bottom:24px}
-    .empty-state{text-align:center;padding:40px 20px}
-    .empty-state i{font-size:2.8rem;color:var(--gray-200);margin-bottom:14px;display:block}
-    .empty-state h3{font-size:1rem;font-weight:700;color:var(--gray-600);margin-bottom:6px}
-    .empty-state p{font-size:.85rem;color:var(--gray-400)}
-    @media(max-width:768px){
-      .sidebar{transform:translateX(100%)}
-      .sidebar.open{transform:translateX(0)}
-      .main-content{margin-right:0}
-      .hamburger-btn{display:block}
-      .form-grid{grid-template-columns:1fr}
-      .form-grid.cols3{grid-template-columns:1fr}
-      .stats-grid{grid-template-columns:repeat(2,1fr)}
-      .wallet-grid{grid-template-columns:1fr 1fr}
-      .plan-cards{grid-template-columns:1fr}
-      .page{padding:16px}
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Tajawal', sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-800);
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    a { text-decoration: none; color: inherit; }
+    img { max-width: 100%; }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* ══════════════════════════════
+       HEADER
+    ══════════════════════════════ */
+    header {
+      background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue-mid) 60%, var(--blue) 100%);
+      padding: 14px 0;
+      position: sticky;
+      top: 0;
+      z-index: 900;
+      box-shadow: 0 2px 20px rgba(0,0,0,.25);
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo img {
+      width: 52px;
+      height: 52px;
+      border-radius: 10px;
+      object-fit: contain;
+      background: white;
+      padding: 4px;
+    }
+
+    .logo-text h1 {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--white);
+      line-height: 1.2;
+    }
+
+    .logo-text span {
+      font-size: 0.75rem;
+      color: var(--gold-light);
+      font-weight: 400;
+    }
+
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .header-nav a {
+      color: rgba(255,255,255,.85);
+      font-size: 0.9rem;
+      font-weight: 500;
+      padding: 7px 14px;
+      border-radius: 8px;
+      transition: all .2s;
+    }
+
+    .header-nav a:hover {
+      background: rgba(255,255,255,.1);
+      color: var(--white);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-login {
+      background: transparent;
+      border: 1.5px solid rgba(255,255,255,.4);
+      color: var(--white);
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .btn-login:hover {
+      border-color: var(--white);
+      background: rgba(255,255,255,.1);
+    }
+
+    .btn-signup {
+      background: var(--gold);
+      border: none;
+      color: var(--blue-dark);
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .btn-signup:hover {
+      background: var(--gold-light);
+      transform: translateY(-1px);
+    }
+
+    /* User section after login */
+    .user-section { display: none; position: relative; }
+
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--gold);
+      color: var(--blue-dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1rem;
+      cursor: pointer;
+      border: 2px solid rgba(255,255,255,.3);
+      overflow: hidden;
+    }
+
+    .user-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
+    .user-dropdown-menu {
+      display: none;
+      position: absolute;
+      left: 0;
+      top: calc(100% + 10px);
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      min-width: 200px;
+      overflow: hidden;
+      border: 1px solid var(--gray-200);
+    }
+
+    .user-dropdown-menu.open { display: block; }
+
+    .user-dropdown-menu a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      color: var(--gray-800);
+      font-size: 0.9rem;
+      transition: background .15s;
+    }
+
+    .user-dropdown-menu a:hover { background: var(--gray-50); }
+    .user-dropdown-menu a i { color: var(--blue-light); width: 16px; }
+    .user-dropdown-menu .divider { height: 1px; background: var(--gray-200); }
+
+    .hamburger {
+      display: none;
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.4rem;
+      cursor: pointer;
+    }
+
+    /* ══════════════════════════════
+       HERO
+    ══════════════════════════════ */
+    .hero {
+      background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue-mid) 50%, var(--blue) 100%);
+      position: relative;
+      overflow: hidden;
+      padding: 80px 0 100px;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 10% 50%, rgba(245,158,11,.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 90% 20%, rgba(37,99,235,.2) 0%, transparent 50%);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(245,158,11,.15);
+      border: 1px solid rgba(245,158,11,.3);
+      color: var(--gold-light);
+      padding: 6px 16px;
+      border-radius: 50px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      font-weight: 900;
+      color: var(--white);
+      line-height: 1.2;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 span { color: var(--gold); }
+
+    .hero p {
+      font-size: 1.1rem;
+      color: rgba(255,255,255,.8);
+      margin-bottom: 36px;
+      max-width: 500px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .btn-hero-primary {
+      background: var(--gold);
+      color: var(--blue-dark);
+      padding: 14px 32px;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      transition: all .25s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-hero-primary:hover {
+      background: var(--gold-light);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(245,158,11,.35);
+    }
+
+    .btn-hero-secondary {
+      background: rgba(255,255,255,.1);
+      color: var(--white);
+      padding: 14px 32px;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 600;
+      border: 1.5px solid rgba(255,255,255,.3);
+      cursor: pointer;
+      transition: all .25s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-hero-secondary:hover {
+      background: rgba(255,255,255,.18);
+      border-color: rgba(255,255,255,.6);
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 28px;
+      margin-top: 44px;
+      padding-top: 32px;
+      border-top: 1px solid rgba(255,255,255,.12);
+    }
+
+    .hero-stat strong {
+      display: block;
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: var(--gold);
+    }
+
+    .hero-stat span {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,.65);
+    }
+
+    /* Hero visual card */
+    .hero-visual {
+      position: relative;
+    }
+
+    .hero-card {
+      background: rgba(255,255,255,.08);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      color: var(--white);
+    }
+
+    .hero-card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 18px;
+      color: var(--gold-light);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .subject-list { list-style: none; }
+
+    .subject-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: rgba(255,255,255,.06);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      border: 1px solid rgba(255,255,255,.08);
+      transition: all .2s;
+    }
+
+    .subject-item:hover { background: rgba(255,255,255,.12); }
+
+    .subject-info { display: flex; align-items: center; gap: 12px; }
+
+    .subject-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+
+    .subject-name { font-size: 0.9rem; font-weight: 600; }
+    .subject-level { font-size: 0.75rem; color: rgba(255,255,255,.55); }
+
+    .badge-live {
+      background: rgba(16,185,129,.2);
+      color: #6ee7b7;
+      border: 1px solid rgba(16,185,129,.3);
+      padding: 3px 10px;
+      border-radius: 50px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .badge-new {
+      background: rgba(245,158,11,.2);
+      color: var(--gold-light);
+      border: 1px solid rgba(245,158,11,.3);
+      padding: 3px 10px;
+      border-radius: 50px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    /* ══════════════════════════════
+       SECTION TITLES
+    ══════════════════════════════ */
+    .section-header {
+      text-align: center;
+      margin-bottom: 56px;
+    }
+
+    .section-tag {
+      display: inline-block;
+      background: rgba(37,99,235,.1);
+      color: var(--blue-light);
+      border: 1px solid rgba(37,99,235,.2);
+      padding: 5px 16px;
+      border-radius: 50px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    .section-header h2 {
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+      font-weight: 900;
+      color: var(--blue-dark);
+      margin-bottom: 12px;
+    }
+
+    .section-header p {
+      color: var(--gray-600);
+      font-size: 1rem;
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    /* ══════════════════════════════
+       WHY US
+    ══════════════════════════════ */
+    .why-us { padding: 90px 0; background: var(--white); }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 28px;
+    }
+
+    .feature-card {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 32px 24px;
+      transition: all .3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(to left, var(--blue-light), var(--gold));
+      opacity: 0;
+      transition: opacity .3s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-6px);
+      box-shadow: var(--shadow-lg);
+      border-color: transparent;
+    }
+
+    .feature-card:hover::before { opacity: 1; }
+
+    .feature-icon {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, var(--blue-light), var(--blue-mid));
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      color: var(--white);
+      margin-bottom: 20px;
+    }
+
+    .feature-card h3 {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--blue-dark);
+      margin-bottom: 10px;
+    }
+
+    .feature-card p {
+      font-size: 0.92rem;
+      color: var(--gray-600);
+      line-height: 1.7;
+    }
+
+    /* ══════════════════════════════
+       PRICING
+    ══════════════════════════════ */
+    .pricing { padding: 90px 0; background: var(--gray-50); }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 28px;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .pricing-card {
+      background: var(--white);
+      border: 2px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 36px 30px;
+      position: relative;
+      transition: all .3s;
+    }
+
+    .pricing-card.featured {
+      border-color: var(--blue-light);
+      background: linear-gradient(135deg, var(--blue-dark), var(--blue-mid));
+      color: var(--white);
+    }
+
+    .pricing-card:hover {
+      transform: translateY(-6px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .popular-badge {
+      position: absolute;
+      top: -14px;
+      right: 24px;
+      background: var(--gold);
+      color: var(--blue-dark);
+      padding: 4px 18px;
+      border-radius: 50px;
+      font-size: 0.8rem;
+      font-weight: 800;
+    }
+
+    .plan-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .pricing-card.featured .plan-name { color: var(--gold-light); }
+
+    .plan-desc {
+      font-size: 0.88rem;
+      color: var(--gray-600);
+      margin-bottom: 24px;
+    }
+
+    .pricing-card.featured .plan-desc { color: rgba(255,255,255,.65); }
+
+    .plan-price {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-bottom: 28px;
+    }
+
+    .price-amount {
+      font-size: 3rem;
+      font-weight: 900;
+      color: var(--blue-dark);
+      line-height: 1;
+    }
+
+    .pricing-card.featured .price-amount { color: var(--gold); }
+
+    .price-currency {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--gray-600);
+    }
+
+    .pricing-card.featured .price-currency { color: rgba(255,255,255,.7); }
+
+    .price-period {
+      font-size: 0.85rem;
+      color: var(--gray-400);
+    }
+
+    .pricing-card.featured .price-period { color: rgba(255,255,255,.5); }
+
+    .plan-features {
+      list-style: none;
+      margin-bottom: 30px;
+    }
+
+    .plan-features li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      font-size: 0.92rem;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    .pricing-card.featured .plan-features li { border-color: rgba(255,255,255,.1); }
+
+    .plan-features li:last-child { border-bottom: none; }
+
+    .plan-features li i {
+      color: var(--success);
+      margin-top: 3px;
+      flex-shrink: 0;
+    }
+
+    .pricing-card.featured .plan-features li i { color: var(--gold-light); }
+
+    .btn-plan {
+      width: 100%;
+      padding: 14px;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all .25s;
+    }
+
+    .btn-plan-outline {
+      background: transparent;
+      border: 2px solid var(--blue-light);
+      color: var(--blue-light);
+    }
+
+    .btn-plan-outline:hover {
+      background: var(--blue-light);
+      color: var(--white);
+    }
+
+    .btn-plan-gold {
+      background: var(--gold);
+      color: var(--blue-dark);
+    }
+
+    .btn-plan-gold:hover {
+      background: var(--gold-light);
+      transform: translateY(-2px);
+    }
+
+    /* ══════════════════════════════
+       HOW IT WORKS
+    ══════════════════════════════ */
+    .how-it-works { padding: 90px 0; background: var(--white); }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 28px;
+      position: relative;
+    }
+
+    .steps-grid::before {
+      content: '';
+      position: absolute;
+      top: 32px;
+      right: 12%;
+      left: 12%;
+      height: 2px;
+      background: linear-gradient(to left, var(--blue-light), var(--gold));
+      z-index: 0;
+    }
+
+    .step-card {
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .step-number {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, var(--blue-light), var(--blue-mid));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: var(--white);
+      margin: 0 auto 20px;
+      border: 4px solid var(--white);
+      box-shadow: 0 4px 16px rgba(37,99,235,.3);
+    }
+
+    .step-card h3 {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--blue-dark);
+      margin-bottom: 8px;
+    }
+
+    .step-card p {
+      font-size: 0.88rem;
+      color: var(--gray-600);
+    }
+
+    /* ══════════════════════════════
+       LEVELS
+    ══════════════════════════════ */
+    .levels { padding: 90px 0; background: var(--gray-50); }
+
+    .levels-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .level-card {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 28px 24px;
+      transition: all .3s;
+      cursor: pointer;
+    }
+
+    .level-card:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--blue-light);
+    }
+
+    .level-number {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--blue-light), var(--blue-mid));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--white);
+      font-size: 1.3rem;
+      font-weight: 900;
+      margin-bottom: 16px;
+    }
+
+    .level-card h3 {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--blue-dark);
+      margin-bottom: 6px;
+    }
+
+    .level-card p {
+      font-size: 0.88rem;
+      color: var(--gray-600);
+      margin-bottom: 16px;
+    }
+
+    .level-topics {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .topic-tag {
+      background: rgba(37,99,235,.08);
+      color: var(--blue-light);
+      border: 1px solid rgba(37,99,235,.15);
+      padding: 3px 10px;
+      border-radius: 50px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    /* ══════════════════════════════
+       PAYMENT
+    ══════════════════════════════ */
+    .payment { padding: 90px 0; background: var(--white); }
+
+    .payment-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+
+    .payment-methods {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin-top: 28px;
+    }
+
+    .payment-method {
+      background: var(--gray-50);
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all .2s;
+    }
+
+    .payment-method:hover {
+      border-color: var(--blue-light);
+      background: rgba(37,99,235,.04);
+    }
+
+    .payment-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+
+    .payment-method h4 { font-size: 0.9rem; font-weight: 700; color: var(--blue-dark); }
+    .payment-method p { font-size: 0.78rem; color: var(--gray-600); }
+
+    .payment-steps { list-style: none; }
+
+    .payment-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    .payment-step:last-child { border-bottom: none; }
+
+    .step-num {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--blue-light), var(--blue-mid));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--white);
+      font-size: 0.85rem;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .payment-step h4 { font-size: 0.95rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 3px; }
+    .payment-step p { font-size: 0.85rem; color: var(--gray-600); }
+
+    /* ══════════════════════════════
+       CTA
+    ══════════════════════════════ */
+    .cta {
+      padding: 90px 0;
+      background: linear-gradient(135deg, var(--blue-dark), var(--blue-mid));
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(245,158,11,.15) 0%, transparent 60%);
+    }
+
+    .cta-content { position: relative; z-index: 1; }
+
+    .cta h2 {
+      font-size: clamp(1.8rem, 3vw, 2.8rem);
+      font-weight: 900;
+      color: var(--white);
+      margin-bottom: 14px;
+    }
+
+    .cta h2 span { color: var(--gold); }
+
+    .cta p {
+      color: rgba(255,255,255,.75);
+      font-size: 1.05rem;
+      margin-bottom: 36px;
+    }
+
+    /* ══════════════════════════════
+       FOOTER
+    ══════════════════════════════ */
+    footer {
+      background: var(--blue-dark);
+      color: rgba(255,255,255,.7);
+      padding: 60px 0 30px;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 48px;
+    }
+
+    .footer-brand p {
+      font-size: 0.88rem;
+      line-height: 1.8;
+      margin-top: 14px;
+      max-width: 280px;
+    }
+
+    .footer-col h4 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--white);
+      margin-bottom: 16px;
+    }
+
+    .footer-col ul { list-style: none; }
+
+    .footer-col ul li a {
+      color: rgba(255,255,255,.6);
+      font-size: 0.88rem;
+      display: block;
+      padding: 4px 0;
+      transition: color .2s;
+    }
+
+    .footer-col ul li a:hover { color: var(--gold-light); }
+
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,.1);
+      padding-top: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+
+    .social-links { display: flex; gap: 10px; }
+
+    .social-link {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: rgba(255,255,255,.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,.7);
+      transition: all .2s;
+    }
+
+    .social-link:hover {
+      background: var(--gold);
+      color: var(--blue-dark);
+    }
+
+    /* ══════════════════════════════
+       MODAL
+    ══════════════════════════════ */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10,22,40,.7);
+      z-index: 9999;
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal-box {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      padding: 36px;
+      width: 90%;
+      max-width: 480px;
+      position: relative;
+      animation: modalIn .3s ease;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: translateY(-24px) scale(.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: var(--gray-100);
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1rem;
+      color: var(--gray-600);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .2s;
+    }
+
+    .modal-close:hover { background: var(--gray-200); }
+
+    .modal-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--blue-dark);
+      margin-bottom: 6px;
+    }
+
+    .modal-subtitle {
+      font-size: 0.88rem;
+      color: var(--gray-600);
+      margin-bottom: 28px;
+    }
+
+    .auth-tabs {
+      display: flex;
+      border-bottom: 2px solid var(--gray-200);
+      margin-bottom: 24px;
+    }
+
+    .auth-tab {
+      padding: 10px 20px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--gray-600);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all .2s;
+    }
+
+    .auth-tab.active {
+      color: var(--blue-light);
+      border-color: var(--blue-light);
+    }
+
+    .auth-form { display: none; }
+    .auth-form.active { display: block; }
+
+    .form-group { margin-bottom: 18px; }
+
+    .form-group label {
+      display: block;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--gray-800);
+      margin-bottom: 6px;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 0.95rem;
+      color: var(--gray-800);
+      background: var(--white);
+      transition: border-color .2s;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--blue-light);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--blue-light), var(--blue-mid));
+      color: var(--white);
+      border: none;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .25s;
+      margin-top: 8px;
+    }
+
+    .btn-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(37,99,235,.35);
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 20px 0;
+      color: var(--gray-400);
+      font-size: 0.85rem;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--gray-200);
+    }
+
+    .social-auth { display: flex; gap: 10px; }
+
+    .btn-social {
+      flex: 1;
+      padding: 11px;
+      border-radius: var(--radius);
+      border: 1.5px solid var(--gray-200);
+      background: var(--white);
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all .2s;
+      color: var(--gray-800);
+    }
+
+    .btn-social:hover { background: var(--gray-50); border-color: var(--gray-400); }
+
+    /* ══════════════════════════════
+       RECEIPT MODAL
+    ══════════════════════════════ */
+    .receipt-steps {
+      counter-reset: step;
+      list-style: none;
+    }
+
+    .receipt-step {
+      display: flex;
+      gap: 14px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    .receipt-step:last-child { border-bottom: none; }
+
+    .receipt-step-num {
+      width: 28px;
+      height: 28px;
+      background: var(--blue-light);
+      border-radius: 50%;
+      color: white;
+      font-size: 0.8rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .receipt-step p { font-size: 0.88rem; color: var(--gray-600); line-height: 1.6; }
+    .receipt-step strong { color: var(--blue-dark); }
+
+    /* ══════════════════════════════
+       MOBILE NAV
+    ══════════════════════════════ */
+    .mobile-nav {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: var(--blue-dark);
+      z-index: 800;
+      padding: 80px 24px 40px;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .mobile-nav.open { display: flex; }
+
+    .mobile-nav a {
+      color: rgba(255,255,255,.85);
+      font-size: 1.1rem;
+      font-weight: 600;
+      padding: 14px 0;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+    }
+
+    .mobile-nav-close {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(255,255,255,.1);
+      border: none;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ══════════════════════════════
+       RESPONSIVE
+    ══════════════════════════════ */
+    @media (max-width: 1024px) {
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+      .steps-grid { grid-template-columns: repeat(2, 1fr); }
+      .steps-grid::before { display: none; }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      .header-nav { display: none; }
+      .hamburger { display: flex; }
+      .hero-grid { grid-template-columns: 1fr; gap: 40px; }
+      .hero-visual { display: none; }
+      .features-grid { grid-template-columns: 1fr; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .steps-grid { grid-template-columns: 1fr 1fr; }
+      .levels-grid { grid-template-columns: 1fr; }
+      .payment-grid { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr; }
+      .footer-bottom { flex-direction: column; gap: 14px; text-align: center; }
+      .hero-stats { flex-wrap: wrap; gap: 20px; }
     }
   </style>
 </head>
 <body>
 
-<div id="loadingScreen"><div class="loader-ring"></div><p>جاري التحميل...</p></div>
-
-<div class="app" id="appContainer" style="display:none">
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo">
+<!-- ══════ HEADER ══════ -->
+<header>
+  <div class="container header-inner">
+    <a href="index.html" class="logo">
       <img src="assets/logo.png" alt="مسار التميز">
-      <div><h2>مسار التميز</h2><span>أكاديمية تعليمية</span></div>
-    </div>
-    <div class="sidebar-user">
-      <div class="sidebar-avatar" id="sidebarAvatar"></div>
-      <div class="sidebar-user-info">
-        <h4 id="sidebarName">...</h4>
-        <span class="role-badge" id="roleBadge"></span>
+      <div class="logo-text">
+        <h1>أكاديمية مسار التميز</h1>
+        <span>التعليم الثانوي في تونس</span>
       </div>
-    </div>
-    <nav class="sidebar-nav" id="sidebarNav"></nav>
-    <div class="sidebar-footer">
-      <a href="index.html" style="display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.5);font-size:.88rem;margin-bottom:10px;transition:color .2s" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,.5)'">
-        <i class="fas fa-home"></i> الصفحة الرئيسية
-      </a>
-      <button class="btn-logout" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</button>
-    </div>
-  </aside>
+    </a>
 
-  <div class="main-content">
-    <div class="topbar">
-      <div style="display:flex;align-items:center;gap:14px">
-        <button class="hamburger-btn" id="hamburgerBtn"><i class="fas fa-bars"></i></button>
-        <div class="topbar-title">
-          <h1 id="pageTitle">لوحة التحكم</h1>
-          <p id="pageSubtitle">مرحباً بك في أكاديمية مسار التميز</p>
+    <nav class="header-nav">
+      <a href="#about">عن المنصة</a>
+      <a href="#levels">المستويات</a>
+      <a href="#pricing">العروض</a>
+      <a href="#how">كيف تشترك</a>
+      <a href="contact.html">تواصل معنا</a>
+    </nav>
+
+    <div class="header-actions">
+      <div id="authButtons">
+        <button class="btn-login" id="loginBtn">تسجيل الدخول</button>
+        <button class="btn-signup" id="signupBtn">إنشاء حساب</button>
+      </div>
+      <div class="user-section" id="userSection">
+        <div class="user-avatar" id="userAvatar">
+          <i class="fas fa-user"></i>
+        </div>
+        <div class="user-dropdown-menu" id="dropdownMenu">
+          <a href="dashboard.html"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a>
+          <a href="courses.html"><i class="fas fa-book"></i> دوراتي</a>
+          <div class="divider" style="margin:4px 0;height:1px;background:var(--gray-200)"></div>
+          <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
         </div>
       </div>
-      <div class="topbar-actions">
-        <button class="btn-icon"><i class="fas fa-bell"></i></button>
-        <button class="btn-icon" onclick="window.location.href='index.html'"><i class="fas fa-home"></i></button>
-      </div>
+      <button class="hamburger" id="hamburger"><i class="fas fa-bars"></i></button>
     </div>
+  </div>
+</header>
 
-    <!-- STUDENT PAGES -->
-    <div class="page active" id="page-student-overview">
-      <div id="subStatusCard"></div>
-      <div class="stats-grid" id="studentStats"></div>
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i class="fas fa-play-circle"></i> آخر الدروس</div>
-          <button class="btn btn-outline btn-sm" onclick="showPage('student-courses')">عرض الكل</button>
+<!-- Mobile Nav -->
+<div class="mobile-nav" id="mobileNav">
+  <button class="mobile-nav-close" id="mobileNavClose"><i class="fas fa-times"></i></button>
+  <a href="#about">عن المنصة</a>
+  <a href="#levels">المستويات</a>
+  <a href="#pricing">العروض</a>
+  <a href="#how">كيف تشترك</a>
+  <a href="contact.html">تواصل معنا</a>
+</div>
+
+<!-- ══════ HERO ══════ -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <i class="fas fa-star"></i>
+          منصة تعليمية تونسية متخصصة
         </div>
-        <div id="recentVideos"></div>
-      </div>
-    </div>
-
-    <div class="page" id="page-student-courses">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i class="fas fa-book-open"></i> دروسي</div>
-          <a href="courses.html" class="btn btn-primary btn-sm"><i class="fas fa-external-link-alt"></i> فتح صفحة الدروس</a>
+        <h1>تعلّم <span>الرياضيات</span> مع أفضل المدرّسين</h1>
+        <p>حصص مباشرة وتسجيلات عالية الجودة للسنوات السابعة والثامنة والتاسعة أساسي. تعليم تفاعلي يضمن لك النجاح.</p>
+        <div class="hero-actions">
+          <button class="btn-hero-primary" onclick="document.getElementById('signupBtn').click()">
+            <i class="fas fa-rocket"></i>
+            ابدأ الآن مجاناً
+          </button>
+          <a href="#pricing" class="btn-hero-secondary">
+            <i class="fas fa-tags"></i>
+            اكتشف العروض
+          </a>
         </div>
-        <div id="studentCoursesList"></div>
-      </div>
-    </div>
-
-    <div class="page" id="page-student-sessions">
-      <div class="card">
-        <div class="card-header"><div class="card-title"><i class="fas fa-calendar-alt"></i> حصصي المباشرة</div></div>
-        <div id="studentSessionsList" class="sessions-list"></div>
-      </div>
-    </div>
-
-    <div class="page" id="page-student-subscription">
-      <div class="card">
-        <div class="card-header"><div class="card-title"><i class="fas fa-credit-card"></i> اشتراكي</div></div>
-        <div class="plan-cards">
-          <div class="plan-card" id="planCard1" onclick="selectPlan('recordings',this)">
-            <div class="plan-name">عرض التسجيلات</div>
-            <div class="plan-price">50 <span style="font-size:1rem">د.ت</span></div>
-            <div class="plan-desc">سنوياً — جميع التسجيلات</div>
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <strong>+500</strong>
+            <span>طالب مسجّل</span>
           </div>
-          <div class="plan-card featured" id="planCard2" onclick="selectPlan('sessions',this)">
-            <div class="plan-name" style="color:var(--gold-light)">⭐ الحصص المباشرة</div>
-            <div class="plan-price">40 <span style="font-size:1rem">د.ت</span></div>
-            <div class="plan-desc">8 حصص + تسجيلات مجاناً</div>
+          <div class="hero-stat">
+            <strong>3</strong>
+            <span>مستويات دراسية</span>
+          </div>
+          <div class="hero-stat">
+            <strong>5</strong>
+            <span>مدرّسون متخصصون</span>
           </div>
         </div>
-        <div class="card" style="background:var(--gray-50)">
-          <div class="card-title" style="margin-bottom:16px"><i class="fas fa-upload"></i> إرسال وصل الخلاص</div>
-          <form id="receiptForm">
-            <div class="form-grid" style="margin-bottom:16px">
-              <div class="form-group">
-                <label>العرض المختار</label>
-                <select class="form-control" id="selectedPlan" required>
-                  <option value="">اختر العرض</option>
-                  <option value="recordings">التسجيلات — 50 د.ت/سنة</option>
-                  <option value="sessions">الحصص المباشرة — 40 د.ت/8 حصص</option>
-                </select>
+      </div>
+
+      <div class="hero-visual">
+        <div class="hero-card">
+          <div class="hero-card-title">
+            <i class="fas fa-graduation-cap"></i>
+            الدورات المتاحة
+          </div>
+          <ul class="subject-list">
+            <li class="subject-item">
+              <div class="subject-info">
+                <div class="subject-icon" style="background:rgba(245,158,11,.2)">➗</div>
+                <div>
+                  <div class="subject-name">الرياضيات</div>
+                  <div class="subject-level">السنة السابعة أساسي</div>
+                </div>
               </div>
-              <div class="form-group">
-                <label>طريقة الدفع</label>
-                <select class="form-control" id="paymentMethod" required>
-                  <option value="">اختر الطريقة</option>
-                  <option value="bank">تحويل بنكي</option>
-                  <option value="post">البريد التونسي</option>
-                  <option value="d17">تطبيق D17</option>
-                  <option value="edinar">Carte eDinar</option>
-                </select>
+              <span class="badge-live">متاح</span>
+            </li>
+            <li class="subject-item">
+              <div class="subject-info">
+                <div class="subject-icon" style="background:rgba(16,185,129,.2)">➗</div>
+                <div>
+                  <div class="subject-name">الرياضيات</div>
+                  <div class="subject-level">السنة الثامنة أساسي</div>
+                </div>
               </div>
-            </div>
-            <div class="form-group" style="margin-bottom:16px">
-              <label>صورة وصل الخلاص <span style="color:var(--danger)">*</span></label>
-              <label class="upload-zone" for="receiptFile" id="receiptZone">
-                <i class="fas fa-cloud-upload-alt"></i>
-                <p>انقر لرفع صورة الوصل (JPG, PNG, PDF — حد أقصى 5MB)</p>
-                <input type="file" id="receiptFile" accept="image/jpeg,image/png,image/webp,.pdf" required onchange="showFN(this,'rfn');previewReceipt_(this)">
-              </label>
-              <div id="rfn" style="font-size:.82rem;color:var(--success);margin-top:6px;display:none"></div>
-              <div id="receiptPreview_" style="margin-top:10px;display:none">
-                <img id="receiptImg_" src="" style="max-height:120px;border-radius:8px;border:1px solid var(--gray-200)">
+              <span class="badge-live">متاح</span>
+            </li>
+            <li class="subject-item">
+              <div class="subject-info">
+                <div class="subject-icon" style="background:rgba(37,99,235,.2)">➗</div>
+                <div>
+                  <div class="subject-name">الرياضيات</div>
+                  <div class="subject-level">السنة التاسعة أساسي</div>
+                </div>
               </div>
-            </div>
-            <div class="form-group" style="margin-bottom:16px">
-              <label>ملاحظات (اختياري)</label>
-              <textarea class="form-control" id="receiptNotes" placeholder="أي معلومات إضافية..."></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> إرسال الوصل</button>
-          </form>
+              <span class="badge-new">جديد</span>
+            </li>
+          </ul>
         </div>
       </div>
     </div>
+  </div>
+</section>
 
-    <!-- PARENT PAGES -->
-    <div class="page" id="page-parent-overview">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i class="fas fa-child"></i> منظوري</div>
-          <button class="btn btn-primary btn-sm" onclick="showPage('parent-link')"><i class="fas fa-link"></i> ربط منظور</button>
-        </div>
-        <div id="parentChildrenList"></div>
+<!-- ══════ WHY US ══════ -->
+<section class="why-us" id="about">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">لماذا مسار التميز؟</div>
+      <h2>التعليم الذي يصنع الفارق</h2>
+      <p>منصة تعليمية تونسية مبنية خصيصاً لاحتياجات الطلاب التونسيين</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-video"></i></div>
+        <h3>حصص مباشرة تفاعلية</h3>
+        <p>حصص مباشرة عبر Google Meet مع مدرسين متخصصين، تفاعل مباشر وإجابات فورية على أسئلتك.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-play-circle"></i></div>
+        <h3>تسجيلات عالية الجودة</h3>
+        <p>مشاهدة تسجيلات الدروس في أي وقت وأي مكان عبر قناة مسار التميز على YouTube.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-users"></i></div>
+        <h3>متابعة ولي الأمر</h3>
+        <p>نظام متكامل يتيح لولي الأمر متابعة تقدم أبنائه ومشاهدة نتائجهم بشكل مستمر.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-chalkboard-teacher"></i></div>
+        <h3>مدرسون متخصصون</h3>
+        <p>فريق من أفضل أساتذة الرياضيات في تونس، خبرة عالية ومنهج تدريسي محكم.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-mobile-alt"></i></div>
+        <h3>متاح على كل الأجهزة</h3>
+        <p>تصفح المنصة من هاتفك أو حاسوبك أو جهازك اللوحي بسهولة تامة.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+        <h3>تتبع التقدم</h3>
+        <p>لوحة تحكم شخصية تظهر لك تقدمك في كل مادة وتساعدك على التركيز على نقاط الضعف.</p>
       </div>
     </div>
+  </div>
+</section>
 
-    <div class="page" id="page-parent-link">
-      <div class="card">
-        <div class="card-header"><div class="card-title"><i class="fas fa-link"></i> ربط منظور بحسابك</div></div>
-        <div class="child-link-card">
-          <p style="font-size:.88rem;color:var(--gray-600);margin-bottom:16px">ابحث عن منظورك بالبريد الإلكتروني المسجّل في المنصة</p>
-          <div class="form-grid" style="margin-bottom:14px">
-            <div class="form-group">
-              <label>البريد الإلكتروني للمنظور</label>
-              <input type="email" class="form-control" id="childEmail" placeholder="example@email.com">
-            </div>
-            <div style="display:flex;align-items:flex-end">
-              <button class="btn btn-primary" onclick="searchChild()"><i class="fas fa-search"></i> بحث</button>
+<!-- ══════ LEVELS ══════ -->
+<section class="levels" id="levels">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">المستويات الدراسية</div>
+      <h2>ثلاثة مستويات — مادة واحدة متقنة</h2>
+      <p>نبدأ بالرياضيات ونوسّع تدريجياً لتشمل جميع المواد</p>
+    </div>
+    <div class="levels-grid">
+      <div class="level-card">
+        <div class="level-number">7</div>
+        <h3>السنة السابعة أساسي</h3>
+        <p>أسس الرياضيات ومفاهيمها الأولية بأسلوب تفاعلي ممتع</p>
+        <div class="level-topics">
+          <span class="topic-tag">الأعداد</span>
+          <span class="topic-tag">الهندسة</span>
+          <span class="topic-tag">القياس</span>
+          <span class="topic-tag">المعطيات</span>
+        </div>
+      </div>
+      <div class="level-card">
+        <div class="level-number">8</div>
+        <h3>السنة الثامنة أساسي</h3>
+        <p>تعمّق في الرياضيات والتحضير الجيد للمرحلة المتقدمة</p>
+        <div class="level-topics">
+          <span class="topic-tag">الجبر</span>
+          <span class="topic-tag">الهندسة</span>
+          <span class="topic-tag">الإحصاء</span>
+          <span class="topic-tag">الأعداد</span>
+        </div>
+      </div>
+      <div class="level-card">
+        <div class="level-number">9</div>
+        <h3>السنة التاسعة أساسي</h3>
+        <p>التحضير المكثف لمناظرة التاسعة مع مراجعة شاملة</p>
+        <div class="level-topics">
+          <span class="topic-tag">مناظرة</span>
+          <span class="topic-tag">مراجعة</span>
+          <span class="topic-tag">تمارين</span>
+          <span class="topic-tag">اختبارات</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ PRICING ══════ -->
+<section class="pricing" id="pricing">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">العروض والأسعار</div>
+      <h2>اختر العرض المناسب لك</h2>
+      <p>عرضان مرنان يناسبان جميع الاحتياجات بأسعار في متناول الجميع</p>
+    </div>
+    <div class="pricing-grid">
+
+      <!-- العرض الأول -->
+      <div class="pricing-card">
+        <div class="plan-name">عرض التسجيلات</div>
+        <div class="plan-desc">مشاهدة جميع الدروس المسجلة في أي وقت</div>
+        <div class="plan-price">
+          <span class="price-amount">50</span>
+          <span class="price-currency">د.ت</span>
+          <span class="price-period">/ سنوياً</span>
+        </div>
+        <ul class="plan-features">
+          <li><i class="fas fa-check"></i> مشاهدة جميع التسجيلات</li>
+          <li><i class="fas fa-check"></i> الرياضيات 7 + 8 + 9</li>
+          <li><i class="fas fa-check"></i> تحديثات مستمرة طوال السنة</li>
+          <li><i class="fas fa-check"></i> لوحة تحكم شخصية</li>
+          <li><i class="fas fa-check"></i> متابعة ولي الأمر</li>
+        </ul>
+        <button class="btn-plan btn-plan-outline" onclick="openReceiptModal('recordings')">
+          اشترك الآن
+        </button>
+      </div>
+
+      <!-- العرض الثاني -->
+      <div class="pricing-card featured">
+        <div class="popular-badge">الأكثر طلباً</div>
+        <div class="plan-name">عرض الحصص المباشرة</div>
+        <div class="plan-desc">8 حصص مباشرة مع مدرس متخصص + التسجيلات</div>
+        <div class="plan-price">
+          <span class="price-amount">40</span>
+          <span class="price-currency">د.ت</span>
+          <span class="price-period">/ 8 حصص</span>
+        </div>
+        <ul class="plan-features">
+          <li><i class="fas fa-check"></i> 8 حصص مباشرة عبر Google Meet</li>
+          <li><i class="fas fa-check"></i> مشاهدة التسجيلات مجاناً</li>
+          <li><i class="fas fa-check"></i> تفاعل مباشر مع المدرس</li>
+          <li><i class="fas fa-check"></i> تصحيح تمارين وواجبات</li>
+          <li><i class="fas fa-check"></i> متابعة مستمرة لولي الأمر</li>
+        </ul>
+        <button class="btn-plan btn-plan-gold" onclick="openReceiptModal('sessions')">
+          احجز حصصك الآن
+        </button>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════ HOW IT WORKS ══════ -->
+<section class="how-it-works" id="how">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">كيف تشترك؟</div>
+      <h2>4 خطوات بسيطة وأنت جاهز</h2>
+      <p>نظام اشتراك سهل وآمن بدون تعقيدات</p>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-number">1</div>
+        <h3>إنشاء حساب</h3>
+        <p>سجّل حسابك كطالب أو ولي أمر في دقيقة واحدة</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">2</div>
+        <h3>اختر العرض</h3>
+        <p>اختر بين عرض التسجيلات أو الحصص المباشرة</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">3</div>
+        <h3>ادفع وأرسل الوصل</h3>
+        <p>حوّل المبلغ عبر البنك أو البريد أو D17 وأرسل الوصل</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">4</div>
+        <h3>ابدأ التعلم</h3>
+        <p>يتم تفعيل حسابك خلال 24 ساعة وتبدأ رحلتك</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ PAYMENT ══════ -->
+<section class="payment" id="payment">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">طرق الدفع</div>
+      <h2>طرق دفع متعددة في متناولك</h2>
+      <p>اختر الطريقة الأنسب لك لإرسال وصل الخلاص</p>
+    </div>
+    <div class="payment-grid">
+      <div>
+        <div class="payment-methods">
+          <div class="payment-method">
+            <div class="payment-icon" style="background:rgba(37,99,235,.1)">🏦</div>
+            <div>
+              <h4>تحويل بنكي</h4>
+              <p>عبر أي بنك تونسي</p>
             </div>
           </div>
-          <div id="childSearchResult"></div>
+          <div class="payment-method">
+            <div class="payment-icon" style="background:rgba(245,158,11,.1)">📮</div>
+            <div>
+              <h4>البريد التونسي</h4>
+              <p>تحويل بريدي مباشر</p>
+            </div>
+          </div>
+          <div class="payment-method">
+            <div class="payment-icon" style="background:rgba(16,185,129,.1)">📱</div>
+            <div>
+              <h4>تطبيق D17</h4>
+              <p>دفع إلكتروني سريع</p>
+            </div>
+          </div>
+          <div class="payment-method">
+            <div class="payment-icon" style="background:rgba(139,92,246,.1)">💳</div>
+            <div>
+              <h4>Carte eDinar</h4>
+              <p>بطاقة الدينار الإلكتروني</p>
+            </div>
+          </div>
         </div>
-        <div id="linkedChildren"></div>
+      </div>
+
+      <div>
+        <h3 style="font-size:1.2rem;font-weight:800;color:var(--blue-dark);margin-bottom:20px">
+          كيف ترسل وصل الخلاص؟
+        </h3>
+        <ol class="payment-steps">
+          <li class="payment-step">
+            <div class="step-num">1</div>
+            <div>
+              <h4>قم بعملية الدفع</h4>
+              <p>حوّل المبلغ عبر طريقة الدفع التي تناسبك واحتفظ بوصل الخلاص</p>
+            </div>
+          </li>
+          <li class="payment-step">
+            <div class="step-num">2</div>
+            <div>
+              <h4>سجّل دخولك للمنصة</h4>
+              <p>ادخل إلى حسابك على أكاديمية مسار التميز</p>
+            </div>
+          </li>
+          <li class="payment-step">
+            <div class="step-num">3</div>
+            <div>
+              <h4>أرسل صورة الوصل</h4>
+              <p>ارفع صورة وصل الخلاص عبر نموذج الاشتراك في لوحة التحكم</p>
+            </div>
+          </li>
+          <li class="payment-step">
+            <div class="step-num">4</div>
+            <div>
+              <h4>انتظر التفعيل</h4>
+              <p>يتم مراجعة وصلك وتفعيل اشتراكك خلال <strong>24 ساعة</strong> كحد أقصى</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ CTA ══════ -->
+<section class="cta">
+  <div class="container">
+    <div class="cta-content">
+      <h2>ابدأ رحلتك نحو <span>التميز</span> اليوم</h2>
+      <p>انضم لمئات الطلاب الذين يتعلمون مع أفضل المدرسين في تونس</p>
+      <button class="btn-hero-primary" onclick="document.getElementById('signupBtn').click()" style="margin:0 auto">
+        <i class="fas fa-user-plus"></i>
+        أنشئ حسابك الآن — مجاناً
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ FOOTER ══════ -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="logo">
+          <img src="assets/logo.png" alt="مسار التميز" style="width:44px;height:44px">
+          <div class="logo-text">
+            <h1 style="font-size:1rem">أكاديمية مسار التميز</h1>
+          </div>
+        </div>
+        <p>منصة تعليمية تونسية متخصصة في تعليم الرياضيات للمرحلة الإعدادية. نحو تعليم متميز لمستقبل مشرق.</p>
+      </div>
+      <div class="footer-col">
+        <h4>روابط سريعة</h4>
+        <ul>
+          <li><a href="#about">عن المنصة</a></li>
+          <li><a href="#levels">المستويات</a></li>
+          <li><a href="#pricing">العروض</a></li>
+          <li><a href="#how">كيف تشترك</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>الدعم</h4>
+        <ul>
+          <li><a href="contact.html">تواصل معنا</a></li>
+          <li><a href="#">الأسئلة الشائعة</a></li>
+          <li><a href="#">سياسة الاستخدام</a></li>
+          <li><a href="#">سياسة الخصوصية</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>تواصل معنا</h4>
+        <ul>
+          <li><a href="https://masartamayoz.com" target="_blank">الموقع الرئيسي</a></li>
+          <li><a href="https://www.facebook.com/masartamayoz" target="_blank">فيسبوك</a></li>
+          <li><a href="https://www.youtube.com/@masartamayoz" target="_blank">يوتيوب</a></li>
+          <li><a href="https://t.me/masartamayoz" target="_blank">تيليغرام</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 أكاديمية مسار التميز. جميع الحقوق محفوظة.</span>
+      <div class="social-links">
+        <a href="https://www.facebook.com/masartamayoz" target="_blank" class="social-link"><i class="fab fa-facebook-f"></i></a>
+        <a href="https://www.youtube.com/@masartamayoz" target="_blank" class="social-link"><i class="fab fa-youtube"></i></a>
+        <a href="https://t.me/masartamayoz" target="_blank" class="social-link"><i class="fab fa-telegram-plane"></i></a>
+        <a href="https://twitter.com/masartamayoz" target="_blank" class="social-link"><i class="fab fa-twitter"></i></a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- ══════ AUTH MODAL ══════ -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal-box">
+    <button class="modal-close" id="modalClose"><i class="fas fa-times"></i></button>
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="loginTab">تسجيل الدخول</div>
+      <div class="auth-tab" id="registerTab">إنشاء حساب</div>
+    </div>
+
+    <!-- Login Form -->
+    <div class="auth-form active" id="loginForm">
+      <form id="loginUserForm">
+        <div class="form-group">
+          <label>البريد الإلكتروني</label>
+          <input type="email" id="loginEmail" class="form-control" required placeholder="example@email.com">
+        </div>
+        <div class="form-group">
+          <label>كلمة المرور</label>
+          <div style="position:relative">
+            <input type="password" id="loginPassword" class="form-control" required placeholder="••••••••" style="padding-left:44px">
+            <button type="button" onclick="togglePwd('loginPassword','eyeLogin')" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray-400)">
+              <i class="fas fa-eye" id="eyeLogin"></i>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="btn-submit">تسجيل الدخول</button>
+      </form>
+      <div class="divider">أو</div>
+      <div class="social-auth">
+        <button class="btn-social" id="googleLogin">
+          <i class="fab fa-google" style="color:#DB4437"></i> جوجل
+        </button>
       </div>
     </div>
 
-    <div class="page" id="page-parent-subscription">
-      <div class="card">
-        <div class="card-header"><div class="card-title"><i class="fas fa-credit-card"></i> اشتراك منظوري</div></div>
-        <div class="form-grid" style="margin-bottom:16px">
-          <div class="form-group"><label>اسم المنظور</label><input type="text" class="form-control" id="parentChildName" placeholder="الاسم الكامل"></div>
-          <div class="form-group"><label>المستوى الدراسي</label>
-            <select class="form-control" id="parentChildLevel">
-              <option value="">اختر</option>
+    <!-- Register Form -->
+    <div class="auth-form" id="registerForm">
+      <form id="registerUserForm">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:0">
+          <div class="form-group">
+            <label>الاسم *</label>
+            <input type="text" id="registerFirstName" class="form-control" required placeholder="الاسم">
+          </div>
+          <div class="form-group">
+            <label>اللقب *</label>
+            <input type="text" id="registerLastName" class="form-control" required placeholder="اللقب">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>البريد الإلكتروني *</label>
+          <input type="email" id="registerEmail" class="form-control" required placeholder="example@email.com">
+        </div>
+        <div class="form-group">
+          <label>نوع الحساب *</label>
+          <select id="userType" class="form-control" required onchange="toggleExtraFields(this.value)">
+            <option value="">اختر نوع الحساب</option>
+            <option value="student">تلميذ</option>
+            <option value="parent">ولي أمر</option>
+          </select>
+        </div>
+        <!-- Extra fields for student -->
+        <div id="studentFields" style="display:none">
+          <div class="form-group">
+            <label>المستوى الدراسي</label>
+            <select id="studentLevel" class="form-control">
+              <option value="">اختر مستواك</option>
               <option value="7">السنة السابعة أساسي</option>
               <option value="8">السنة الثامنة أساسي</option>
               <option value="9">السنة التاسعة أساسي</option>
             </select>
           </div>
-          <div class="form-group"><label>العرض</label>
-            <select class="form-control" id="parentPlan">
-              <option value="">اختر</option>
-              <option value="recordings">التسجيلات — 50 د.ت/سنة</option>
-              <option value="sessions">الحصص المباشرة — 40 د.ت/8 حصص</option>
-            </select>
-          </div>
-          <div class="form-group"><label>طريقة الدفع</label>
-            <select class="form-control" id="parentPayMethod">
-              <option value="">اختر</option>
-              <option value="bank">تحويل بنكي</option>
-              <option value="post">البريد التونسي</option>
-              <option value="d17">D17</option>
-              <option value="edinar">Carte eDinar</option>
-            </select>
+        </div>
+        <!-- Extra fields for parent -->
+        <div id="parentFields" style="display:none">
+          <div class="form-group">
+            <label>رقم الهاتف</label>
+            <input type="tel" id="parentPhone" class="form-control" placeholder="+216 XX XXX XXX">
           </div>
         </div>
-        <div class="form-group" style="margin-bottom:16px">
-          <label>صورة وصل الخلاص</label>
-          <label class="upload-zone" for="parentReceiptFile">
-            <i class="fas fa-cloud-upload-alt"></i><p>انقر لرفع الوصل</p>
-            <input type="file" id="parentReceiptFile" accept="image/*,.pdf" onchange="showFN(this,'prfn')">
-          </label>
-          <div id="prfn" style="font-size:.82rem;color:var(--success);margin-top:6px;display:none"></div>
+        <div class="form-group">
+          <label>كلمة المرور *</label>
+          <div style="position:relative">
+            <input type="password" id="registerPassword" class="form-control" required placeholder="••••••••" minlength="6" style="padding-left:44px">
+            <button type="button" onclick="togglePwd('registerPassword','eyeReg1')" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray-400)">
+              <i class="fas fa-eye" id="eyeReg1"></i>
+            </button>
+          </div>
         </div>
-        <button class="btn btn-primary" onclick="submitParentReceipt()"><i class="fas fa-paper-plane"></i> إرسال الوصل</button>
-      </div>
-    </div>
-
-    <!-- TEACHER PAGES -->
-    <div class="page" id="page-teacher-overview">
-      <div class="wallet-card">
-        <h3>رصيد المحفظة</h3>
-        <div class="wallet-amount" id="tBalance">0 <span>د.ت</span></div>
-        <div class="wallet-grid">
-          <div class="wallet-stat"><strong id="tTotalSess">0</strong><span>إجمالي الحصص</span></div>
-          <div class="wallet-stat"><strong id="tEarned">0 د.ت</strong><span>إجمالي الأرباح</span></div>
-          <div class="wallet-stat"><strong id="tPaid">0 د.ت</strong><span>المدفوع</span></div>
+        <div class="form-group">
+          <label>تأكيد كلمة المرور *</label>
+          <div style="position:relative">
+            <input type="password" id="registerConfirmPassword" class="form-control" required placeholder="••••••••" style="padding-left:44px">
+            <button type="button" onclick="togglePwd('registerConfirmPassword','eyeReg2')" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray-400)">
+              <i class="fas fa-eye" id="eyeReg2"></i>
+            </button>
+          </div>
         </div>
-      </div>
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i class="fas fa-calendar-check"></i> حصصي الأخيرة</div>
-          <button class="btn btn-primary btn-sm" onclick="openAddSessionModal()"><i class="fas fa-plus"></i> تسجيل حصة</button>
-        </div>
-        <div id="teacherSessionsList" class="sessions-list"></div>
-      </div>
-    </div>
-
-    <div class="page" id="page-teacher-sessions">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i class="fas fa-history"></i> سجل الحصص</div>
-          <button class="btn btn-primary btn-sm" onclick="openAddSessionModal()"><i class="fas fa-plus"></i> تسجيل حصة</button>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>التاريخ</th><th>المستوى</th><th>القسم</th><th>المدة</th><th>الطلاب</th><th>رابط Meet</th><th>المعلوم</th><th>الحالة</th></tr></thead>
-            <tbody id="teacherSessionsTable"><tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-400)">لا توجد حصص بعد</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div class="page" id="page-teacher-wallet">
-      <div class="wallet-card">
-        <h3>رصيد المحفظة الحالي</h3>
-        <div class="wallet-amount" id="tBalance2">0 <span>د.ت</span></div>
-        <p style="color:rgba(255,255,255,.6);font-size:.85rem;margin-top:8px">معلوم الحصة: <strong style="color:var(--gold)">20 د.ت</strong></p>
-      </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title"><i class="fas fa-exchange-alt"></i> سجل المعاملات</div></div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>التاريخ</th><th>البيان</th><th>المبلغ</th><th>النوع</th></tr></thead>
-            <tbody id="teacherTransactions"><tr><td colspan="4" style="text-align:center;padding:32px;color:var(--gray-400)">لا توجد معاملات</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ADMIN PAGES -->
-    <div class="page" id="page-admin-overview">
-      <div class="stats-grid" id="adminStats"></div>
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i class="fas fa-file-invoice"></i> وصولات الخلاص الجديدة</div>
-          <span class="badge badge-warning" id="pendingCount">0 في الانتظار</span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>المستخدم</th><th>العرض</th><th>طريقة الدفع</th><th>التاريخ</th><th>إجراء</th></tr></thead>
-            <tbody id="pendingReceiptsTable"><tr><td colspan="5" style="text-align:center;padding:32px;color:var(--gray-400)">لا توجد وصولات</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div class="page" id="page-admin-users">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i class="fas fa-users"></i> إدارة المستخدمين</div>
-          <input type="text" class="form-control" placeholder="بحث..." id="userSearch" style="width:200px" oninput="filterUsers()">
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>الاسم</th><th>البريد</th><th>الهاتف</th><th>الدور</th><th>المستوى</th><th>الاشتراك</th><th>إجراء</th></tr></thead>
-            <tbody id="usersTable"><tr><td colspan="7" style="text-align:center;padding:32px;color:var(--gray-400)">جاري التحميل...</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div class="page" id="page-admin-sessions">
-      <div class="card">
-        <div class="card-header"><div class="card-title"><i class="fas fa-chalkboard-teacher"></i> حصص المدرسين</div></div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>المدرس</th><th>التاريخ</th><th>المستوى</th><th>القسم</th><th>الطلاب</th><th>رابط Meet</th><th>الحالة</th><th>إجراء</th></tr></thead>
-            <tbody id="allSessionsTable"><tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-400)">لا توجد حصص</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div class="page" id="page-admin-wallets">
-      <div class="card">
-        <div class="card-header"><div class="card-title"><i class="fas fa-wallet"></i> محافظ المدرسين</div></div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>المدرس</th><th>الحصص</th><th>الأرباح</th><th>المدفوع</th><th>الرصيد</th><th>إجراء</th></tr></thead>
-            <tbody id="teachersWalletsTable"><tr><td colspan="6" style="text-align:center;padding:32px;color:var(--gray-400)">لا يوجد مدرسون</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div class="page" id="page-admin-content">
-      <div class="card">
-        <div class="card-title" style="margin-bottom:20px"><i class="fas fa-plus-circle"></i> إدارة المحتوى</div>
-        <div class="admin-tabs">
-          <button class="admin-tab active" onclick="switchAdminTab('video',this)">📹 إضافة درس/محتوى</button>
-          <button class="admin-tab" onclick="switchAdminTab('session',this)">📅 جدولة حصة</button>
-          <button class="admin-tab" onclick="switchAdminTab('teacher',this)">👤 إضافة مدرس</button>
-        </div>
-
-        <div class="admin-panel active" id="panel-video">
-          <form id="addVideoForm">
-            <div class="form-grid cols3" style="margin-bottom:16px">
-              <div class="form-group">
-                <label>المستوى *</label>
-                <select class="form-control" id="vLevel" required>
-                  <option value="">اختر</option>
-                  <option value="7">السنة السابعة</option>
-                  <option value="8">السنة الثامنة</option>
-                  <option value="9">السنة التاسعة</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>نوع المحتوى *</label>
-                <select class="form-control" id="vType" required>
-                  <option value="">اختر</option>
-                  <option value="lesson">درس</option>
-                  <option value="exercise">سلسلة تمارين</option>
-                  <option value="exam1">فرض مراقبة 1</option>
-                  <option value="exam2">فرض مراقبة 2</option>
-                  <option value="exam3">فرض مراقبة 3</option>
-                  <option value="exam4">فرض مراقبة 4</option>
-                  <option value="exam5">فرض مراقبة 5</option>
-                  <option value="exam6">فرض مراقبة 6</option>
-                  <option value="final1">فرض تأليفي 1</option>
-                  <option value="final2">فرض تأليفي 2</option>
-                  <option value="final3">فرض تأليفي 3</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>القسم</label>
-                <select class="form-control" id="vSection">
-                  <option value="">اختر</option>
-                  <option value="algebra">جبر</option>
-                  <option value="geometry">هندسة</option>
-                  <option value="statistics">إحصاء</option>
-                  <option value="general">عام</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-grid" style="margin-bottom:16px">
-              <div class="form-group">
-                <label>عنوان الدرس *</label>
-                <input type="text" class="form-control" id="vTitle" placeholder="مثال: الأعداد الطبيعية" required>
-              </div>
-              <div class="form-group">
-                <label>الوحدة / الفصل</label>
-                <input type="text" class="form-control" id="vChapter" placeholder="مثال: الوحدة الأولى">
-              </div>
-            </div>
-            <div class="form-group" style="margin-bottom:16px">
-              <label>روابط YouTube (يمكن إضافة أكثر من رابط لنفس الدرس)</label>
-              <div class="video-items" id="videoItems">
-                <div class="video-item">
-                  <input type="url" placeholder="https://www.youtube.com/watch?v=..." class="yt-input">
-                  <input type="text" placeholder="عنوان الحصة (اختياري)" style="width:200px">
-                </div>
-              </div>
-              <button type="button" class="btn btn-outline btn-sm" style="margin-top:8px" onclick="addVideoItem()">
-                <i class="fas fa-plus"></i> إضافة رابط آخر
-              </button>
-            </div>
-            <div class="form-grid" style="margin-bottom:16px">
-              <div class="form-group">
-                <label><i class="fas fa-file-pdf" style="color:var(--danger)"></i> رابط PDF النص</label>
-                <input type="url" class="form-control" id="vPdfText" placeholder="رابط PDF النص أو الفرض">
-              </div>
-              <div class="form-group">
-                <label><i class="fas fa-file-pdf" style="color:var(--success)"></i> رابط PDF الإصلاح</label>
-                <input type="url" class="form-control" id="vPdfSolution" placeholder="رابط PDF الإصلاح">
-              </div>
-            </div>
-            <div class="form-group" style="margin-bottom:16px">
-              <label>وصف الدرس</label>
-              <textarea class="form-control" id="vDesc" placeholder="وصف مختصر..."></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ المحتوى</button>
-          </form>
-        </div>
-
-        <div class="admin-panel" id="panel-session">
-          <form id="addSessionForm">
-            <div class="form-grid" style="margin-bottom:16px">
-              <div class="form-group">
-                <label>المدرس *</label>
-                <select class="form-control" id="sessTeacher" required><option value="">اختر المدرس</option></select>
-              </div>
-              <div class="form-group">
-                <label>المستوى *</label>
-                <select class="form-control" id="sessLevel" required>
-                  <option value="">اختر</option>
-                  <option value="7">السنة السابعة</option>
-                  <option value="8">السنة الثامنة</option>
-                  <option value="9">السنة التاسعة</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>القسم</label>
-                <select class="form-control" id="sessSection">
-                  <option value="">اختر</option>
-                  <option value="algebra">جبر</option>
-                  <option value="geometry">هندسة</option>
-                  <option value="general">عام</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>التاريخ والوقت *</label>
-                <input type="datetime-local" class="form-control" id="sessDateTime" required>
-              </div>
-              <div class="form-group full">
-                <label>رابط Google Meet</label>
-                <input type="url" class="form-control" id="sessMeetLink" placeholder="https://meet.google.com/xxx-xxxx-xxx">
-              </div>
-            </div>
-            <button type="submit" class="btn btn-primary"><i class="fas fa-calendar-plus"></i> جدولة الحصة</button>
-          </form>
-        </div>
-
-        <div class="admin-panel" id="panel-teacher">
-          <form id="addTeacherForm">
-            <div class="form-grid" style="margin-bottom:16px">
-              <div class="form-group"><label>الاسم *</label><input type="text" class="form-control" id="tFirstName" placeholder="الاسم" required></div>
-              <div class="form-group"><label>اللقب *</label><input type="text" class="form-control" id="tLastName" placeholder="اللقب" required></div>
-              <div class="form-group"><label>البريد الإلكتروني *</label><input type="email" class="form-control" id="tEmail" required placeholder="example@email.com"></div>
-              <div class="form-group"><label>كلمة المرور *</label><input type="password" class="form-control" id="tPassword" required minlength="6" placeholder="••••••"></div>
-              <div class="form-group"><label>رقم الهاتف</label><input type="tel" class="form-control" id="tPhone" placeholder="+216 XX XXX XXX"></div>
-              <div class="form-group"><label>المادة المختصة</label><input type="text" class="form-control" id="tSubject" placeholder="الرياضيات" value="الرياضيات"></div>
-            </div>
-            <button type="submit" class="btn btn-primary"><i class="fas fa-user-plus"></i> إضافة المدرس</button>
-          </form>
-        </div>
-      </div>
+        <button type="submit" class="btn-submit">إنشاء الحساب</button>
+      </form>
     </div>
   </div>
 </div>
 
-<!-- Modal: Teacher Add Session -->
-<div class="modal-overlay" id="addSessionModal">
+<!-- ══════ RECEIPT MODAL ══════ -->
+<div class="modal-overlay" id="receiptModal">
   <div class="modal-box">
-    <button class="modal-close" onclick="document.getElementById('addSessionModal').classList.remove('open')"><i class="fas fa-times"></i></button>
-    <div class="modal-title">تسجيل حصة منجزة</div>
-    <div class="modal-subtitle">أدخل تفاصيل الحصة التي قمت بتدريسها</div>
-    <form id="teacherAddSessionForm">
-      <div class="form-grid" style="margin-bottom:16px">
-        <div class="form-group"><label>المستوى *</label>
-          <select class="form-control" id="tSessLevel" required>
-            <option value="">اختر</option>
-            <option value="7">السنة السابعة</option>
-            <option value="8">السنة الثامنة</option>
-            <option value="9">السنة التاسعة</option>
-          </select>
-        </div>
-        <div class="form-group"><label>القسم</label>
-          <select class="form-control" id="tSessSection">
-            <option value="">اختر</option>
-            <option value="algebra">جبر</option>
-            <option value="geometry">هندسة</option>
-            <option value="general">عام</option>
-          </select>
-        </div>
-        <div class="form-group"><label>تاريخ الحصة *</label><input type="date" class="form-control" id="tSessDate" required></div>
-        <div class="form-group"><label>وقت البداية</label><input type="time" class="form-control" id="tSessTime"></div>
-        <div class="form-group"><label>مدة الحصة (دقيقة)</label><input type="number" class="form-control" id="tSessDuration" value="60" min="30" max="180"></div>
-        <div class="form-group"><label>عدد الطلاب الحاضرين</label><input type="number" class="form-control" id="tSessStudents" min="0" value="0"></div>
+    <button class="modal-close" id="receiptModalClose"><i class="fas fa-times"></i></button>
+    <div class="modal-title">إرسال وصل الخلاص</div>
+    <div class="modal-subtitle" id="receiptPlanInfo">عرض التسجيلات — 50 دينار سنوياً</div>
+
+    <ol class="receipt-steps">
+      <li class="receipt-step">
+        <div class="receipt-step-num">1</div>
+        <p>قم بتحويل المبلغ عبر <strong>البنك أو البريد التونسي أو تطبيق D17 أو Carte eDinar</strong></p>
+      </li>
+      <li class="receipt-step">
+        <div class="receipt-step-num">2</div>
+        <p>احتفظ بصورة وصل الخلاص وتأكد من وضوحها</p>
+      </li>
+      <li class="receipt-step">
+        <div class="receipt-step-num">3</div>
+        <p>أرسل الوصل عبر النموذج أدناه مع ذكر اسمك الكامل ونوع الاشتراك</p>
+      </li>
+      <li class="receipt-step">
+        <div class="receipt-step-num">4</div>
+        <p>سيتم تفعيل حسابك خلال <strong>24 ساعة</strong> من استلام الوصل</p>
+      </li>
+    </ol>
+
+    <form id="receiptForm" style="margin-top:20px">
+      <div class="form-group">
+        <label>الاسم الكامل</label>
+        <input type="text" id="receiptName" class="form-control" required placeholder="أدخل اسمك الكامل">
       </div>
-      <div class="form-group" style="margin-bottom:16px">
-        <label>رابط Google Meet <span style="color:var(--success);font-size:.8rem">(مهم للتحقق من الحصة)</span></label>
-        <input type="url" class="form-control" id="tSessMeet" placeholder="https://meet.google.com/xxx-xxxx-xxx">
+      <div class="form-group">
+        <label>البريد الإلكتروني</label>
+        <input type="email" id="receiptEmail" class="form-control" required placeholder="example@email.com">
       </div>
-      <div class="form-group" style="margin-bottom:16px">
-        <label>ما الذي تم تدريسه؟</label>
-        <textarea class="form-control" id="tSessNotes" placeholder="موضوع الحصة..."></textarea>
+      <div class="form-group">
+        <label>صورة وصل الخلاص</label>
+        <input type="file" id="receiptFile" class="form-control" required accept="image/*,.pdf">
       </div>
-      <button type="submit" class="btn btn-primary" style="width:100%"><i class="fas fa-check"></i> تسجيل الحصة</button>
+      <div class="form-group">
+        <label>ملاحظات (اختياري)</label>
+        <textarea id="receiptNotes" class="form-control" rows="2" placeholder="أي معلومات إضافية..."></textarea>
+      </div>
+      <button type="submit" class="btn-submit">
+        <i class="fas fa-paper-plane"></i> إرسال الوصل
+      </button>
     </form>
   </div>
 </div>
 
-<!-- Modal: Receipt Preview -->
-<div class="modal-overlay" id="receiptPreviewModal">
-  <div class="modal-box">
-    <button class="modal-close" onclick="document.getElementById('receiptPreviewModal').classList.remove('open')"><i class="fas fa-times"></i></button>
-    <div class="modal-title">مراجعة وصل الخلاص</div>
-    <div id="receiptPreviewContent" style="margin:16px 0"></div>
-    <div style="display:flex;gap:10px;margin-top:20px">
-      <button class="btn btn-success" style="flex:1" onclick="approveReceipt()"><i class="fas fa-check"></i> قبول وتفعيل</button>
-      <button class="btn btn-danger-outline" style="flex:1" onclick="rejectReceipt()"><i class="fas fa-times"></i> رفض</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: Confirm Session -->
-<div class="modal-overlay" id="confirmSessionModal">
-  <div class="modal-box">
-    <button class="modal-close" onclick="document.getElementById('confirmSessionModal').classList.remove('open')"><i class="fas fa-times"></i></button>
-    <div class="modal-title">تأكيد الحصة</div>
-    <div id="confirmSessionContent" style="margin:16px 0"></div>
-    <div style="display:flex;gap:10px;margin-top:20px">
-      <button class="btn btn-success" style="flex:1" onclick="confirmSession()"><i class="fas fa-check"></i> تأكيد (+20 د.ت)</button>
-      <button class="btn btn-danger-outline" style="flex:1" onclick="rejectSession()"><i class="fas fa-times"></i> رفض</button>
-    </div>
-  </div>
-</div>
-
+<!-- ══════ FIREBASE + JS ══════ -->
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js';
-import { getAuth, signOut, onAuthStateChanged, createUserWithEmailAndPassword, updateProfile }
-  from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
-         collection, getDocs, query, where, orderBy, serverTimestamp }
-  from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js';
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js';
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+           signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup,
+           updateProfile } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-auth.js';
+  import { getFirestore, doc, setDoc, getDoc, collection, addDoc,
+           serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js';
+  import { getStorage, ref, uploadBytes, getDownloadURL }
+           from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-storage.js';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAF_ktwHXPw6gDkoolCI77XeB_NGHTmAFA",
-  authDomain: "masartamayoz.firebaseapp.com",
-  projectId: "masartamayoz",
-  storageBucket: "masartamayoz.firebasestorage.app",
-  messagingSenderId: "589955939618",
-  appId: "1:589955939618:web:728ddeb7027b2becd1f97b"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getFirestore(app);
-const $ = id => document.getElementById(id);
-
-let CU = null, CUD = null, currentReceiptId = null, currentSessionId = null;
-
-const fmt = ts => ts?.toDate ? ts.toDate().toLocaleDateString('ar-TN') : (ts||'—');
-const ROLES = {student:'تلميذ',parent:'ولي أمر',teacher:'مربي',admin:'مدير'};
-const ROLE_CLASS = {student:'role-student',parent:'role-parent',teacher:'role-teacher',admin:'role-admin'};
-const SECTIONS = {algebra:'جبر',geometry:'هندسة',statistics:'إحصاء',general:'عام'};
-const TYPES = {lesson:'درس',exercise:'سلسلة تمارين',exam1:'فرض م.1',exam2:'فرض م.2',exam3:'فرض م.3',exam4:'فرض م.4',exam5:'فرض م.5',exam6:'فرض م.6',final1:'فرض ت.1',final2:'فرض ت.2',final3:'فرض ت.3'};
-
-function subBadge(s){return{active:'<span class="badge badge-success">نشط</span>',pending:'<span class="badge badge-warning">انتظار</span>',inactive:'<span class="badge badge-danger">ملغى</span>'}[s]||'<span class="badge badge-info">—</span>';}
-
-onAuthStateChanged(auth, async user => {
-  if (!user) { window.location.href = 'index.html'; return; }
-  CU = user;
-  const snap = await getDoc(doc(db, 'users', user.uid));
-  if (!snap.exists()) { window.location.href = 'index.html'; return; }
-  CUD = snap.data();
-  initDashboard();
-});
-
-function initDashboard() {
-  const {firstName, lastName, name, userType, photoURL} = CUD;
-  const displayName = firstName ? `${firstName} ${lastName||''}`.trim() : (name||CU.email);
-  const av = $('sidebarAvatar');
-  if (photoURL) av.innerHTML = `<img src="${photoURL}" alt="">`;
-  else av.textContent = displayName.charAt(0).toUpperCase();
-  $('sidebarName').textContent = displayName;
-  const rb = $('roleBadge');
-  rb.textContent = ROLES[userType]||userType;
-  rb.className = `role-badge ${ROLE_CLASS[userType]||''}`;
-  buildNav(userType);
-  loadContent(userType);
-  $('loadingScreen').style.display = 'none';
-  $('appContainer').style.display = 'flex';
-}
-
-function buildNav(role) {
-  const nav = $('sidebarNav');
-  const menus = {
-    student:[
-      {icon:'fa-home',label:'الرئيسية',page:'student-overview'},
-      {icon:'fa-book-open',label:'دروسي',page:'student-courses'},
-      {icon:'fa-calendar-alt',label:'حصصي المباشرة',page:'student-sessions'},
-      {icon:'fa-credit-card',label:'اشتراكي',page:'student-subscription'},
-    ],
-    parent:[
-      {icon:'fa-home',label:'الرئيسية',page:'parent-overview'},
-      {icon:'fa-link',label:'ربط منظور',page:'parent-link'},
-      {icon:'fa-credit-card',label:'اشتراك منظوري',page:'parent-subscription'},
-    ],
-    teacher:[
-      {icon:'fa-home',label:'الرئيسية',page:'teacher-overview'},
-      {icon:'fa-calendar',label:'حصصي',page:'teacher-sessions'},
-      {icon:'fa-wallet',label:'محفظتي',page:'teacher-wallet'},
-    ],
-    admin:[
-      {icon:'fa-tachometer-alt',label:'لوحة التحكم',page:'admin-overview'},
-      {icon:'fa-users',label:'المستخدمون',page:'admin-users'},
-      {icon:'fa-chalkboard-teacher',label:'حصص المدرسين',page:'admin-sessions'},
-      {icon:'fa-wallet',label:'محافظ المدرسين',page:'admin-wallets'},
-      {icon:'fa-plus-circle',label:'إدارة المحتوى',page:'admin-content'},
-    ]
+  const firebaseConfig = {
+    apiKey: "AIzaSyAF_ktwHXPw6gDkoolCI77XeB_NGHTmAFA",
+    authDomain: "masartamayoz.firebaseapp.com",
+    projectId: "masartamayoz",
+    storageBucket: "masartamayoz.firebasestorage.app",
+    messagingSenderId: "589955939618",
+    appId: "1:589955939618:web:728ddeb7027b2becd1f97b"
   };
-  nav.innerHTML = `<div class="nav-section-title">القائمة الرئيسية</div>` +
-    (menus[role]||[]).map((item,i) => `
-      <div class="nav-item ${i===0?'active':''}" onclick="showPage('${item.page}',this)">
-        <i class="fas ${item.icon}"></i> ${item.label}
-      </div>`).join('');
-}
 
-window.showPage = function(pageId, el) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  const pg = $(`page-${pageId}`);
-  if (pg) pg.classList.add('active');
-  if (el) el.classList.add('active');
-  $('pageTitle').textContent = el?.textContent?.trim() || 'لوحة التحكم';
-  $('sidebar').classList.remove('open');
-};
+  const app      = initializeApp(firebaseConfig);
+  const auth     = getAuth(app);
+  const db       = getFirestore(app);
+  const storage  = getStorage(app);
 
-async function loadContent(role) {
-  if (role==='student') loadStudent();
-  if (role==='parent')  loadParent();
-  if (role==='teacher') loadTeacher();
-  if (role==='admin')   loadAdmin();
-}
+  // ── DOM refs ──
+  const authModal       = document.getElementById('authModal');
+  const receiptModal    = document.getElementById('receiptModal');
+  const loginBtn        = document.getElementById('loginBtn');
+  const signupBtn       = document.getElementById('signupBtn');
+  const modalClose      = document.getElementById('modalClose');
+  const receiptClose    = document.getElementById('receiptModalClose');
+  const loginTab        = document.getElementById('loginTab');
+  const registerTab     = document.getElementById('registerTab');
+  const loginForm       = document.getElementById('loginForm');
+  const registerForm    = document.getElementById('registerForm');
+  const authButtons     = document.getElementById('authButtons');
+  const userSection     = document.getElementById('userSection');
+  const userAvatar      = document.getElementById('userAvatar');
+  const dropdownMenu    = document.getElementById('dropdownMenu');
+  const logoutBtn       = document.getElementById('logoutBtn');
+  const hamburger       = document.getElementById('hamburger');
+  const mobileNav       = document.getElementById('mobileNav');
+  const mobileNavClose  = document.getElementById('mobileNavClose');
 
-// STUDENT
-async function loadStudent() {
-  const {subscriptionStatus, plan, level} = CUD;
-  const sc = $('subStatusCard');
-  if (subscriptionStatus==='active') {
-    sc.innerHTML = `<div class="sub-status-card"><div><h3>✅ اشتراكك نشط</h3><p>العرض: ${plan==='sessions'?'الحصص المباشرة':'التسجيلات'}</p></div><a href="courses.html" class="btn btn-gold btn-sm"><i class="fas fa-play"></i> ادخل للدروس</a></div>`;
-  } else if (subscriptionStatus==='pending') {
-    sc.innerHTML = `<div class="sub-status-card sub-pending"><div><h3>⏳ وصلك في الانتظار</h3><p>سيتم تفعيل حسابك خلال 24 ساعة</p></div></div>`;
-  } else {
-    sc.innerHTML = `<div class="sub-status-card sub-inactive"><div><h3>⚠️ لم تشترك بعد</h3><p>اشترك للوصول إلى جميع الدروس</p></div><button class="btn btn-gold btn-sm" onclick="showPage('student-subscription')">اشترك الآن</button></div>`;
-  }
-  $('studentStats').innerHTML = `
-    <div class="stat-card"><div class="stat-icon" style="background:rgba(37,99,235,.1)"><i class="fas fa-layer-group" style="color:var(--blue-light)"></i></div><div class="stat-info"><strong>السنة ${level||'—'}</strong><span>مستواك الدراسي</span></div></div>
-    <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,.1)"><i class="fas fa-star" style="color:var(--gold)"></i></div><div class="stat-info"><strong>${subBadge(subscriptionStatus)}</strong><span>حالة الاشتراك</span></div></div>`;
-  if (subscriptionStatus==='active') {
-    try {
-      const q = query(collection(db,'videos'), where('level','==',String(level||'7')), orderBy('createdAt','desc'));
-      const snap = await getDocs(q);
-      const vids = [];
-      snap.forEach(d => vids.push({id:d.id,...d.data()}));
-      $('recentVideos').innerHTML = vids.slice(0,4).map(v => miniCard(v)).join('') ||
-        `<div class="empty-state"><i class="fas fa-video"></i><h3>لا توجد دروس بعد</h3></div>`;
-    } catch {$('recentVideos').innerHTML=`<div class="empty-state"><i class="fas fa-video"></i><h3>لا توجد دروس بعد</h3></div>`;}
-  } else {
-    $('recentVideos').innerHTML=`<div class="empty-state"><i class="fas fa-lock"></i><h3>اشترك لمشاهدة الدروس</h3></div>`;
-  }
-  try {
-    const sq = query(collection(db,'sessions'), where('level','==',String(level||'7')));
-    const ssnap = await getDocs(sq);
-    const sessions=[];
-    ssnap.forEach(d=>sessions.push({id:d.id,...d.data()}));
-    $('studentSessionsList').innerHTML = sessions.map(s=>`
-      <div class="session-item">
-        <div class="session-info">
-          <h4>السنة ${s.level} — ${SECTIONS[s.section]||'عام'}</h4>
-          <p><i class="fas fa-calendar"></i> ${s.dateTime||'—'}</p>
-        </div>
-        ${s.meetLink?`<a href="${s.meetLink}" target="_blank" class="btn btn-success btn-sm"><i class="fas fa-video"></i> انضم</a>`:'<span class="badge badge-info">قريباً</span>'}
-      </div>`).join('') || `<div class="empty-state"><i class="fas fa-calendar"></i><h3>لا توجد حصص مجدولة</h3></div>`;
-  } catch {$('studentSessionsList').innerHTML=`<div class="empty-state"><i class="fas fa-calendar"></i><h3>لا توجد حصص</h3></div>`;}
-}
-
-function miniCard(v) {
-  const ytId = extractYTId(v.videoUrls?.[0]?.url||v.videoUrl||'');
-  return `
-    <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:14px;display:flex;align-items:center;gap:14px;margin-bottom:10px">
-      ${ytId?`<img src="https://img.youtube.com/vi/${ytId}/default.jpg" style="width:80px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0">`:'<div style="width:80px;height:56px;background:var(--blue-dark);border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center"><i class="fas fa-video" style="color:white"></i></div>'}
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:700;font-size:.9rem;color:var(--blue-dark);margin-bottom:4px">${v.title||'درس'}</div>
-        <div style="font-size:.78rem;color:var(--gray-600)">${TYPES[v.type]||''} • ${SECTIONS[v.section]||''} • ${v.chapter||''}</div>
-      </div>
-      <a href="courses.html?level=${v.level}&type=${v.type||'lesson'}" class="btn btn-outline btn-sm"><i class="fas fa-play"></i></a>
-    </div>`;
-}
-
-// PARENT
-async function loadParent() {
-  try {
-    const q = query(collection(db,'parentChildren'), where('parentId','==',CU.uid));
-    const snap = await getDocs(q);
-    const children=[];
-    for (const d of snap.docs) {
-      const cd = d.data();
-      const csnap = await getDoc(doc(db,'users',cd.childId));
-      if (csnap.exists()) children.push({linkId:d.id,...cd,childData:csnap.data()});
+  // ── Modal helpers ──
+  function openModal(tab = 'login') {
+    authModal.classList.add('open');
+    if (tab === 'login') {
+      loginTab.classList.add('active'); registerTab.classList.remove('active');
+      loginForm.classList.add('active'); registerForm.classList.remove('active');
+    } else {
+      registerTab.classList.add('active'); loginTab.classList.remove('active');
+      registerForm.classList.add('active'); loginForm.classList.remove('active');
     }
-    $('parentChildrenList').innerHTML = children.length ? children.map(c=>`
-      <div class="child-card">
-        <div class="child-info">
-          <h4>${c.childData.firstName||''} ${c.childData.lastName||c.childData.name||''}</h4>
-          <p>السنة ${c.childData.level||'—'} • ${subBadge(c.childData.subscriptionStatus)}</p>
-        </div>
-        <button class="btn btn-danger-outline btn-sm" onclick="unlinkChild('${c.linkId}')"><i class="fas fa-unlink"></i> فك الربط</button>
-      </div>`).join('') :
-      `<div class="empty-state"><i class="fas fa-child"></i><h3>لا يوجد منظورون مرتبطون</h3><p>استخدم "ربط منظور" لإضافة منظور</p></div>`;
-  } catch {$('parentChildrenList').innerHTML=`<div class="empty-state"><i class="fas fa-child"></i><h3>لا يوجد منظورون</h3></div>`;}
-}
-
-window.searchChild = async function() {
-  const email = $('childEmail').value.trim();
-  if (!email) return;
-  const res = $('childSearchResult');
-  res.innerHTML = '<p style="color:var(--gray-600);font-size:.85rem">جاري البحث...</p>';
-  try {
-    const q = query(collection(db,'users'), where('email','==',email));
-    const snap = await getDocs(q);
-    if (snap.empty) { res.innerHTML='<p style="color:var(--danger);font-size:.85rem">⚠️ لم يتم العثور على مستخدم بهذا البريد</p>'; return; }
-    const child = snap.docs[0];
-    const cd = child.data();
-    if (cd.userType !== 'student') { res.innerHTML='<p style="color:var(--danger);font-size:.85rem">⚠️ هذا الحساب ليس تلميذاً</p>'; return; }
-    res.innerHTML = `
-      <div class="child-card">
-        <div class="child-info">
-          <h4>${cd.firstName||''} ${cd.lastName||cd.name||''}</h4>
-          <p>السنة ${cd.level||'—'} • ${cd.email}</p>
-        </div>
-        <button class="btn btn-success btn-sm" onclick="linkChild('${child.id}','${cd.email}')"><i class="fas fa-link"></i> ربط</button>
-      </div>`;
-  } catch {res.innerHTML='<p style="color:var(--danger);font-size:.85rem">خطأ في البحث</p>';}
-};
-
-window.linkChild = async function(childId, childEmail) {
-  try {
-    const existing = await getDocs(query(collection(db,'parentChildren'), where('parentId','==',CU.uid), where('childId','==',childId)));
-    if (!existing.empty) { alert('هذا المنظور مرتبط بك مسبقاً'); return; }
-    await addDoc(collection(db,'parentChildren'), {parentId:CU.uid,childId,childEmail,createdAt:serverTimestamp()});
-    alert('✅ تم ربط المنظور بنجاح!');
-    $('childSearchResult').innerHTML=''; $('childEmail').value='';
-    loadParent();
-  } catch(e){alert('خطأ: '+e.message);}
-};
-
-window.unlinkChild = async function(linkId) {
-  if (!confirm('هل تريد إلغاء الربط؟')) return;
-  await deleteDoc(doc(db,'parentChildren',linkId));
-  loadParent();
-};
-
-window.submitParentReceipt = async function() {
-  const childName = $('parentChildName').value;
-  const level     = $('parentChildLevel').value;
-  const plan      = $('parentPlan').value;
-  const method    = $('parentPayMethod').value;
-  const file      = $('parentReceiptFile').files[0];
-
-  if (!childName || !level || !plan || !method) { alert('يرجى إكمال جميع الحقول'); return; }
-  if (!file) { alert('يرجى رفع صورة وصل الخلاص'); return; }
-
-  const btn = document.querySelector('[onclick="submitParentReceipt()"]');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...'; }
-
-  try {
-    const receiptURL = await uploadToCloudinary(file);
-    const name = CUD.firstName ? `${CUD.firstName} ${CUD.lastName||''}` : CUD.name;
-    await addDoc(collection(db,'receipts'), {
-      userId: CU.uid, name, email: CU.email,
-      childName, level, plan,
-      paymentMethod: method,
-      receiptURL,
-      status: 'pending',
-      createdAt: serverTimestamp()
-    });
-    alert('✅ تم إرسال وصل الخلاص! سيتم تفعيل الاشتراك خلال 24 ساعة.');
-    $('parentChildName').value = '';
-    $('parentReceiptFile').value = '';
-    $('prfn').style.display = 'none';
-  } catch(err) {
-    alert('خطأ: ' + err.message);
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال الوصل'; }
   }
-};
 
-// TEACHER
-async function loadTeacher() {
-  const snap = await getDocs(query(collection(db,'teacherSessions'),where('teacherId','==',CU.uid)));
-  let total=0,earned=0; const sessions=[];
-  snap.forEach(d=>{const s=d.data();sessions.push({id:d.id,...s});if(s.status==='confirmed'){total++;earned+=20;}});
-  const wSnap = await getDoc(doc(db,'wallets',CU.uid));
-  const paid = wSnap.exists() ? wSnap.data().paid||0 : 0;
-  const balance = earned - paid;
-  $('tBalance').innerHTML=`${balance} <span>د.ت</span>`;
-  $('tBalance2').innerHTML=`${balance} <span>د.ت</span>`;
-  $('tTotalSess').textContent=total; $('tEarned').textContent=`${earned} د.ت`; $('tPaid').textContent=`${paid} د.ت`;
-  $('teacherSessionsList').innerHTML = sessions.slice(0,5).map(s=>`
-    <div class="session-item">
-      <div class="session-info">
-        <h4>السنة ${s.level} — ${SECTIONS[s.section]||'عام'}</h4>
-        <p><i class="fas fa-calendar"></i> ${fmt(s.date)} ${s.time||''} • ${s.duration||60} دق • ${s.students||0} طالب</p>
-        ${s.meetLink?`<p style="font-size:.78rem"><i class="fab fa-google" style="color:var(--success)"></i> <a href="${s.meetLink}" target="_blank" style="color:var(--success)">${s.meetLink}</a></p>`:''}
-      </div>
-      <span class="badge ${s.status==='confirmed'?'badge-success':s.status==='rejected'?'badge-danger':'badge-warning'}">${s.status==='confirmed'?'مؤكدة':s.status==='rejected'?'مرفوضة':'انتظار'}</span>
-    </div>`).join('') || `<div class="empty-state"><i class="fas fa-calendar"></i><h3>لا توجد حصص بعد</h3></div>`;
-  $('teacherSessionsTable').innerHTML = sessions.length ? sessions.map(s=>`
-    <tr>
-      <td>${fmt(s.date)}</td><td>السنة ${s.level}</td><td>${SECTIONS[s.section]||'—'}</td>
-      <td>${s.duration||60} دق</td><td>${s.students||0}</td>
-      <td>${s.meetLink?`<a href="${s.meetLink}" target="_blank" style="color:var(--success);font-size:.8rem"><i class="fab fa-google"></i> Meet</a>`:'—'}</td>
-      <td style="font-weight:700;color:${s.status==='confirmed'?'var(--success)':'var(--gray-400)'}">${s.status==='confirmed'?'20 د.ت':'—'}</td>
-      <td><span class="badge ${s.status==='confirmed'?'badge-success':s.status==='rejected'?'badge-danger':'badge-warning'}">${s.status==='confirmed'?'مؤكدة':s.status==='rejected'?'مرفوضة':'انتظار'}</span></td>
-    </tr>`).join('') : `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-400)">لا توجد حصص</td></tr>`;
-  const rows = sessions.filter(s=>s.status==='confirmed').map(s=>`
-    <tr><td>${fmt(s.date)}</td><td>حصة — السنة ${s.level} ${SECTIONS[s.section]||''}</td><td style="color:var(--success);font-weight:700">+20 د.ت</td><td><span class="badge badge-success">إضافة</span></td></tr>`);
-  if (paid>0) rows.push(`<tr><td>—</td><td>دفعة من الإدارة</td><td style="color:var(--danger);font-weight:700">-${paid} د.ت</td><td><span class="badge badge-danger">خصم</span></td></tr>`);
-  $('teacherTransactions').innerHTML = rows.join('') || `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--gray-400)">لا توجد معاملات</td></tr>`;
-}
+  function closeModal() { authModal.classList.remove('open'); }
 
-// ADMIN
-async function loadAdmin() {
-  const [uSnap,rSnap,sSnap] = await Promise.all([
-    getDocs(collection(db,'users')),
-    getDocs(query(collection(db,'receipts'),where('status','==','pending'))),
-    getDocs(collection(db,'teacherSessions'))
-  ]);
-  $('adminStats').innerHTML=`
-    <div class="stat-card"><div class="stat-icon" style="background:rgba(37,99,235,.1)"><i class="fas fa-users" style="color:var(--blue-light)"></i></div><div class="stat-info"><strong>${uSnap.size}</strong><span>المستخدمون</span></div></div>
-    <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,.1)"><i class="fas fa-file-invoice" style="color:var(--gold)"></i></div><div class="stat-info"><strong>${rSnap.size}</strong><span>وصولات انتظار</span></div></div>
-    <div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,.1)"><i class="fas fa-chalkboard-teacher" style="color:var(--success)"></i></div><div class="stat-info"><strong>${sSnap.size}</strong><span>إجمالي الحصص</span></div></div>`;
-  $('pendingCount').textContent=`${rSnap.size} في الانتظار`;
-  const rRows=[];
-  rSnap.forEach(d=>{const r=d.data();rRows.push(`<tr>
-    <td><strong>${r.name||'—'}</strong><br><span style="font-size:.78rem;color:var(--gray-600)">${r.email||''}</span></td>
-    <td>${r.plan||'—'}</td><td>${r.paymentMethod||'—'}</td>
-    <td style="font-size:.82rem">${fmt(r.createdAt)}</td>
-    <td><button class="btn btn-primary btn-sm" onclick="previewReceipt('${d.id}','${r.receiptURL||''}','${r.userId||''}','${r.name||''}','${r.plan||''}')"><i class="fas fa-eye"></i> مراجعة</button></td>
-  </tr>`);});
-  $('pendingReceiptsTable').innerHTML=rRows.join('')||`<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--gray-400)">لا توجد وصولات</td></tr>`;
-  loadUsersTable(uSnap);
-  loadAdminSessions();
-  loadTeachersWallets(uSnap);
-  const tSel=$('sessTeacher');
-  tSel.innerHTML='<option value="">اختر المدرس</option>';
-  uSnap.forEach(d=>{const u=d.data();if(u.userType==='teacher'){const o=document.createElement('option');o.value=d.id;o.textContent=u.firstName?`${u.firstName} ${u.lastName||''}`:(u.name||'');tSel.appendChild(o);}});
-}
+  loginBtn.addEventListener('click', () => openModal('login'));
+  signupBtn.addEventListener('click', () => openModal('register'));
+  modalClose.addEventListener('click', closeModal);
+  authModal.addEventListener('click', e => { if (e.target === authModal) closeModal(); });
 
-function loadUsersTable(uSnap) {
-  const rows=[];
-  uSnap.forEach(d=>{const u=d.data();const name=u.firstName?`${u.firstName} ${u.lastName||''}`:(u.name||'—');
-    rows.push(`<tr>
-      <td><strong>${name}</strong></td><td style="font-size:.82rem">${u.email||'—'}</td>
-      <td style="font-size:.82rem">${u.phone||'—'}</td>
-      <td><span style="font-size:.78rem;font-weight:700">${ROLES[u.userType]||u.userType||'—'}</span></td>
-      <td>${u.level?`السنة ${u.level}`:'—'}</td><td>${subBadge(u.subscriptionStatus)}</td>
-      <td><button class="btn btn-sm ${u.subscriptionStatus==='active'?'btn-danger-outline':'btn-success'}" onclick="toggleSub('${d.id}','${u.subscriptionStatus}')">
-        ${u.subscriptionStatus==='active'?'إلغاء':'تفعيل'}
-      </button></td>
-    </tr>`);});
-  $('usersTable').innerHTML=rows.join('')||`<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--gray-400)">لا يوجد مستخدمون</td></tr>`;
-}
+  loginTab.addEventListener('click', () => openModal('login'));
+  registerTab.addEventListener('click', () => openModal('register'));
 
-async function loadAdminSessions() {
-  try {
-    const snap = await getDocs(query(collection(db,'teacherSessions'),orderBy('createdAt','desc')));
-    const rows=[];
-    snap.forEach(d=>{const s=d.data();rows.push(`<tr>
-      <td><strong>${s.teacherName||'—'}</strong></td>
-      <td style="font-size:.82rem">${fmt(s.date)}</td>
-      <td>السنة ${s.level}</td><td>${SECTIONS[s.section]||'—'}</td>
-      <td>${s.students||0}</td>
-      <td>${s.meetLink?`<a href="${s.meetLink}" target="_blank" style="color:var(--success);font-size:.8rem"><i class="fab fa-google"></i> Meet</a>`:'⚠️ لا يوجد'}</td>
-      <td><span class="badge ${s.status==='confirmed'?'badge-success':s.status==='rejected'?'badge-danger':'badge-warning'}">${s.status==='confirmed'?'مؤكدة':s.status==='rejected'?'مرفوضة':'انتظار'}</span></td>
-      <td>${s.status==='pending'?`<button class="btn btn-outline btn-sm" onclick="openConfirmSession('${d.id}','${s.teacherName||''}','${s.level}','${s.section||''}','${s.meetLink||''}')"><i class="fas fa-check"></i> مراجعة</button>`:'—'}</td>
-    </tr>`);});
-    $('allSessionsTable').innerHTML=rows.join('')||`<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-400)">لا توجد حصص</td></tr>`;
-  } catch {}
-}
+  // ── Receipt modal ──
+  window.openReceiptModal = function(plan) {
+    const info = document.getElementById('receiptPlanInfo');
+    info.textContent = plan === 'sessions'
+      ? 'عرض الحصص المباشرة — 40 دينار / 8 حصص'
+      : 'عرض التسجيلات — 50 دينار سنوياً';
+    receiptModal.classList.add('open');
+  };
 
-async function loadTeachersWallets(uSnap) {
-  const rows=[];
-  for (const d of uSnap.docs) {
-    const u=d.data(); if(u.userType!=='teacher') continue;
-    const sS=await getDocs(query(collection(db,'teacherSessions'),where('teacherId','==',d.id),where('status','==','confirmed')));
-    const wS=await getDoc(doc(db,'wallets',d.id));
-    const earned=sS.size*20, paid=wS.exists()?wS.data().paid||0:0, balance=earned-paid;
-    const name=u.firstName?`${u.firstName} ${u.lastName||''}`:(u.name||'—');
-    rows.push(`<tr>
-      <td><strong>${name}</strong></td><td>${sS.size}</td><td>${earned} د.ت</td><td>${paid} د.ت</td>
-      <td style="font-weight:800;color:${balance>0?'var(--success)':'var(--gray-600)'}">${balance} د.ت</td>
-      <td><button class="btn btn-gold btn-sm" onclick="payTeacher('${d.id}','${name}',${balance})"><i class="fas fa-money-bill"></i> دفع</button></td>
-    </tr>`);
-  }
-  $('teachersWalletsTable').innerHTML=rows.join('')||`<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--gray-400)">لا يوجد مدرسون</td></tr>`;
-}
+  receiptClose.addEventListener('click', () => receiptModal.classList.remove('open'));
+  receiptModal.addEventListener('click', e => { if (e.target === receiptModal) receiptModal.classList.remove('open'); });
 
-window.toggleSub = async function(userId, current) {
-  const newStatus = current==='active'?'inactive':'active';
-  await updateDoc(doc(db,'users',userId), {subscriptionStatus:newStatus});
-  loadAdmin();
-};
+  // ── Mobile nav ──
+  hamburger.addEventListener('click', () => mobileNav.classList.add('open'));
+  mobileNavClose.addEventListener('click', () => mobileNav.classList.remove('open'));
 
-window.previewReceipt = function(id, url, userId, name, plan) {
-  currentReceiptId=id; window._rUserId=userId; window._rPlan=plan;
-  $('receiptPreviewContent').innerHTML=`
-    <p style="margin-bottom:8px"><strong>المستخدم:</strong> ${name}</p>
-    <p style="margin-bottom:12px"><strong>العرض:</strong> ${plan}</p>
-    ${url&&url!=='sent-via-whatsapp'?`<a href="${url}" target="_blank"><img src="${url}" style="width:100%;border-radius:10px;max-height:300px;object-fit:contain"></a>`:'<p style="color:var(--warning);padding:16px;background:rgba(245,158,11,.1);border-radius:10px">⚠️ تم الإرسال عبر واتساب — تحقق من هاتفك</p>'}`;
-  $('receiptPreviewModal').classList.add('open');
-};
-
-window.approveReceipt = async function() {
-  if (!currentReceiptId) return;
-  await updateDoc(doc(db,'receipts',currentReceiptId), {status:'approved'});
-  if (window._rUserId) await updateDoc(doc(db,'users',window._rUserId), {subscriptionStatus:'active',plan:window._rPlan?.includes('session')?'sessions':'recordings'});
-  alert('✅ تم تفعيل الاشتراك!');
-  $('receiptPreviewModal').classList.remove('open');
-  loadAdmin();
-};
-
-window.rejectReceipt = async function() {
-  if (!currentReceiptId) return;
-  await updateDoc(doc(db,'receipts',currentReceiptId), {status:'rejected'});
-  alert('تم رفض الوصل.');
-  $('receiptPreviewModal').classList.remove('open');
-  loadAdmin();
-};
-
-window.openConfirmSession = function(id, teacher, level, section, meet) {
-  currentSessionId=id;
-  $('confirmSessionContent').innerHTML=`
-    <p style="margin-bottom:8px"><strong>المدرس:</strong> ${teacher}</p>
-    <p style="margin-bottom:8px"><strong>المستوى:</strong> السنة ${level} — ${SECTIONS[section]||'عام'}</p>
-    ${meet?`<p style="margin-bottom:8px"><strong>رابط Meet:</strong> <a href="${meet}" target="_blank" style="color:var(--success)">${meet}</a></p>`:'<p style="color:var(--danger)">⚠️ لا يوجد رابط Google Meet — تحقق يدوياً</p>'}`;
-  $('confirmSessionModal').classList.add('open');
-};
-
-window.confirmSession = async function() {
-  if (!currentSessionId) return;
-  await updateDoc(doc(db,'teacherSessions',currentSessionId), {status:'confirmed'});
-  alert('✅ تم تأكيد الحصة (+20 د.ت للمدرس)');
-  $('confirmSessionModal').classList.remove('open');
-  loadAdmin();
-};
-
-window.rejectSession = async function() {
-  if (!currentSessionId) return;
-  await updateDoc(doc(db,'teacherSessions',currentSessionId), {status:'rejected'});
-  $('confirmSessionModal').classList.remove('open');
-  loadAdmin();
-};
-
-window.payTeacher = async function(teacherId, name, balance) {
-  if (balance<=0){alert('لا يوجد رصيد للدفع');return;}
-  if (!confirm(`دفع ${balance} د.ت للأستاذ ${name}؟`)) return;
-  const wRef=doc(db,'wallets',teacherId);
-  const snap=await getDoc(wRef);
-  const prev=snap.exists()?snap.data().paid||0:0;
-  await setDoc(wRef,{paid:prev+balance},{merge:true});
-  alert('✅ تم تسجيل الدفع!');
-  loadAdmin();
-};
-
-window.filterUsers = function() {
-  const q=$('userSearch').value.toLowerCase();
-  document.querySelectorAll('#usersTable tr').forEach(tr=>{tr.style.display=tr.textContent.toLowerCase().includes(q)?'':'none';});
-};
-
-// ══ CLOUDINARY CONFIG ══
-const CLOUDINARY = {
-  cloudName:  'dv5xhvkr3',
-  uploadPreset: 'masartamayoz-content',
-  folder: 'academy/receipts'
-};
-
-async function uploadToCloudinary(file) {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', CLOUDINARY.uploadPreset);
-  formData.append('folder', CLOUDINARY.folder);
-
-  const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUDINARY.cloudName}/auto/upload`,
-    { method: 'POST', body: formData }
-  );
-
-  if (!res.ok) throw new Error('فشل رفع الملف على Cloudinary');
-  const data = await res.json();
-  return data.secure_url;
-}
-
-// FORMS
-$('receiptForm')?.addEventListener('submit', async e=>{
-  e.preventDefault();
-  const plan   = $('selectedPlan').value;
-  const method = $('paymentMethod').value;
-  const notes  = $('receiptNotes').value;
-  const file   = $('receiptFile').files[0];
-
-  if (!plan || !method) { alert('يرجى إكمال جميع الحقول'); return; }
-  if (!file) { alert('يرجى رفع صورة وصل الخلاص'); return; }
-
-  const btn = e.target.querySelector('button');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...';
-
-  try {
-    // رفع الوصل على Cloudinary
-    const receiptURL = await uploadToCloudinary(file);
-
-    const name = CUD.firstName ? `${CUD.firstName} ${CUD.lastName||''}` : CUD.name;
-    await addDoc(collection(db,'receipts'), {
-      userId: CU.uid, name, email: CU.email,
-      plan, paymentMethod: method, notes,
-      receiptURL,
-      status: 'pending',
-      createdAt: serverTimestamp()
-    });
-    await updateDoc(doc(db,'users',CU.uid), { subscriptionStatus: 'pending' });
-
-    alert('✅ تم إرسال وصل الخلاص بنجاح!\nسيتم مراجعته وتفعيل حسابك خلال 24 ساعة.');
-    e.target.reset();
-    $('rfn').style.display = 'none';
-  } catch(err) {
-    alert('خطأ: ' + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال الوصل';
-  }
-});
-
-$('teacherAddSessionForm')?.addEventListener('submit', async e=>{
-  e.preventDefault();
-  const name=CUD.firstName?`${CUD.firstName} ${CUD.lastName||''}`:CUD.name;
-  await addDoc(collection(db,'teacherSessions'),{
-    teacherId:CU.uid, teacherName:name,
-    level:$('tSessLevel').value, section:$('tSessSection').value,
-    date:serverTimestamp(), time:$('tSessTime').value,
-    duration:parseInt($('tSessDuration').value), students:parseInt($('tSessStudents').value),
-    meetLink:$('tSessMeet').value, notes:$('tSessNotes').value,
-    status:'pending', createdAt:serverTimestamp()
+  // ── Auth state ──
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      authButtons.style.display = 'none';
+      userSection.style.display = 'block';
+      const initial = (user.displayName || user.email).charAt(0).toUpperCase();
+      userAvatar.innerHTML = user.photoURL
+        ? `<img src="${user.photoURL}" alt="avatar">`
+        : initial;
+    } else {
+      authButtons.style.display = 'flex';
+      userSection.style.display = 'none';
+    }
   });
-  alert('✅ تم تسجيل الحصة! في انتظار مراجعة الإدارة.');
-  $('addSessionModal').classList.remove('open');
-  e.target.reset();
-  loadTeacher();
-});
 
-$('addVideoForm')?.addEventListener('submit', async e=>{
-  e.preventDefault();
-  const items=document.querySelectorAll('.video-item');
-  const videoUrls=[];
-  items.forEach(item=>{const url=item.querySelectorAll('input')[0].value;const title=item.querySelectorAll('input')[1].value;if(url)videoUrls.push({url,title});});
-  await addDoc(collection(db,'videos'),{
-    level:$('vLevel').value, type:$('vType').value, section:$('vSection').value,
-    title:$('vTitle').value, chapter:$('vChapter').value,
-    videoUrls, videoUrl:videoUrls[0]?.url||'',
-    pdfText:$('vPdfText').value, pdfSolution:$('vPdfSolution').value,
-    desc:$('vDesc').value, createdAt:serverTimestamp()
+  // ── Dropdown ──
+  userAvatar.addEventListener('click', () => dropdownMenu.classList.toggle('open'));
+  document.addEventListener('click', e => {
+    if (!userAvatar.contains(e.target)) dropdownMenu.classList.remove('open');
   });
-  alert('✅ تم حفظ المحتوى!');
-  e.target.reset();
-  $('videoItems').innerHTML=`<div class="video-item"><input type="url" placeholder="https://www.youtube.com/watch?v=..." class="yt-input"><input type="text" placeholder="عنوان الحصة (اختياري)" style="width:200px"></div>`;
-});
 
-$('addSessionForm')?.addEventListener('submit', async e=>{
-  e.preventDefault();
-  await addDoc(collection(db,'sessions'),{teacherId:$('sessTeacher').value,level:$('sessLevel').value,section:$('sessSection').value,dateTime:$('sessDateTime').value,meetLink:$('sessMeetLink').value,createdAt:serverTimestamp()});
-  alert('✅ تم جدولة الحصة!');
-  e.target.reset();
-});
+  // ── Login ──
+  document.getElementById('loginUserForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const email    = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      closeModal();
+      window.location.href = 'dashboard.html';
+    } catch (err) {
+      alert('خطأ في تسجيل الدخول: ' + err.message);
+    }
+  });
 
-$('addTeacherForm')?.addEventListener('submit', async e=>{
-  e.preventDefault();
-  const firstName=$('tFirstName').value.trim(), lastName=$('tLastName').value.trim();
-  const email=$('tEmail').value.trim(), pass=$('tPassword').value;
-  const phone=$('tPhone').value, subject=$('tSubject').value;
-  const btn=e.target.querySelector('button');
-  btn.disabled=true; btn.textContent='جاري الإضافة...';
-  try {
-    const {user}=await createUserWithEmailAndPassword(auth,email,pass);
-    await updateProfile(user,{displayName:`${firstName} ${lastName}`});
-    await setDoc(doc(db,'users',user.uid),{firstName,lastName,email,phone,subject,userType:'teacher',subscriptionStatus:'active',createdAt:serverTimestamp()});
-    await setDoc(doc(db,'wallets',user.uid),{paid:0});
-    alert(`✅ تم إضافة المدرس ${firstName} ${lastName} بنجاح!`);
-    e.target.reset();
-    loadAdmin();
-  } catch(err){
-    if(err.code==='auth/email-already-in-use') alert('⚠️ هذا البريد مستخدم مسبقاً — استخدم بريداً آخر');
-    else alert('خطأ: '+err.message);
-  } finally{btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i> إضافة المدرس';}
-});
+  // ── Register ──
+  document.getElementById('registerUserForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const firstName = document.getElementById('registerFirstName').value.trim();
+    const lastName  = document.getElementById('registerLastName').value.trim();
+    const email     = document.getElementById('registerEmail').value.trim();
+    const password  = document.getElementById('registerPassword').value;
+    const confirm   = document.getElementById('registerConfirmPassword').value;
+    const userType  = document.getElementById('userType').value;
+    const level     = document.getElementById('studentLevel')?.value || '';
+    const phone     = document.getElementById('parentPhone')?.value || '';
 
-// HELPERS
-window.addVideoItem = function() {
-  const div=document.createElement('div');
-  div.className='video-item';
-  div.innerHTML=`<input type="url" placeholder="https://www.youtube.com/watch?v=..." class="yt-input"><input type="text" placeholder="عنوان الحصة (اختياري)" style="width:200px"><button type="button" class="btn-remove-video" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>`;
-  $('videoItems').appendChild(div);
-};
+    if (!firstName || !lastName) { alert('يرجى إدخال الاسم واللقب'); return; }
+    if (password !== confirm) { alert('كلمة المرور غير متطابقة!'); return; }
+    if (!userType) { alert('يرجى اختيار نوع الحساب'); return; }
 
-window.previewReceipt_ = function(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const preview = document.getElementById('receiptPreview_');
-  const img     = document.getElementById('receiptImg_');
-  if (file.type.startsWith('image/')) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      img.src = e.target.result;
-      preview.style.display = 'block';
-    };
-    reader.readAsDataURL(file);
-  } else {
-    preview.style.display = 'none';
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true; btn.textContent = 'جاري الإنشاء...';
+
+    try {
+      const { user } = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(user, { displayName: `${firstName} ${lastName}` });
+      await setDoc(doc(db, 'users', user.uid), {
+        firstName, lastName,
+        email, userType,
+        phone: phone || '',
+        level: level || '',
+        subscriptionStatus: 'inactive',
+        createdAt: serverTimestamp()
+      });
+      closeModal();
+      e.target.reset();
+      window.location.href = 'dashboard.html';
+    } catch (err) {
+      if (err.code === 'auth/email-already-in-use') {
+        alert('⚠️ هذا البريد مسجّل مسبقاً — يرجى تسجيل الدخول');
+      } else {
+        alert('خطأ: ' + err.message);
+      }
+    } finally {
+      btn.disabled = false; btn.textContent = 'إنشاء الحساب';
+    }
+  });
+
+  // ── Google login (fixed) ──
+  document.getElementById('googleLogin').addEventListener('click', async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.addScope('profile');
+      provider.addScope('email');
+      const { user } = await signInWithPopup(auth, provider);
+      const userRef = doc(db, 'users', user.uid);
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) {
+        // Split displayName into firstName and lastName
+        const nameParts = (user.displayName || '').split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName  = nameParts.slice(1).join(' ') || '';
+        await setDoc(userRef, {
+          firstName, lastName,
+          email: user.email,
+          userType: 'student',
+          level: '',
+          phone: '',
+          subscriptionStatus: 'inactive',
+          createdAt: serverTimestamp()
+        });
+      }
+      closeModal();
+      window.location.href = 'dashboard.html';
+    } catch (err) {
+      if (err.code === 'auth/popup-closed-by-user') {
+        // User closed popup - do nothing
+      } else if (err.code === 'auth/unauthorized-domain') {
+        alert('⚠️ يرجى إضافة academy.masartamayoz.com في إعدادات Firebase → Authentication → Authorized domains');
+      } else {
+        alert('خطأ في تسجيل الدخول بجوجل: ' + err.message);
+      }
+    }
+  });
+
+  // ── Logout ──
+  logoutBtn.addEventListener('click', async () => {
+    await signOut(auth);
+    window.location.href = 'index.html';
+  });
+
+  // ── Receipt form ──
+  // ── Cloudinary Upload ──
+  const CLOUDINARY_NAME   = 'dv5xhvkr3';
+  const CLOUDINARY_PRESET = 'masartamayoz-content';
+
+  async function uploadReceipt(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_PRESET);
+    formData.append('folder', 'academy/receipts');
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_NAME}/auto/upload`,
+      { method: 'POST', body: formData }
+    );
+    if (!res.ok) throw new Error('فشل رفع الملف');
+    const data = await res.json();
+    return data.secure_url;
   }
-};
 
-window.showFN = function(input, id) {
-  const el=$(id);
-  if(input.files[0]){el.textContent='✅ '+input.files[0].name;el.style.display='block';}
-};
+  document.getElementById('receiptForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const user = auth.currentUser;
+    if (!user) { alert('يجب تسجيل الدخول أولاً!'); openModal('login'); return; }
 
-window.openAddSessionModal = function() {
-  $('addSessionModal').classList.add('open');
-  $('tSessDate').value=new Date().toISOString().split('T')[0];
-};
+    const name     = document.getElementById('receiptName').value;
+    const email    = document.getElementById('receiptEmail').value;
+    const file     = document.getElementById('receiptFile').files[0];
+    const notes    = document.getElementById('receiptNotes').value;
+    const planInfo = document.getElementById('receiptPlanInfo').textContent;
+    const submitBtn = e.target.querySelector('button[type="submit"]');
 
-window.selectPlan = function(plan, card) {
-  document.querySelectorAll('.plan-card').forEach(c=>c.classList.remove('selected'));
-  card.classList.add('selected');
-  $('selectedPlan').value=plan;
-};
+    if (!file) { alert('يرجى رفع صورة وصل الخلاص'); return; }
 
-window.switchAdminTab = function(tab, btn) {
-  document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active'));
-  btn.classList.add('active');
-  document.querySelectorAll('.admin-panel').forEach(p=>p.classList.remove('active'));
-  $(`panel-${tab}`).classList.add('active');
-};
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...';
 
-function extractYTId(url){const m=(url||'').match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);return m?m[1]:null;}
+    try {
+      // رفع الوصل على Cloudinary
+      const receiptURL = await uploadReceipt(file);
 
-$('logoutBtn').addEventListener('click', async()=>{await signOut(auth);window.location.href='index.html';});
-$('hamburgerBtn').addEventListener('click', ()=>{$('sidebar').classList.toggle('open');});
+      // حفظ في Firestore
+      await addDoc(collection(db, 'receipts'), {
+        userId: user.uid,
+        name, email, notes,
+        plan: planInfo,
+        receiptURL,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
+
+      alert('✅ تم إرسال وصل الخلاص بنجاح! سيتم تفعيل حسابك خلال 24 ساعة.');
+      document.getElementById('receiptModal').classList.remove('open');
+      e.target.reset();
+    } catch (err) {
+      alert('خطأ في الإرسال: ' + err.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال الوصل';
+    }
+  });  // ── Toggle password visibility ──
+  window.togglePwd = function(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon  = document.getElementById(iconId);
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.className = 'fas fa-eye-slash';
+    } else {
+      input.type = 'password';
+      icon.className = 'fas fa-eye';
+    }
+  };
+
+  // ── Toggle extra fields based on user type ──
+  window.toggleExtraFields = function(type) {
+    const sf = document.getElementById('studentFields');
+    const pf = document.getElementById('parentFields');
+    if (sf) sf.style.display = type === 'student' ? 'block' : 'none';
+    if (pf) pf.style.display = type === 'parent'  ? 'block' : 'none';
+  };
 </script>
+
 </body>
 </html>
