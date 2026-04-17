@@ -277,13 +277,16 @@
               </div>
             </div>
             <div class="form-group" style="margin-bottom:16px">
-              <label>صورة وصل الخلاص — أو أرسلها واتساب: <a href="https://api.whatsapp.com/send?phone=21698346706" target="_blank" style="color:var(--success)">+216 98 346 706</a></label>
-              <label class="upload-zone" for="receiptFile">
+              <label>صورة وصل الخلاص <span style="color:var(--danger)">*</span></label>
+              <label class="upload-zone" for="receiptFile" id="receiptZone">
                 <i class="fas fa-cloud-upload-alt"></i>
-                <p>انقر لرفع صورة الوصل (PNG, JPG, PDF)</p>
-                <input type="file" id="receiptFile" accept="image/*,.pdf" onchange="showFN(this,'rfn')">
+                <p>انقر لرفع صورة الوصل (JPG, PNG, PDF — حد أقصى 5MB)</p>
+                <input type="file" id="receiptFile" accept="image/jpeg,image/png,image/webp,.pdf" required onchange="showFN(this,'rfn');previewReceipt_(this)">
               </label>
               <div id="rfn" style="font-size:.82rem;color:var(--success);margin-top:6px;display:none"></div>
+              <div id="receiptPreview_" style="margin-top:10px;display:none">
+                <img id="receiptImg_" src="" style="max-height:120px;border-radius:8px;border:1px solid var(--gray-200)">
+              </div>
             </div>
             <div class="form-group" style="margin-bottom:16px">
               <label>ملاحظات (اختياري)</label>
@@ -916,12 +919,38 @@ window.unlinkChild = async function(linkId) {
 };
 
 window.submitParentReceipt = async function() {
-  const childName=$('parentChildName').value, level=$('parentChildLevel').value;
-  const plan=$('parentPlan').value, method=$('parentPayMethod').value;
-  if (!childName||!level||!plan||!method){alert('يرجى إكمال جميع الحقول');return;}
-  const name = CUD.firstName ? `${CUD.firstName} ${CUD.lastName||''}` : CUD.name;
-  await addDoc(collection(db,'receipts'),{userId:CU.uid,name,email:CU.email,childName,level,plan,paymentMethod:method,receiptURL:'sent-via-whatsapp',status:'pending',createdAt:serverTimestamp()});
-  alert('✅ تم! أرسل صورة الوصل على واتساب: +216 98 346 706');
+  const childName = $('parentChildName').value;
+  const level     = $('parentChildLevel').value;
+  const plan      = $('parentPlan').value;
+  const method    = $('parentPayMethod').value;
+  const file      = $('parentReceiptFile').files[0];
+
+  if (!childName || !level || !plan || !method) { alert('يرجى إكمال جميع الحقول'); return; }
+  if (!file) { alert('يرجى رفع صورة وصل الخلاص'); return; }
+
+  const btn = document.querySelector('[onclick="submitParentReceipt()"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...'; }
+
+  try {
+    const receiptURL = await uploadToCloudinary(file);
+    const name = CUD.firstName ? `${CUD.firstName} ${CUD.lastName||''}` : CUD.name;
+    await addDoc(collection(db,'receipts'), {
+      userId: CU.uid, name, email: CU.email,
+      childName, level, plan,
+      paymentMethod: method,
+      receiptURL,
+      status: 'pending',
+      createdAt: serverTimestamp()
+    });
+    alert('✅ تم إرسال وصل الخلاص! سيتم تفعيل الاشتراك خلال 24 ساعة.');
+    $('parentChildName').value = '';
+    $('parentReceiptFile').value = '';
+    $('prfn').style.display = 'none';
+  } catch(err) {
+    alert('خطأ: ' + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال الوصل'; }
+  }
 };
 
 // TEACHER
@@ -1107,21 +1136,67 @@ window.filterUsers = function() {
   document.querySelectorAll('#usersTable tr').forEach(tr=>{tr.style.display=tr.textContent.toLowerCase().includes(q)?'':'none';});
 };
 
+// ══ CLOUDINARY CONFIG ══
+const CLOUDINARY = {
+  cloudName:  'dv5xhvkr3',
+  uploadPreset: 'masartamayoz-content',
+  folder: 'academy/receipts'
+};
+
+async function uploadToCloudinary(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY.uploadPreset);
+  formData.append('folder', CLOUDINARY.folder);
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY.cloudName}/auto/upload`,
+    { method: 'POST', body: formData }
+  );
+
+  if (!res.ok) throw new Error('فشل رفع الملف على Cloudinary');
+  const data = await res.json();
+  return data.secure_url;
+}
+
 // FORMS
 $('receiptForm')?.addEventListener('submit', async e=>{
   e.preventDefault();
-  const plan=$('selectedPlan').value, method=$('paymentMethod').value, notes=$('receiptNotes').value;
-  if(!plan||!method){alert('يرجى إكمال جميع الحقول');return;}
-  const btn=e.target.querySelector('button');
-  btn.disabled=true; btn.textContent='جاري الإرسال...';
+  const plan   = $('selectedPlan').value;
+  const method = $('paymentMethod').value;
+  const notes  = $('receiptNotes').value;
+  const file   = $('receiptFile').files[0];
+
+  if (!plan || !method) { alert('يرجى إكمال جميع الحقول'); return; }
+  if (!file) { alert('يرجى رفع صورة وصل الخلاص'); return; }
+
+  const btn = e.target.querySelector('button');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...';
+
   try {
-    const name=CUD.firstName?`${CUD.firstName} ${CUD.lastName||''}`:CUD.name;
-    await addDoc(collection(db,'receipts'),{userId:CU.uid,name,email:CU.email,plan,paymentMethod:method,notes,receiptURL:'sent-via-whatsapp',status:'pending',createdAt:serverTimestamp()});
-    await updateDoc(doc(db,'users',CU.uid),{subscriptionStatus:'pending'});
-    alert('✅ تم تسجيل طلبك!\nأرسل صورة وصل الخلاص على واتساب: +216 98 346 706\nسيتم تفعيل حسابك خلال 24 ساعة.');
-    e.target.reset(); $('rfn').style.display='none';
-  } catch(err){alert('خطأ: '+err.message);}
-  finally{btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i> إرسال الوصل';}
+    // رفع الوصل على Cloudinary
+    const receiptURL = await uploadToCloudinary(file);
+
+    const name = CUD.firstName ? `${CUD.firstName} ${CUD.lastName||''}` : CUD.name;
+    await addDoc(collection(db,'receipts'), {
+      userId: CU.uid, name, email: CU.email,
+      plan, paymentMethod: method, notes,
+      receiptURL,
+      status: 'pending',
+      createdAt: serverTimestamp()
+    });
+    await updateDoc(doc(db,'users',CU.uid), { subscriptionStatus: 'pending' });
+
+    alert('✅ تم إرسال وصل الخلاص بنجاح!\nسيتم مراجعته وتفعيل حسابك خلال 24 ساعة.');
+    e.target.reset();
+    $('rfn').style.display = 'none';
+  } catch(err) {
+    alert('خطأ: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال الوصل';
+  }
 });
 
 $('teacherAddSessionForm')?.addEventListener('submit', async e=>{
@@ -1192,6 +1267,23 @@ window.addVideoItem = function() {
   div.className='video-item';
   div.innerHTML=`<input type="url" placeholder="https://www.youtube.com/watch?v=..." class="yt-input"><input type="text" placeholder="عنوان الحصة (اختياري)" style="width:200px"><button type="button" class="btn-remove-video" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>`;
   $('videoItems').appendChild(div);
+};
+
+window.previewReceipt_ = function(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const preview = document.getElementById('receiptPreview_');
+  const img     = document.getElementById('receiptImg_');
+  if (file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      img.src = e.target.result;
+      preview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  } else {
+    preview.style.display = 'none';
+  }
 };
 
 window.showFN = function(input, id) {
