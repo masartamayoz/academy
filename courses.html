@@ -459,6 +459,25 @@
     .locked-overlay i { font-size: 1.8rem; color: var(--gold); }
     .locked-overlay p { font-size: .85rem; color: rgba(255,255,255,.8); font-weight: 600; }
 
+    /* ══════ VIDEO TABS ══════ */
+    .video-tab {
+      flex-shrink: 0; padding: 7px 14px; border-radius: 8px;
+      border: 1.5px solid rgba(255,255,255,.15);
+      background: transparent; color: rgba(255,255,255,.65);
+      font-family: inherit; font-size: .82rem; font-weight: 600;
+      cursor: pointer; transition: all .2s; white-space: nowrap;
+    }
+    .video-tab:hover  { border-color: rgba(255,255,255,.4); color: white; }
+    .video-tab.active { background: var(--blue-light); border-color: var(--blue-light); color: white; }
+
+    /* ══════ TOAST ══════ */
+    #toastContainer { position:fixed; bottom:24px; left:24px; z-index:99999; display:flex; flex-direction:column; gap:10px; }
+    .toast { display:flex; align-items:center; gap:10px; padding:12px 18px; border-radius:12px; font-size:.88rem; font-weight:600; color:white; box-shadow:0 4px 20px rgba(0,0,0,.15); animation:toastIn .3s ease; min-width:240px; }
+    @keyframes toastIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    .toast-success { background:var(--success); }
+    .toast-danger  { background:var(--danger); }
+    .toast-info    { background:var(--blue-light); }
+
     /* ══════ EMPTY ══════ */
     .empty-state {
       text-align: center; padding: 60px 20px; grid-column: 1/-1;
@@ -642,21 +661,28 @@
         <i class="fas fa-times"></i>
       </button>
     </div>
+    <!-- تبويبات الحصص المتعددة -->
+    <div id="modalVideoTabs" style="display:none;gap:8px;padding:10px 16px;background:rgba(255,255,255,.04);overflow-x:auto;flex-wrap:nowrap"></div>
     <div class="video-wrapper">
-      <iframe id="videoIframe" src="" allowfullscreen
-              allow="autoplay; encrypted-media"></iframe>
+      <iframe id="videoIframe" src="" allowfullscreen allow="autoplay; encrypted-media"></iframe>
     </div>
     <div class="video-modal-footer">
       <div class="video-modal-info">
         <p><strong id="modalLevel"></strong> — <span id="modalChapter"></span></p>
       </div>
-      <a id="modalPdfBtn" href="#" target="_blank"
-         style="display:none;padding:8px 16px;background:var(--danger);color:white;border-radius:8px;font-size:.85rem;font-weight:700">
-        <i class="fas fa-file-pdf"></i> تحميل PDF
-      </a>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a id="modalPdfTextBtn" href="#" target="_blank" style="display:none;align-items:center;gap:6px;padding:8px 16px;background:var(--danger);color:white;border-radius:8px;font-size:.85rem;font-weight:700">
+          <i class="fas fa-file-pdf"></i> PDF النص
+        </a>
+        <a id="modalPdfSolBtn" href="#" target="_blank" style="display:none;align-items:center;gap:6px;padding:8px 16px;background:var(--success);color:white;border-radius:8px;font-size:.85rem;font-weight:700">
+          <i class="fas fa-file-pdf"></i> PDF الإصلاح
+        </a>
+      </div>
     </div>
   </div>
 </div>
+
+<div id="toastContainer"></div>
 
 <!-- ══════ FIREBASE + LOGIC ══════ -->
 <script type="module">
@@ -824,21 +850,24 @@
     $('contentGrid').innerHTML = items.map(item => buildCard(item)).join('');
   }
 
+  const SECTIONS = {algebra:'جبر',geometry:'هندسة',statistics:'إحصاء',general:'عام'};
+
   function buildCard(item) {
-    const ytId   = extractYouTubeId(item.videoUrl || '');
-    const hasPdf = !!item.pdfUrl;
+    const videos    = item.videoUrls?.length ? item.videoUrls : (item.videoUrl ? [{url:item.videoUrl,title:''}] : []);
+    const firstYtId = extractYouTubeId(videos[0]?.url || '');
+    const hasPdfText     = !!item.pdfText;
+    const hasPdfSolution = !!item.pdfSolution;
+    const multiVideo = videos.length > 1;
     const cfg    = typeConfig[item.type] || typeConfig.lesson;
 
-    const thumbHTML = ytId
-      ? `<div class="card-thumb" onclick="openVideo('${item.id}')">
-           <img src="https://img.youtube.com/vi/${ytId}/hqdefault.jpg" alt="${item.title}" loading="lazy">
-           <div class="thumb-overlay">
-             <div class="play-btn"><i class="fas fa-play"></i></div>
-           </div>
+    const thumbHTML = firstYtId
+      ? `<div class="card-thumb" onclick="${isSubscribed ? `openVideo('${item.id}')` : 'goSubscribe()'}">
+           <img src="https://img.youtube.com/vi/${firstYtId}/hqdefault.jpg" alt="${item.title}" loading="lazy">
+           <div class="thumb-overlay"><div class="play-btn"><i class="fas fa-play"></i></div></div>
            <span class="card-type-badge" style="background:${cfg.color};color:${cfg.iconColor};border:1px solid ${cfg.iconColor}40">
              <i class="fas ${cfg.icon}"></i>
            </span>
-           ${hasPdf ? `<div class="has-pdf" onclick="event.stopPropagation();openPdf('${item.pdfUrl}')" title="تحميل PDF"><i class="fas fa-file-pdf"></i></div>` : ''}
+           ${multiVideo ? `<span style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);color:white;font-size:.72rem;font-weight:700;padding:3px 8px;border-radius:20px"><i class="fas fa-layer-group"></i> ${videos.length} حصص</span>` : ''}
            ${!isSubscribed ? `<div class="locked-overlay" onclick="goSubscribe()"><i class="fas fa-lock"></i><p>اشترك للمشاهدة</p></div>` : ''}
          </div>`
       : `<div class="card-thumb-empty">
@@ -854,20 +883,26 @@
         <div class="card-body">
           <div class="card-meta">
             <span class="card-level">السنة ${item.level}</span>
+            ${item.section ? `<span class="card-chapter">${SECTIONS[item.section]||item.section}</span>` : ''}
             ${item.chapter ? `<span class="card-chapter">${item.chapter}</span>` : ''}
           </div>
           <div class="card-title">${item.title}</div>
           ${item.desc ? `<div class="card-desc">${item.desc}</div>` : ''}
           <div class="card-actions">
-            ${ytId
+            ${firstYtId
               ? `<button class="btn-watch" onclick="${isSubscribed ? `openVideo('${item.id}')` : 'goSubscribe()'}">
                    <i class="fas fa-${isSubscribed ? 'play' : 'lock'}"></i>
-                   ${isSubscribed ? 'مشاهدة الدرس' : 'اشترك للمشاهدة'}
+                   ${isSubscribed ? (multiVideo ? `مشاهدة (${videos.length} حصص)` : 'مشاهدة الدرس') : 'اشترك للمشاهدة'}
                  </button>`
               : ''}
-            ${hasPdf
-              ? `<button class="btn-pdf" onclick="${isSubscribed ? `openPdf('${item.pdfUrl}')` : 'goSubscribe()'}">
-                   <i class="fas fa-file-pdf"></i> PDF
+            ${hasPdfText
+              ? `<button class="btn-pdf" style="background:rgba(239,68,68,.1);color:var(--danger)" onclick="${isSubscribed ? `openPdf('${item.pdfText}')` : 'goSubscribe()'}">
+                   <i class="fas fa-file-pdf"></i> النص
+                 </button>`
+              : ''}
+            ${hasPdfSolution
+              ? `<button class="btn-pdf" style="background:rgba(16,185,129,.1);color:var(--success)" onclick="${isSubscribed ? `openPdf('${item.pdfSolution}')` : 'goSubscribe()'}">
+                   <i class="fas fa-file-pdf"></i> الإصلاح
                  </button>`
               : ''}
           </div>
@@ -881,20 +916,47 @@
     const item = allContent.find(i => i.id === itemId);
     if (!item) return;
 
-    const ytId = extractYouTubeId(item.videoUrl || '');
-    if (!ytId) return;
+    const videos = item.videoUrls?.length ? item.videoUrls : (item.videoUrl ? [{url:item.videoUrl,title:''}] : []);
+    if (!videos.length) return;
 
     $('modalTitle').textContent   = item.title;
     $('modalLevel').textContent   = levelLabel[item.level] || `السنة ${item.level}`;
     $('modalChapter').textContent = item.chapter || '';
-    $('videoIframe').src = `https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0`;
 
-    const pdfBtn = $('modalPdfBtn');
-    if (item.pdfUrl) { pdfBtn.href = item.pdfUrl; pdfBtn.style.display = 'flex'; }
-    else pdfBtn.style.display = 'none';
+    // بناء تبويبات الحصص إذا كان أكثر من فيديو
+    const tabsEl = $('modalVideoTabs');
+    if (videos.length > 1) {
+      tabsEl.style.display = 'flex';
+      tabsEl.innerHTML = videos.map((v,i) => `
+        <button class="video-tab ${i===0?'active':''}" onclick="switchVideoTab(${i},'${itemId}')">
+          <i class="fas fa-play-circle"></i> ${v.title || `حصة ${i+1}`}
+        </button>`).join('');
+    } else {
+      tabsEl.style.display = 'none';
+    }
 
+    const firstYt = extractYouTubeId(videos[0]?.url || '');
+    $('videoIframe').src = firstYt ? `https://www.youtube.com/embed/${firstYt}?autoplay=1&rel=0` : '';
+
+    // PDF buttons
+    const pdfTextBtn = $('modalPdfTextBtn');
+    const pdfSolBtn  = $('modalPdfSolBtn');
+    if (item.pdfText)     { pdfTextBtn.href = item.pdfText;     pdfTextBtn.style.display = 'flex'; }
+    else pdfTextBtn.style.display = 'none';
+    if (item.pdfSolution) { pdfSolBtn.href  = item.pdfSolution; pdfSolBtn.style.display  = 'flex'; }
+    else pdfSolBtn.style.display = 'none';
+
+    // حفظ الفيديوهات للتبديل
+    window._currentVideos = videos;
     $('videoModal').classList.add('open');
     document.body.style.overflow = 'hidden';
+  };
+
+  window.switchVideoTab = function(index, itemId) {
+    const videos = window._currentVideos || [];
+    const ytId   = extractYouTubeId(videos[index]?.url || '');
+    if (ytId) $('videoIframe').src = `https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0`;
+    document.querySelectorAll('.video-tab').forEach((t,i) => t.classList.toggle('active', i === index));
   };
 
   window.closeVideoModal = function() {
@@ -950,8 +1012,17 @@
 
   // ── Helpers ──
   function extractYouTubeId(url) {
-    const m = url.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
+    const m = (url||'').match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
     return m ? m[1] : null;
+  }
+
+  function toast(msg, type='info') {
+    const c = document.getElementById('toastContainer');
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.innerHTML = `<i class="fas fa-${type==='success'?'check-circle':type==='danger'?'exclamation-circle':'info-circle'}"></i> ${msg}`;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
   }
 
   function updateURL() {
