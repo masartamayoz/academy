@@ -895,6 +895,31 @@ const $ = id => document.getElementById(id);
 
 let CU = null, CUD = null, currentReceiptId = null, currentSessionId = null;
 
+// ══ CLOUDINARY ══
+const CLOUDINARY = { cloudName:'dv5xhvkr3', uploadPreset:'masartamayoz-content' };
+async function uploadToCloudinary(file, folder='receipts') {
+  const resourceType = file.type==='application/pdf' ? 'raw' : 'image';
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY.uploadPreset);
+  formData.append('folder', `academy/${folder}`);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY.cloudName}/${resourceType}/upload`,{method:'POST',body:formData});
+  if (!res.ok) throw new Error('فشل رفع الملف');
+  return (await res.json()).secure_url;
+}
+
+// ══ TOAST ══
+function toast(msg, type='info') {
+  const c = document.getElementById('toastContainer');
+  if (!c) return;
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  const icons = {success:'check-circle',danger:'exclamation-circle',warning:'exclamation-triangle',info:'info-circle'};
+  t.innerHTML = `<i class="fas fa-${icons[type]||'info-circle'}"></i> ${msg}`;
+  c.appendChild(t);
+  setTimeout(()=>{ t.style.cssText='opacity:0;transition:opacity .3s'; setTimeout(()=>t.remove(),300); }, 3200);
+}
+
 const fmt = ts => ts?.toDate ? ts.toDate().toLocaleDateString('ar-TN') : (ts||'—');
 const ROLES = {student:'تلميذ',parent:'ولي أمر',teacher:'مربي',admin:'مدير'};
 const ROLE_CLASS = {student:'role-student',parent:'role-parent',teacher:'role-teacher',admin:'role-admin'};
@@ -1476,7 +1501,6 @@ $('receiptForm')?.addEventListener('submit', async e=>{
     toast('تم إرسال الوصل! سيتم التفعيل خلال 24 ساعة','success');
     e.target.reset();
     $('rfn').style.display = 'none';
-    toast('تم إرسال الوصل بنجاح! سيتم التفعيل خلال 24 ساعة','success');
   } catch(err) {
     toast('خطأ: ' + err.message,'danger');
   } finally {
@@ -1496,7 +1520,6 @@ $('teacherAddSessionForm')?.addEventListener('submit', async e=>{
     meetLink:$('tSessMeet').value, notes:$('tSessNotes').value,
     status:'pending', createdAt:serverTimestamp()
   });
-  toast('تم تسجيل الحصة! في انتظار مراجعة الإدارة','success');
   toast('تم تسجيل الحصة! في انتظار مراجعة الإدارة','success');
   $('addSessionModal').classList.remove('open');
   e.target.reset();
@@ -1564,30 +1587,6 @@ $('addTeacherForm')?.addEventListener('submit', async e=>{
     else toast('خطأ: '+err.message,'danger');
   } finally{btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i> إضافة المدرس';}
 });
-
-// ══ CLOUDINARY ══
-const CLOUDINARY = { cloudName:'dv5xhvkr3', uploadPreset:'masartamayoz-content' };
-async function uploadToCloudinary(file, folder='receipts') {
-  const resourceType = file.type==='application/pdf' ? 'raw' : 'image';
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', CLOUDINARY.uploadPreset);
-  formData.append('folder', `academy/${folder}`);
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY.cloudName}/${resourceType}/upload`,{method:'POST',body:formData});
-  if (!res.ok) throw new Error('فشل رفع الملف');
-  return (await res.json()).secure_url;
-}
-
-// ══ TOAST ══
-function toast(msg, type='info') {
-  const c = document.getElementById('toastContainer');
-  const t = document.createElement('div');
-  t.className = `toast toast-${type}`;
-  const icons = {success:'check-circle',danger:'exclamation-circle',warning:'exclamation-triangle',info:'info-circle'};
-  t.innerHTML = `<i class="fas fa-${icons[type]||'info-circle'}"></i> ${msg}`;
-  c.appendChild(t);
-  setTimeout(()=>{ t.style.cssText='opacity:0;transition:opacity .3s'; setTimeout(()=>t.remove(),300); }, 3200);
-}
 
 // ══ HELPERS ══
 window.handlePdfPreview = function(input, zoneId, fnId) {
