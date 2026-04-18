@@ -7,995 +7,668 @@
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    :root {
-      --blue-dark:  #0a1628;
-      --blue-mid:   #0d2147;
-      --blue:       #1a3a6e;
-      --blue-light: #2563eb;
-      --gold:       #f59e0b;
-      --gold-light: #fbbf24;
-      --white:      #ffffff;
-      --gray-50:    #f8fafc;
-      --gray-100:   #f1f5f9;
-      --gray-200:   #e2e8f0;
-      --gray-400:   #94a3b8;
-      --gray-600:   #475569;
-      --gray-800:   #1e293b;
-      --success:    #10b981;
-      --danger:     #ef4444;
-      --sidebar-w:  260px;
-    }
-
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Tajawal', sans-serif;
-      background: var(--gray-50);
-      color: var(--gray-800);
-      line-height: 1.6;
-    }
-    a { text-decoration: none; color: inherit; }
-
-    /* ══════ LOADING ══════ */
-    #loadingScreen {
-      position: fixed; inset: 0;
-      background: var(--blue-dark);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 9999; flex-direction: column; gap: 16px;
-    }
-    .loader-ring {
-      width: 56px; height: 56px;
-      border: 4px solid rgba(255,255,255,.1);
-      border-top-color: var(--gold);
-      border-radius: 50%;
-      animation: spin .8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    #loadingScreen p { color: rgba(255,255,255,.7); font-size: .9rem; }
-
-    /* ══════ LAYOUT ══════ */
-    .app { display: flex; min-height: 100vh; }
-
-    /* ══════ SIDEBAR ══════ */
-    .sidebar {
-      width: var(--sidebar-w);
-      background: linear-gradient(180deg, var(--blue-dark), var(--blue-mid));
-      position: fixed; top: 0; right: 0; bottom: 0;
-      display: flex; flex-direction: column;
-      z-index: 100; transition: transform .3s; overflow-y: auto;
-    }
-
-    .sidebar-logo {
-      padding: 20px;
-      border-bottom: 1px solid rgba(255,255,255,.08);
-      display: flex; align-items: center; gap: 12px;
-    }
-
-    .sidebar-logo img {
-      width: 42px; height: 42px; border-radius: 10px;
-      background: white; padding: 3px; object-fit: contain;
-    }
-
-    .sidebar-logo h2 { font-size: .95rem; font-weight: 800; color: var(--white); }
-    .sidebar-logo span { font-size: .72rem; color: var(--gold-light); display: block; }
-
-    /* Level selector */
-    .level-selector {
-      padding: 16px;
-      border-bottom: 1px solid rgba(255,255,255,.08);
-    }
-
-    .level-selector p {
-      font-size: .75rem; color: rgba(255,255,255,.4);
-      text-transform: uppercase; letter-spacing: .08em;
-      margin-bottom: 10px; font-weight: 700;
-    }
-
-    .level-btns { display: flex; gap: 8px; }
-
-    .level-btn {
-      flex: 1; padding: 10px 6px; border-radius: 10px;
-      border: 1.5px solid rgba(255,255,255,.15);
-      background: transparent; color: rgba(255,255,255,.6);
-      font-family: inherit; font-size: .88rem; font-weight: 700;
-      cursor: pointer; transition: all .2s; text-align: center;
-    }
-
-    .level-btn:hover { border-color: rgba(255,255,255,.4); color: white; }
-
-    .level-btn.active {
-      background: var(--blue-light); border-color: var(--blue-light);
-      color: white; box-shadow: 0 4px 12px rgba(37,99,235,.35);
-    }
-
-    /* Content type nav */
-    .type-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
-
-    .nav-section {
-      padding: 10px 16px 6px;
-      font-size: .7rem; font-weight: 700;
-      color: rgba(255,255,255,.35);
-      text-transform: uppercase; letter-spacing: .08em;
-    }
-
-    .nav-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 16px; color: rgba(255,255,255,.6);
-      font-size: .85rem; font-weight: 500;
-      cursor: pointer; transition: all .2s;
-      border-right: 3px solid transparent;
-    }
-
-    .nav-item:hover { background: rgba(255,255,255,.06); color: white; }
-
-    .nav-item.active {
-      background: rgba(37,99,235,.2); color: white;
-      border-right-color: var(--blue-light);
-    }
-
-    .nav-item i { width: 16px; text-align: center; font-size: .85rem; }
-
-    .nav-count {
-      margin-right: auto;
-      background: rgba(255,255,255,.1);
-      color: rgba(255,255,255,.6);
-      font-size: .7rem; font-weight: 700;
-      padding: 2px 8px; border-radius: 50px;
-    }
-
-    .sidebar-footer {
-      padding: 14px 16px;
-      border-top: 1px solid rgba(255,255,255,.08);
-      display: flex; gap: 8px;
-    }
-
-    .btn-footer {
-      flex: 1; padding: 9px; border-radius: 8px;
-      font-family: inherit; font-size: .8rem; font-weight: 600;
-      cursor: pointer; border: none; transition: all .2s;
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-    }
-
-    .btn-dashboard {
-      background: rgba(255,255,255,.08); color: rgba(255,255,255,.7);
-    }
-
-    .btn-dashboard:hover { background: rgba(255,255,255,.15); color: white; }
-
-    .btn-home {
-      background: var(--gold); color: var(--blue-dark);
-    }
-
-    .btn-home:hover { background: var(--gold-light); }
-
-    /* ══════ MAIN ══════ */
-    .main-content {
-      margin-right: var(--sidebar-w); flex: 1;
-      display: flex; flex-direction: column;
-    }
-
-    /* Topbar */
-    .topbar {
-      background: white; border-bottom: 1px solid var(--gray-200);
-      padding: 14px 24px;
-      display: flex; align-items: center; justify-content: space-between;
-      position: sticky; top: 0; z-index: 50;
-    }
-
-    .topbar-right { display: flex; align-items: center; gap: 12px; }
-
-    .hamburger-btn {
-      display: none; background: none; border: none;
-      font-size: 1.3rem; cursor: pointer; color: var(--gray-800);
-    }
-
-    .breadcrumb {
-      display: flex; align-items: center; gap: 8px;
-      font-size: .85rem; color: var(--gray-600);
-    }
-
-    .breadcrumb strong { color: var(--blue-dark); font-weight: 700; }
-    .breadcrumb i { font-size: .65rem; color: var(--gray-400); }
-
-    .topbar-search {
-      display: flex; align-items: center; gap: 8px;
-      background: var(--gray-50); border: 1px solid var(--gray-200);
-      border-radius: 10px; padding: 8px 14px;
-    }
-
-    .topbar-search input {
-      border: none; background: transparent; font-family: inherit;
-      font-size: .88rem; color: var(--gray-800); width: 200px;
-    }
-
-    .topbar-search input:focus { outline: none; }
-    .topbar-search i { color: var(--gray-400); font-size: .9rem; }
-
-    /* ══════ CONTENT ══════ */
-    .content { padding: 24px; flex: 1; }
-
-    /* Section header */
-    .section-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
-    }
-
-    .section-title {
-      display: flex; align-items: center; gap: 12px;
-    }
-
-    .section-icon {
-      width: 44px; height: 44px; border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.1rem; flex-shrink: 0;
-    }
-
-    .section-title h2 { font-size: 1.2rem; font-weight: 800; color: var(--blue-dark); }
-    .section-title p  { font-size: .82rem; color: var(--gray-600); margin-top: 2px; }
-
-    .section-count {
-      background: var(--gray-100); color: var(--gray-600);
-      padding: 4px 14px; border-radius: 50px; font-size: .8rem; font-weight: 700;
-    }
-
-    /* Filter bar */
-    .filter-bar {
-      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;
-    }
-
-    .filter-btn {
-      padding: 7px 16px; border-radius: 50px;
-      border: 1.5px solid var(--gray-200);
-      background: white; color: var(--gray-600);
-      font-family: inherit; font-size: .82rem; font-weight: 600;
-      cursor: pointer; transition: all .2s;
-    }
-
-    .filter-btn:hover { border-color: var(--blue-light); color: var(--blue-light); }
-
-    .filter-btn.active {
-      background: var(--blue-light); border-color: var(--blue-light);
-      color: white;
-    }
-
-    /* ══════ CONTENT CARDS ══════ */
-    .content-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 20px;
-    }
-
-    .content-card {
-      background: white; border: 1px solid var(--gray-200);
-      border-radius: 16px; overflow: hidden;
-      transition: all .3s; display: flex; flex-direction: column;
-    }
-
-    .content-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 12px 32px rgba(0,0,0,.1);
-      border-color: transparent;
-    }
-
-    /* Video thumb */
-    .card-thumb {
-      position: relative; padding-top: 56.25%;
-      background: var(--blue-dark); overflow: hidden; cursor: pointer;
-    }
-
-    .card-thumb img {
-      position: absolute; inset: 0; width: 100%; height: 100%;
-      object-fit: cover; opacity: .8; transition: opacity .3s;
-    }
-
-    .content-card:hover .card-thumb img { opacity: .9; }
-
-    .thumb-overlay {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(10,22,40,.3);
-    }
-
-    .play-btn {
-      width: 52px; height: 52px; border-radius: 50%;
-      background: rgba(255,255,255,.15); backdrop-filter: blur(8px);
-      display: flex; align-items: center; justify-content: center;
-      color: white; font-size: 1.3rem; transition: all .25s;
-      border: 2px solid rgba(255,255,255,.3);
-    }
-
-    .content-card:hover .play-btn {
-      background: var(--gold); color: var(--blue-dark);
-      border-color: var(--gold); transform: scale(1.1);
-    }
-
-    .card-type-badge {
-      position: absolute; top: 10px; right: 10px;
-      padding: 4px 12px; border-radius: 50px;
-      font-size: .72rem; font-weight: 700;
-      backdrop-filter: blur(8px);
-    }
-
-    .has-pdf {
-      position: absolute; top: 10px; left: 10px;
-      width: 32px; height: 32px; border-radius: 8px;
-      background: rgba(239,68,68,.9); backdrop-filter: blur(8px);
-      display: flex; align-items: center; justify-content: center;
-      color: white; font-size: .8rem; cursor: pointer;
-      transition: transform .2s;
-    }
-
-    .has-pdf:hover { transform: scale(1.1); }
-
-    /* No video card */
-    .card-thumb-empty {
-      padding-top: 56.25%; background: var(--gray-100); position: relative;
-    }
-
-    .card-thumb-empty-inner {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      flex-direction: column; gap: 8px; color: var(--gray-400);
-    }
-
-    .card-thumb-empty-inner i { font-size: 2rem; }
-    .card-thumb-empty-inner span { font-size: .8rem; }
-
-    /* Card body */
-    .card-body { padding: 18px; flex: 1; display: flex; flex-direction: column; }
-
-    .card-meta {
-      display: flex; align-items: center; gap: 8px;
-      margin-bottom: 10px; flex-wrap: wrap;
-    }
-
-    .card-level {
-      background: rgba(37,99,235,.1); color: var(--blue-light);
-      padding: 2px 10px; border-radius: 50px;
-      font-size: .72rem; font-weight: 700;
-    }
-
-    .card-chapter {
-      font-size: .75rem; color: var(--gray-400); font-weight: 500;
-    }
-
-    .card-title {
-      font-size: .98rem; font-weight: 800; color: var(--blue-dark);
-      margin-bottom: 8px; line-height: 1.4;
-    }
-
-    .card-desc {
-      font-size: .82rem; color: var(--gray-600); line-height: 1.6;
-      flex: 1; margin-bottom: 14px;
-    }
-
-    .card-actions { display: flex; gap: 8px; }
-
-    .btn-watch {
-      flex: 1; padding: 9px; border-radius: 10px;
-      background: linear-gradient(135deg, var(--blue-light), var(--blue-mid));
-      color: white; border: none; font-family: inherit;
-      font-size: .85rem; font-weight: 700; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-      transition: all .2s;
-    }
-
-    .btn-watch:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(37,99,235,.35); }
-
-    .btn-pdf {
-      padding: 9px 14px; border-radius: 10px;
-      background: rgba(239,68,68,.1); color: var(--danger);
-      border: 1.5px solid rgba(239,68,68,.2);
-      font-family: inherit; font-size: .85rem; font-weight: 700;
-      cursor: pointer; display: flex; align-items: center; gap: 6px;
-      transition: all .2s;
-    }
-
-    .btn-pdf:hover { background: var(--danger); color: white; }
-
-    /* ══════ VIDEO MODAL ══════ */
-    .modal-overlay {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,.85); z-index: 9999;
-      align-items: center; justify-content: center;
-      padding: 20px;
-    }
-
-    .modal-overlay.open { display: flex; }
-
-    .video-modal {
-      background: var(--blue-dark); border-radius: 16px;
-      width: 100%; max-width: 860px;
-      animation: modalIn .3s ease; overflow: hidden;
-    }
-
-    @keyframes modalIn {
-      from { opacity: 0; transform: scale(.95); }
-      to   { opacity: 1; transform: scale(1); }
-    }
-
-    .video-modal-header {
-      padding: 16px 20px;
-      display: flex; align-items: center; justify-content: space-between;
-      border-bottom: 1px solid rgba(255,255,255,.08);
-    }
-
-    .video-modal-title { font-size: 1rem; font-weight: 700; color: white; }
-
-    .modal-close {
-      background: rgba(255,255,255,.1); border: none;
-      width: 32px; height: 32px; border-radius: 50%;
-      color: white; cursor: pointer; font-size: 1rem;
-      display: flex; align-items: center; justify-content: center;
-      transition: background .2s;
-    }
-
-    .modal-close:hover { background: var(--danger); }
-
-    .video-wrapper {
-      position: relative; padding-top: 56.25%;
-    }
-
-    .video-wrapper iframe {
-      position: absolute; inset: 0; width: 100%; height: 100%; border: none;
-    }
-
-    .video-modal-footer {
-      padding: 14px 20px;
-      display: flex; align-items: center; justify-content: space-between;
-      flex-wrap: wrap; gap: 10px;
-    }
-
-    .video-modal-info p { font-size: .85rem; color: rgba(255,255,255,.6); }
-    .video-modal-info strong { color: var(--gold-light); }
-
-    /* ══════ LOCKED ══════ */
-    .locked-overlay {
-      position: absolute; inset: 0;
-      background: rgba(10,22,40,.8); backdrop-filter: blur(4px);
-      display: flex; align-items: center; justify-content: center;
-      flex-direction: column; gap: 10px; cursor: pointer;
-    }
-
-    .locked-overlay i { font-size: 1.8rem; color: var(--gold); }
-    .locked-overlay p { font-size: .85rem; color: rgba(255,255,255,.8); font-weight: 600; }
-
-    /* ══════ VIDEO TABS ══════ */
-    .video-tab {
-      flex-shrink: 0; padding: 7px 14px; border-radius: 8px;
-      border: 1.5px solid rgba(255,255,255,.15);
-      background: transparent; color: rgba(255,255,255,.65);
-      font-family: inherit; font-size: .82rem; font-weight: 600;
-      cursor: pointer; transition: all .2s; white-space: nowrap;
-    }
-    .video-tab:hover  { border-color: rgba(255,255,255,.4); color: white; }
-    .video-tab.active { background: var(--blue-light); border-color: var(--blue-light); color: white; }
-
-    /* ══════ TOAST ══════ */
-    #toastContainer { position:fixed; bottom:24px; left:24px; z-index:99999; display:flex; flex-direction:column; gap:10px; }
-    .toast { display:flex; align-items:center; gap:10px; padding:12px 18px; border-radius:12px; font-size:.88rem; font-weight:600; color:white; box-shadow:0 4px 20px rgba(0,0,0,.15); animation:toastIn .3s ease; min-width:240px; }
-    @keyframes toastIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-    .toast-success { background:var(--success); }
-    .toast-danger  { background:var(--danger); }
-    .toast-info    { background:var(--blue-light); }
-
-    /* ══════ EMPTY ══════ */
-    .empty-state {
-      text-align: center; padding: 60px 20px; grid-column: 1/-1;
-    }
-
-    .empty-state i { font-size: 3rem; color: var(--gray-200); margin-bottom: 16px; display: block; }
-    .empty-state h3 { font-size: 1.1rem; font-weight: 700; color: var(--gray-600); margin-bottom: 6px; }
-    .empty-state p  { font-size: .88rem; color: var(--gray-400); }
-
-    /* ══════ RESPONSIVE ══════ */
-    @media (max-width: 768px) {
-      .sidebar { transform: translateX(100%); }
-      .sidebar.open { transform: translateX(0); }
-      .main-content { margin-right: 0; }
-      .hamburger-btn { display: block; }
-      .topbar-search { display: none; }
-      .content-grid { grid-template-columns: 1fr; }
-      .content { padding: 16px; }
+    :root{--blue-dark:#0a1628;--blue-mid:#0d2147;--blue:#1a3a6e;--blue-light:#2563eb;--gold:#f59e0b;--gold-light:#fbbf24;--white:#ffffff;--gray-50:#f8fafc;--gray-100:#f1f5f9;--gray-200:#e2e8f0;--gray-400:#94a3b8;--gray-600:#475569;--gray-800:#1e293b;--success:#10b981;--danger:#ef4444;--purple:#8b5cf6;--sidebar-w:270px}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Tajawal',sans-serif;background:var(--gray-50);color:var(--gray-800);line-height:1.6}
+    a{text-decoration:none;color:inherit}
+    #loadingScreen{position:fixed;inset:0;background:var(--blue-dark);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:16px}
+    .loader-ring{width:56px;height:56px;border:4px solid rgba(255,255,255,.1);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    #loadingScreen p{color:rgba(255,255,255,.7);font-size:.9rem}
+    .app{display:flex;min-height:100vh}
+    .sidebar{width:var(--sidebar-w);background:linear-gradient(180deg,var(--blue-dark),var(--blue-mid));position:fixed;top:0;right:0;bottom:0;display:flex;flex-direction:column;z-index:100;transition:transform .3s;overflow-y:auto}
+    .sidebar-logo{padding:18px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:12px}
+    .sidebar-logo img{width:40px;height:40px;border-radius:10px;background:white;padding:3px;object-fit:contain}
+    .sidebar-logo h2{font-size:.88rem;font-weight:800;color:white}
+    .sidebar-logo span{font-size:.68rem;color:var(--gold-light);display:block}
+    .user-info-bar{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px}
+    .user-avatar{width:36px;height:36px;border-radius:50%;background:rgba(37,99,235,.3);color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.9rem;flex-shrink:0}
+    .user-name{font-size:.82rem;font-weight:700;color:white}
+    .user-role{font-size:.7rem;color:rgba(255,255,255,.5)}
+    .sub-badge{margin-right:auto;padding:3px 8px;border-radius:20px;font-size:.68rem;font-weight:700}
+    .sub-active{background:rgba(16,185,129,.2);color:#34d399}
+    .sub-inactive{background:rgba(239,68,68,.2);color:#f87171}
+    .level-selector{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+    .level-selector p{font-size:.68rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;font-weight:700}
+    .level-btns{display:flex;gap:6px}
+    .level-btn{flex:1;padding:9px 4px;border-radius:10px;border:1.5px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.6);font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .2s;text-align:center}
+    .level-btn:hover{border-color:rgba(255,255,255,.4);color:white}
+    .level-btn.active{background:var(--blue-light);border-color:var(--blue-light);color:white;box-shadow:0 4px 12px rgba(37,99,235,.35)}
+    .level-btn:disabled{opacity:.3;cursor:not-allowed}
+    .type-nav{flex:1;padding:10px 0;overflow-y:auto}
+    .nav-section{padding:10px 16px 6px;font-size:.67rem;font-weight:700;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.08em}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;color:rgba(255,255,255,.6);font-size:.83rem;font-weight:600;transition:all .2s;border-right:3px solid transparent}
+    .nav-item:hover{background:rgba(255,255,255,.06);color:white}
+    .nav-item.active{background:rgba(37,99,235,.2);border-right-color:var(--blue-light);color:white}
+    .nav-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0}
+    .nav-count{margin-right:auto;background:rgba(255,255,255,.12);color:rgba(255,255,255,.7);padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:700}
+    .sidebar-footer{padding:12px 16px;border-top:1px solid rgba(255,255,255,.08);display:flex;gap:6px}
+    .sidebar-footer a{flex:1;padding:8px;border-radius:8px;text-align:center;background:rgba(255,255,255,.07);color:rgba(255,255,255,.65);font-size:.75rem;font-weight:600;transition:all .2s}
+    .sidebar-footer a:hover{background:rgba(255,255,255,.14);color:white}
+    .main{margin-right:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh}
+    .topbar{background:white;border-bottom:1px solid var(--gray-200);padding:12px 20px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+    .hamburger{display:none;background:none;border:none;cursor:pointer;padding:6px;color:var(--gray-600);font-size:1.1rem}
+    .search-box{flex:1;max-width:340px;position:relative}
+    .search-box input{width:100%;padding:9px 16px 9px 38px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:inherit;font-size:.85rem;background:var(--gray-50);transition:border-color .2s;outline:none}
+    .search-box input:focus{border-color:var(--blue-light);background:white}
+    .search-box i{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--gray-400);font-size:.85rem}
+    .topbar-btn{margin-right:auto;padding:8px 16px;border-radius:8px;border:1.5px solid var(--gray-200);background:white;font-family:inherit;font-size:.82rem;font-weight:600;color:var(--gray-600);cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px}
+    .topbar-btn:hover{border-color:var(--blue-light);color:var(--blue-light)}
+    .page-content{flex:1;padding:22px}
+    .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px}
+    .section-title{display:flex;align-items:center;gap:14px}
+    .section-icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.1rem}
+    .section-title h2{font-size:1.1rem;font-weight:800;color:var(--blue-dark)}
+    .section-title p{font-size:.8rem;color:var(--gray-600);margin-top:2px}
+    .section-count{background:var(--gray-100);color:var(--gray-600);padding:5px 14px;border-radius:20px;font-size:.8rem;font-weight:700}
+    .filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+    .filter-btn{padding:6px 14px;border-radius:20px;border:1.5px solid var(--gray-200);background:white;font-family:inherit;font-size:.8rem;font-weight:600;color:var(--gray-600);cursor:pointer;transition:all .2s}
+    .filter-btn:hover{border-color:var(--blue-light);color:var(--blue-light)}
+    .filter-btn.active{background:var(--blue-light);color:white;border-color:var(--blue-light)}
+    .content-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:18px}
+    .content-card{background:white;border-radius:16px;overflow:hidden;border:1px solid var(--gray-200);transition:transform .2s,box-shadow .2s}
+    .content-card:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(0,0,0,.09)}
+    .card-thumb{position:relative;aspect-ratio:16/9;overflow:hidden;cursor:pointer;background:var(--blue-dark)}
+    .card-thumb img{width:100%;height:100%;object-fit:cover;transition:transform .3s}
+    .card-thumb:hover img{transform:scale(1.04)}
+    .thumb-overlay{position:absolute;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
+    .card-thumb:hover .thumb-overlay{opacity:1}
+    .play-btn{width:50px;height:50px;background:rgba(255,255,255,.9);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--blue-dark);font-size:1.05rem}
+    .card-type-badge{position:absolute;bottom:8px;right:8px;padding:3px 9px;border-radius:8px;font-size:.7rem;font-weight:700;backdrop-filter:blur(4px)}
+    .multi-badge{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);color:white;font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:20px}
+    .card-thumb-empty{aspect-ratio:16/9;background:var(--gray-100);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--gray-400);font-size:.82rem;font-weight:600}
+    .card-thumb-empty i{font-size:2rem}
+    .card-body{padding:15px}
+    .card-meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+    .badge-level{background:rgba(37,99,235,.1);color:var(--blue-light);padding:3px 9px;border-radius:20px;font-size:.7rem;font-weight:700}
+    .badge-chapter{background:var(--gray-100);color:var(--gray-600);padding:3px 9px;border-radius:20px;font-size:.7rem;font-weight:700}
+    .badge-section{background:rgba(16,185,129,.1);color:var(--success);padding:3px 9px;border-radius:20px;font-size:.7rem;font-weight:700}
+    .card-title{font-size:.92rem;font-weight:800;color:var(--blue-dark);margin-bottom:6px;line-height:1.4}
+    .card-desc{font-size:.78rem;color:var(--gray-600);margin-bottom:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .card-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .btn-watch{flex:1;padding:9px 12px;border-radius:10px;background:var(--blue-light);color:white;border:none;font-family:inherit;font-size:.8rem;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+    .btn-watch:hover{background:#1d4ed8}
+    .btn-pdf{padding:9px 12px;border-radius:10px;border:none;font-family:inherit;font-size:.8rem;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:5px}
+    .btn-pdf:hover{opacity:.85}
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:999;display:none;align-items:flex-start;justify-content:center;padding:12px;overflow-y:auto}
+    .modal-overlay.open{display:flex}
+    .viewer-modal{background:var(--blue-dark);border-radius:20px;width:100%;max-width:920px;margin:auto;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5);animation:modalIn .3s ease}
+    @keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(16px)}to{opacity:1;transform:scale(1) translateY(0)}}
+    .viewer-header{padding:15px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,.1)}
+    .viewer-title{flex:1;font-size:.98rem;font-weight:800;color:white}
+    .viewer-close{width:34px;height:34px;border-radius:9px;border:none;background:rgba(255,255,255,.1);color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.95rem;transition:background .2s}
+    .viewer-close:hover{background:rgba(255,255,255,.2)}
+    .viewer-tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.1)}
+    .viewer-tab{flex:1;padding:11px;text-align:center;cursor:pointer;color:rgba(255,255,255,.5);font-size:.82rem;font-weight:700;border:none;background:none;font-family:inherit;border-bottom:3px solid transparent;transition:all .2s}
+    .viewer-tab:hover:not(:disabled){color:white;background:rgba(255,255,255,.05)}
+    .viewer-tab.active{color:white;border-bottom-color:var(--blue-light);background:rgba(37,99,235,.12)}
+    .viewer-tab:disabled{opacity:.3;cursor:not-allowed}
+    .playlist-tabs{display:flex;gap:6px;padding:9px 16px;background:rgba(255,255,255,.04);overflow-x:auto;flex-wrap:nowrap}
+    .playlist-tab{flex-shrink:0;padding:5px 13px;border-radius:8px;border:1.5px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.6);font-family:inherit;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
+    .playlist-tab:hover{border-color:rgba(255,255,255,.4);color:white}
+    .playlist-tab.active{background:var(--blue-light);border-color:var(--blue-light);color:white}
+    .viewer-body{display:none}
+    .viewer-body.active{display:block}
+    .video-wrapper{position:relative;padding-bottom:56.25%;height:0;background:black}
+    .video-wrapper iframe{position:absolute;inset:0;width:100%;height:100%;border:none}
+    .pdf-wrapper{width:100%;height:72vh;background:#525659}
+    .pdf-wrapper iframe{width:100%;height:100%;border:none}
+    .pdf-fallback{display:flex;flex-direction:column;align-items:center;justify-content:center;height:72vh;gap:14px;color:rgba(255,255,255,.7)}
+    .pdf-fallback i{font-size:2.5rem;color:var(--danger)}
+    .pdf-fallback a{padding:10px 22px;background:var(--danger);color:white;border-radius:10px;font-weight:700}
+    .viewer-footer{padding:13px 20px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid rgba(255,255,255,.1);flex-wrap:wrap;gap:10px}
+    .viewer-info{color:rgba(255,255,255,.6);font-size:.8rem}
+    .viewer-info strong{color:white}
+    .viewer-actions{display:flex;gap:8px}
+    .viewer-btn{padding:7px 14px;border-radius:8px;border:none;font-family:inherit;font-size:.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .2s}
+    .viewer-btn-pdf{background:rgba(239,68,68,.15);color:#f87171}
+    .viewer-btn-pdf:hover{background:var(--danger);color:white}
+    .viewer-btn-sol{background:rgba(16,185,129,.15);color:#34d399}
+    .viewer-btn-sol:hover{background:var(--success);color:white}
+    .locked-page{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 24px}
+    .locked-box{max-width:440px;text-align:center}
+    .locked-box .lock-icon{font-size:3.5rem;color:var(--gold);margin-bottom:20px;display:block}
+    .locked-box h2{font-size:1.4rem;font-weight:800;color:var(--blue-dark);margin-bottom:10px}
+    .locked-box p{color:var(--gray-600);margin-bottom:22px}
+    .locked-box .btn-sub{padding:13px 28px;background:var(--blue-light);color:white;border-radius:12px;font-weight:700;font-size:.95rem;display:inline-flex;align-items:center;gap:8px}
+    .empty-state{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--gray-400)}
+    .empty-state i{font-size:2.8rem;margin-bottom:14px;display:block}
+    .empty-state h3{font-size:1rem;font-weight:700;color:var(--gray-600);margin-bottom:6px}
+    #toastContainer{position:fixed;bottom:20px;left:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+    .toast{display:flex;align-items:center;gap:10px;padding:11px 16px;border-radius:12px;font-size:.86rem;font-weight:600;color:white;box-shadow:0 4px 16px rgba(0,0,0,.2);animation:toastIn .3s ease;min-width:220px}
+    @keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .toast-info{background:var(--blue-light)}.toast-success{background:var(--success)}.toast-danger{background:var(--danger)}.toast-warning{background:var(--gold);color:var(--blue-dark)}
+    @media(max-width:768px){
+      .sidebar{transform:translateX(100%)}.sidebar.open{transform:translateX(0)}.main{margin-right:0}.hamburger{display:block}
+      .page-content{padding:14px}.content-grid{grid-template-columns:1fr}.topbar{padding:11px 14px}
+      .search-box{max-width:100%;flex:1}.viewer-modal{border-radius:12px}.pdf-wrapper{height:55vh}
+      #toastContainer{left:10px;right:10px;bottom:10px}.toast{min-width:unset;width:100%}
     }
   </style>
 </head>
 <body>
-
-<!-- Loading -->
-<div id="loadingScreen">
-  <div class="loader-ring"></div>
-  <p>جاري التحميل...</p>
-</div>
+<div id="loadingScreen"><div class="loader-ring"></div><p>جاري التحميل...</p></div>
 
 <div class="app" id="appContainer" style="display:none">
 
-  <!-- ══════ SIDEBAR ══════ -->
+  <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-      <img src="assets/logo.png" alt="مسار التميز">
-      <div>
-        <h2>مسار التميز</h2>
-        <span>الرياضيات — المرحلة الإعدادية</span>
-      </div>
+      <img src="assets/logo.png" alt="مسار التميز" onerror="this.style.display='none'">
+      <div><h2>مسار التميز</h2><span>أكاديمية الرياضيات</span></div>
     </div>
-
-    <!-- Level selector -->
+    <div class="user-info-bar">
+      <div class="user-avatar" id="sidebarAvatar">؟</div>
+      <div><div class="user-name" id="sidebarName">—</div><div class="user-role" id="sidebarRole">—</div></div>
+      <span class="sub-badge" id="sidebarSubBadge"></span>
+    </div>
     <div class="level-selector">
-      <p>اختر المستوى</p>
+      <p>المستوى الدراسي</p>
       <div class="level-btns">
-        <button class="level-btn active" onclick="selectLevel(7,this)">السابعة</button>
-        <button class="level-btn" onclick="selectLevel(8,this)">الثامنة</button>
-        <button class="level-btn" onclick="selectLevel(9,this)">التاسعة</button>
+        <button class="level-btn" id="lvl7" onclick="selectLevel(7,this)">7</button>
+        <button class="level-btn" id="lvl8" onclick="selectLevel(8,this)">8</button>
+        <button class="level-btn" id="lvl9" onclick="selectLevel(9,this)">9</button>
       </div>
     </div>
-
-    <!-- Content type nav -->
-    <nav class="type-nav" id="typeNav">
-      <div class="nav-section">أنواع المحتوى</div>
-
-      <div class="nav-item active" onclick="selectType('lesson',this)">
-        <i class="fas fa-book-open"></i> دروس
-        <span class="nav-count" id="count-lesson">0</span>
+    <div class="type-nav">
+      <div class="nav-section">الدروس</div>
+      <div class="nav-item active" id="nav-lesson" onclick="selectType('lesson',this)">
+        <div class="nav-icon" style="background:rgba(37,99,235,.15)"><i class="fas fa-book-open" style="color:var(--blue-light)"></i></div>
+        دروس الرياضيات<span class="nav-count" id="count-lesson">0</span>
       </div>
-
-      <div class="nav-item" onclick="selectType('exercise',this)">
-        <i class="fas fa-pencil-alt"></i> سلاسل تمارين
-        <span class="nav-count" id="count-exercise">0</span>
+      <div class="nav-item" id="nav-exercise" onclick="selectType('exercise',this)">
+        <div class="nav-icon" style="background:rgba(16,185,129,.15)"><i class="fas fa-pencil-alt" style="color:var(--success)"></i></div>
+        سلاسل التمارين<span class="nav-count" id="count-exercise">0</span>
       </div>
-
       <div class="nav-section">فروض المراقبة</div>
-
-      <div class="nav-item" onclick="selectType('exam1',this)">
-        <i class="fas fa-file-alt"></i> فرض مراقبة 1
-        <span class="nav-count" id="count-exam1">0</span>
+      <div class="nav-item" id="nav-exam1" onclick="selectType('exam1',this)">
+        <div class="nav-icon" style="background:rgba(245,158,11,.15)"><i class="fas fa-file-alt" style="color:var(--gold)"></i></div>
+        فرض مراقبة 1<span class="nav-count" id="count-exam1">0</span>
       </div>
-      <div class="nav-item" onclick="selectType('exam2',this)">
-        <i class="fas fa-file-alt"></i> فرض مراقبة 2
-        <span class="nav-count" id="count-exam2">0</span>
+      <div class="nav-item" id="nav-exam2" onclick="selectType('exam2',this)">
+        <div class="nav-icon" style="background:rgba(245,158,11,.15)"><i class="fas fa-file-alt" style="color:var(--gold)"></i></div>
+        فرض مراقبة 2<span class="nav-count" id="count-exam2">0</span>
       </div>
-      <div class="nav-item" onclick="selectType('exam3',this)">
-        <i class="fas fa-file-alt"></i> فرض مراقبة 3
-        <span class="nav-count" id="count-exam3">0</span>
+      <div class="nav-item" id="nav-exam3" onclick="selectType('exam3',this)">
+        <div class="nav-icon" style="background:rgba(245,158,11,.15)"><i class="fas fa-file-alt" style="color:var(--gold)"></i></div>
+        فرض مراقبة 3<span class="nav-count" id="count-exam3">0</span>
       </div>
-      <div class="nav-item" onclick="selectType('exam4',this)">
-        <i class="fas fa-file-alt"></i> فرض مراقبة 4
-        <span class="nav-count" id="count-exam4">0</span>
+      <div class="nav-section">الفروض التأليفية</div>
+      <div class="nav-item" id="nav-final1" onclick="selectType('final1',this)">
+        <div class="nav-icon" style="background:rgba(139,92,246,.15)"><i class="fas fa-file-signature" style="color:var(--purple)"></i></div>
+        الفرض التأليفي 1<span class="nav-count" id="count-final1">0</span>
       </div>
-      <div class="nav-item" onclick="selectType('exam5',this)">
-        <i class="fas fa-file-alt"></i> فرض مراقبة 5
-        <span class="nav-count" id="count-exam5">0</span>
+      <div class="nav-item" id="nav-final2" onclick="selectType('final2',this)">
+        <div class="nav-icon" style="background:rgba(139,92,246,.15)"><i class="fas fa-file-signature" style="color:var(--purple)"></i></div>
+        الفرض التأليفي 2<span class="nav-count" id="count-final2">0</span>
       </div>
-      <div class="nav-item" onclick="selectType('exam6',this)">
-        <i class="fas fa-file-alt"></i> فرض مراقبة 6
-        <span class="nav-count" id="count-exam6">0</span>
+      <div class="nav-item" id="nav-final3" onclick="selectType('final3',this)">
+        <div class="nav-icon" style="background:rgba(139,92,246,.15)"><i class="fas fa-file-signature" style="color:var(--purple)"></i></div>
+        الفرض التأليفي 3<span class="nav-count" id="count-final3">0</span>
       </div>
-
-      <div class="nav-section">فروض التأليف</div>
-
-      <div class="nav-item" onclick="selectType('final1',this)">
-        <i class="fas fa-file-signature"></i> فرض تأليفي 1
-        <span class="nav-count" id="count-final1">0</span>
-      </div>
-      <div class="nav-item" onclick="selectType('final2',this)">
-        <i class="fas fa-file-signature"></i> فرض تأليفي 2
-        <span class="nav-count" id="count-final2">0</span>
-      </div>
-      <div class="nav-item" onclick="selectType('final3',this)">
-        <i class="fas fa-file-signature"></i> فرض تأليفي 3
-        <span class="nav-count" id="count-final3">0</span>
-      </div>
-    </nav>
-
+    </div>
     <div class="sidebar-footer">
-      <button class="btn-footer btn-dashboard" onclick="window.location.href='dashboard.html'">
-        <i class="fas fa-tachometer-alt"></i> لوحتي
-      </button>
-      <button class="btn-footer btn-home" onclick="window.location.href='index.html'">
-        <i class="fas fa-home"></i> الرئيسية
-      </button>
+      <a href="index.html"><i class="fas fa-home"></i> الرئيسية</a>
+      <a href="dashboard.html"><i class="fas fa-tachometer-alt"></i> لوحتي</a>
+      <a href="contact.html"><i class="fas fa-envelope"></i> تواصل</a>
     </div>
   </aside>
 
-  <!-- ══════ MAIN ══════ -->
-  <div class="main-content">
-
-    <!-- Topbar -->
+  <!-- MAIN -->
+  <main class="main">
     <div class="topbar">
-      <div class="topbar-right">
-        <button class="hamburger-btn" id="hamburgerBtn"><i class="fas fa-bars"></i></button>
-        <div class="breadcrumb">
-          <a href="index.html">الرئيسية</a>
-          <i class="fas fa-chevron-left"></i>
-          <span id="breadLevel">السنة السابعة</span>
-          <i class="fas fa-chevron-left"></i>
-          <strong id="breadType">دروس</strong>
-        </div>
-      </div>
-      <div class="topbar-search">
+      <button class="hamburger" id="hamburgerBtn"><i class="fas fa-bars"></i></button>
+      <div class="search-box">
         <i class="fas fa-search"></i>
-        <input type="text" placeholder="ابحث عن درس..." id="searchInput" oninput="filterContent()">
+        <input type="text" id="searchInput" placeholder="ابحث عن درس أو فرض..." oninput="filterContent()">
       </div>
-    </div>
-
-    <!-- Content -->
-    <div class="content">
-
-      <!-- Section header -->
-      <div class="section-header">
-        <div class="section-title">
-          <div class="section-icon" id="sectionIcon"
-               style="background:rgba(37,99,235,.1)">
-            <i class="fas fa-book-open" style="color:var(--blue-light)"></i>
-          </div>
-          <div>
-            <h2 id="sectionTitle">دروس الرياضيات</h2>
-            <p id="sectionSubtitle">السنة السابعة أساسي</p>
-          </div>
-        </div>
-        <span class="section-count" id="sectionCount">0 عنصر</span>
-      </div>
-
-      <!-- Filter bar -->
-      <div class="filter-bar" id="filterBar">
-        <button class="filter-btn active" onclick="filterByChapter('all',this)">الكل</button>
-      </div>
-
-      <!-- Cards grid -->
-      <div class="content-grid" id="contentGrid">
-        <div class="empty-state">
-          <i class="fas fa-spinner fa-spin"></i>
-          <h3>جاري التحميل...</h3>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-<!-- ══════ VIDEO MODAL ══════ -->
-<div class="modal-overlay" id="videoModal">
-  <div class="video-modal">
-    <div class="video-modal-header">
-      <div class="video-modal-title" id="modalTitle">عنوان الدرس</div>
-      <button class="modal-close" onclick="closeVideoModal()">
-        <i class="fas fa-times"></i>
+      <button class="topbar-btn" onclick="window.location.href='dashboard.html'">
+        <i class="fas fa-tachometer-alt"></i> لوحتي
       </button>
     </div>
-    <!-- تبويبات الحصص المتعددة -->
-    <div id="modalVideoTabs" style="display:none;gap:8px;padding:10px 16px;background:rgba(255,255,255,.04);overflow-x:auto;flex-wrap:nowrap"></div>
-    <div class="video-wrapper">
-      <iframe id="videoIframe" src="" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+
+    <div class="page-content" id="pageContent">
+
+      <!-- Locked -->
+      <div class="locked-page" id="lockedPage" style="display:none">
+        <div class="locked-box">
+          <i class="fas fa-lock lock-icon"></i>
+          <h2>المحتوى للمشتركين فقط</h2>
+          <p id="lockedMsg">يجب أن يكون اشتراكك مفعّلاً للوصول إلى الدروس والموارد.</p>
+          <a href="dashboard.html" class="btn-sub"><i class="fas fa-credit-card"></i> اشترك الآن</a>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div id="contentView">
+        <div class="section-header">
+          <div class="section-title">
+            <div class="section-icon" id="sectionIcon" style="background:rgba(37,99,235,.1)">
+              <i class="fas fa-book-open" style="color:var(--blue-light)"></i>
+            </div>
+            <div><h2 id="sectionTitle">دروس الرياضيات</h2><p id="sectionSubtitle">السنة السابعة أساسي</p></div>
+          </div>
+          <span class="section-count" id="sectionCount">0 عنصر</span>
+        </div>
+        <div class="filter-bar" id="filterBar">
+          <button class="filter-btn active" onclick="filterByChapter('all',this)">الكل</button>
+        </div>
+        <div class="content-grid" id="contentGrid">
+          <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><h3>جاري التحميل...</h3></div>
+        </div>
+      </div>
     </div>
-    <div class="video-modal-footer">
-      <div class="video-modal-info">
-        <p><strong id="modalLevel"></strong> — <span id="modalChapter"></span></p>
+  </main>
+</div>
+
+<!-- VIEWER MODAL -->
+<div class="modal-overlay" id="viewerModal">
+  <div class="viewer-modal">
+    <div class="viewer-header">
+      <div class="viewer-title" id="viewerTitle">—</div>
+      <button class="viewer-close" onclick="closeViewer()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="viewer-tabs" id="viewerTabs">
+      <button class="viewer-tab active" id="tab-video" onclick="switchViewerTab('video')">
+        <i class="fas fa-play-circle"></i> مشاهدة الدرس
+      </button>
+      <button class="viewer-tab" id="tab-pdf-text" onclick="switchViewerTab('pdf-text')">
+        <i class="fas fa-file-pdf" style="color:#f87171"></i> PDF النص
+      </button>
+      <button class="viewer-tab" id="tab-pdf-sol" onclick="switchViewerTab('pdf-sol')">
+        <i class="fas fa-file-pdf" style="color:#34d399"></i> PDF الإصلاح
+      </button>
+    </div>
+    <div class="playlist-tabs" id="playlistTabs" style="display:none"></div>
+    <div class="viewer-body active" id="body-video">
+      <div class="video-wrapper">
+        <iframe id="videoIframe" src="" allowfullscreen allow="autoplay; encrypted-media"></iframe>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <a id="modalPdfTextBtn" href="#" target="_blank" style="display:none;align-items:center;gap:6px;padding:8px 16px;background:var(--danger);color:white;border-radius:8px;font-size:.85rem;font-weight:700">
-          <i class="fas fa-file-pdf"></i> PDF النص
-        </a>
-        <a id="modalPdfSolBtn" href="#" target="_blank" style="display:none;align-items:center;gap:6px;padding:8px 16px;background:var(--success);color:white;border-radius:8px;font-size:.85rem;font-weight:700">
-          <i class="fas fa-file-pdf"></i> PDF الإصلاح
-        </a>
-      </div>
+    </div>
+    <div class="viewer-body" id="body-pdf-text">
+      <div class="pdf-wrapper" id="pdfTextWrapper"></div>
+    </div>
+    <div class="viewer-body" id="body-pdf-sol">
+      <div class="pdf-wrapper" id="pdfSolWrapper"></div>
+    </div>
+    <div class="viewer-footer">
+      <div class="viewer-info"><strong id="viewerLevel">—</strong> — <span id="viewerChapter">—</span></div>
+      <div class="viewer-actions" id="viewerActions"></div>
     </div>
   </div>
 </div>
 
 <div id="toastContainer"></div>
 
-<!-- ══════ FIREBASE + LOGIC ══════ -->
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js';
-  import { getAuth, onAuthStateChanged }
-    from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-auth.js';
-  import { getFirestore, collection, getDocs, query, where, orderBy }
-    from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js';
+  import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-auth.js';
+  import { getFirestore, collection, getDocs, getDoc, doc, query, where } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js';
 
- const firebaseConfig = {
-  apiKey: "AIzaSyAF_ktwHXPw6gDkoolCI77XeB_NGHTmAFA",
-  authDomain: "masartamayoz.firebaseapp.com",
-  projectId: "masartamayoz",
-  storageBucket: "masartamayoz.firebasestorage.app",
-  messagingSenderId: "589955939618",
-  appId: "1:589955939618:web:728ddeb7027b2becd1f97b"
-};
+  const firebaseConfig = {
+    apiKey: "AIzaSyAF_ktwHXPw6gDkoolCI77XeB_NGHTmAFA",
+    authDomain: "masartamayoz.firebaseapp.com",
+    projectId: "masartamayoz",
+    storageBucket: "masartamayoz.firebasestorage.app",
+    messagingSenderId: "589955939618",
+    appId: "1:589955939618:web:728ddeb7027b2becd1f97b"
+  };
+
   const app  = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db   = getFirestore(app);
+  const $    = id => document.getElementById(id);
 
-  const $ = id => document.getElementById(id);
-
-  let currentUser     = null;
-  let currentUserData = null;
-  let currentLevel    = 7;
-  let currentType     = 'lesson';
-  let allContent      = [];
+  let CU = null, CUD = null;
+  let currentLevel  = 7;
+  let currentType   = 'lesson';
+  let allContent    = [];
   let filteredContent = [];
-  let isSubscribed    = false;
+  let isSubscribed  = false;
+  let allowedLevels = [];
+  let currentVideos = [];
 
-  // ── Type config ──
-  const typeConfig = {
-    lesson:   { label: 'دروس الرياضيات',       icon: 'fa-book-open',       color: 'rgba(37,99,235,.1)',   iconColor: 'var(--blue-light)' },
-    exercise: { label: 'سلاسل التمارين',        icon: 'fa-pencil-alt',      color: 'rgba(16,185,129,.1)',  iconColor: 'var(--success)' },
-    exam1:    { label: 'فروض المراقبة 1',       icon: 'fa-file-alt',        color: 'rgba(245,158,11,.1)',  iconColor: 'var(--gold)' },
-    exam2:    { label: 'فروض المراقبة 2',       icon: 'fa-file-alt',        color: 'rgba(245,158,11,.1)',  iconColor: 'var(--gold)' },
-    exam3:    { label: 'فروض المراقبة 3',       icon: 'fa-file-alt',        color: 'rgba(245,158,11,.1)',  iconColor: 'var(--gold)' },
-    exam4:    { label: 'فروض المراقبة 4',       icon: 'fa-file-alt',        color: 'rgba(245,158,11,.1)',  iconColor: 'var(--gold)' },
-    exam5:    { label: 'فروض المراقبة 5',       icon: 'fa-file-alt',        color: 'rgba(245,158,11,.1)',  iconColor: 'var(--gold)' },
-    exam6:    { label: 'فروض المراقبة 6',       icon: 'fa-file-alt',        color: 'rgba(245,158,11,.1)',  iconColor: 'var(--gold)' },
-    final1:   { label: 'فروض التأليفي 1',       icon: 'fa-file-signature',  color: 'rgba(139,92,246,.1)', iconColor: '#8b5cf6' },
-    final2:   { label: 'فروض التأليفي 2',       icon: 'fa-file-signature',  color: 'rgba(139,92,246,.1)', iconColor: '#8b5cf6' },
-    final3:   { label: 'فروض التأليفي 3',       icon: 'fa-file-signature',  color: 'rgba(139,92,246,.1)', iconColor: '#8b5cf6' },
+  const LEVELS   = { 7:'السنة السابعة أساسي', 8:'السنة الثامنة أساسي', 9:'السنة التاسعة أساسي' };
+  const SECTIONS = { algebra:'جبر', geometry:'هندسة', statistics:'إحصاء', general:'عام' };
+  const ROLES    = { student:'تلميذ', parent:'ولي أمر', teacher:'مربي', admin:'مدير' };
+
+  const TYPE_CFG = {
+    lesson:   { label:'دروس الرياضيات',   icon:'fa-book-open',      color:'rgba(37,99,235,.1)',   iconColor:'var(--blue-light)' },
+    exercise: { label:'سلاسل التمارين',   icon:'fa-pencil-alt',     color:'rgba(16,185,129,.1)',  iconColor:'var(--success)' },
+    exam1:    { label:'فرض مراقبة 1',     icon:'fa-file-alt',       color:'rgba(245,158,11,.1)',  iconColor:'var(--gold)' },
+    exam2:    { label:'فرض مراقبة 2',     icon:'fa-file-alt',       color:'rgba(245,158,11,.1)',  iconColor:'var(--gold)' },
+    exam3:    { label:'فرض مراقبة 3',     icon:'fa-file-alt',       color:'rgba(245,158,11,.1)',  iconColor:'var(--gold)' },
+    final1:   { label:'الفرض التأليفي 1', icon:'fa-file-signature', color:'rgba(139,92,246,.1)', iconColor:'#8b5cf6' },
+    final2:   { label:'الفرض التأليفي 2', icon:'fa-file-signature', color:'rgba(139,92,246,.1)', iconColor:'#8b5cf6' },
+    final3:   { label:'الفرض التأليفي 3', icon:'fa-file-signature', color:'rgba(139,92,246,.1)', iconColor:'#8b5cf6' },
   };
 
-  const levelLabel = { 7: 'السنة السابعة أساسي', 8: 'السنة الثامنة أساسي', 9: 'السنة التاسعة أساسي' };
+  // ── Toast ──
+  function toast(msg, type='info') {
+    const c = $('toastContainer');
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    const icons = { success:'check-circle', danger:'exclamation-circle', warning:'exclamation-triangle', info:'info-circle' };
+    t.innerHTML = `<i class="fas fa-${icons[type]||'info-circle'}"></i> ${msg}`;
+    c.appendChild(t);
+    setTimeout(() => { t.style.cssText='opacity:0;transition:opacity .3s'; setTimeout(()=>t.remove(),300); }, 3200);
+  }
+
+  // ── PDF loader ──
+  function renderPdf(wrapperId, url) {
+    const wrapper = $(wrapperId);
+    if (!url) {
+      wrapper.innerHTML = `<div class="pdf-fallback"><i class="fas fa-file-pdf"></i><p>لا يوجد ملف PDF</p></div>`;
+      return;
+    }
+    // محاولة العرض المباشر أولاً ثم Google Docs viewer كـ fallback
+    wrapper.innerHTML = `
+      <iframe
+        src="${url}"
+        style="width:100%;height:100%;border:none"
+        onerror="this.parentElement.innerHTML='<div class=pdf-fallback><i class=fas fa-file-pdf></i><p>تعذّر العرض المباشر</p><a href=\\'${url}\\' target=\\'_blank\\'>فتح في تبويب جديد</a></div>'"
+        onload="checkPdfLoad(this,'${url}','${wrapperId}')"
+      ></iframe>`;
+  }
+
+  window.checkPdfLoad = function(iframe, url, wrapperId) {
+    try {
+      // إذا كان محتوى الـ iframe فارغاً أو 401 — استخدم Google Docs
+      if (!iframe.contentDocument && !iframe.contentWindow) {
+        $(wrapperId).innerHTML = `
+          <iframe src="https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true"
+            style="width:100%;height:100%;border:none"></iframe>`;
+      }
+    } catch(e) {
+      // Cross-origin — الملف محمّل بشكل طبيعي
+    }
+  };
 
   // ── Auth ──
   onAuthStateChanged(auth, async user => {
     if (!user) { window.location.href = 'index.html'; return; }
-    currentUser = user;
+    CU = user;
 
-    // Check subscription
-    const { getDoc, doc } = await import('https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js');
-    const snap = await getDoc(doc(db, 'users', user.uid));
-    if (snap.exists()) {
-      currentUserData = snap.data();
-      isSubscribed = currentUserData.subscriptionStatus === 'active';
+    try {
+      const snap = await getDoc(doc(db,'users',user.uid));
+      if (!snap.exists()) { window.location.href = 'index.html'; return; }
+      CUD = snap.data();
+    } catch(e) {
+      $('loadingScreen').style.display = 'none';
+      toast('خطأ في تحميل البيانات','danger');
+      return;
     }
 
-    // Check URL params
+    const role = CUD.userType;
+
+    if (role === 'student') {
+      isSubscribed  = CUD.subscriptionStatus === 'active';
+      currentLevel  = parseInt(CUD.level) || 7;
+      allowedLevels = [currentLevel];
+      setupSidebar();
+      lockLevelBtns([currentLevel]);
+    }
+    else if (role === 'parent') {
+      try {
+        const linksSnap = await getDocs(query(collection(db,'parentChildren'), where('parentId','==',user.uid)));
+        for (const d of linksSnap.docs) {
+          const cd = d.data();
+          const csnap = await getDoc(doc(db,'users', cd.childId));
+          if (csnap.exists()) {
+            const c = csnap.data();
+            if (c.subscriptionStatus === 'active' && c.level) allowedLevels.push(parseInt(c.level));
+          }
+        }
+        allowedLevels = [...new Set(allowedLevels)];
+        isSubscribed  = allowedLevels.length > 0;
+        if (isSubscribed) currentLevel = allowedLevels[0];
+      } catch(e) { console.error(e); }
+      setupSidebar();
+      lockLevelBtns(allowedLevels);
+    }
+    else {
+      isSubscribed  = true;
+      allowedLevels = [7,8,9];
+      setupSidebar();
+      lockLevelBtns([7,8,9]);
+    }
+
+    // URL params
     const params = new URLSearchParams(window.location.search);
-    if (params.get('level')) currentLevel = parseInt(params.get('level'));
-    if (params.get('type'))  currentType  = params.get('type');
+    if (params.get('level')) {
+      const pl = parseInt(params.get('level'));
+      if (allowedLevels.includes(pl)) currentLevel = pl;
+    }
+    if (params.get('type') && TYPE_CFG[params.get('type')]) currentType = params.get('type');
 
-    // Sync UI
-    document.querySelectorAll('.level-btn').forEach(btn => btn.classList.remove('active'));
-    const levelBtns = document.querySelectorAll('.level-btn');
-    const levelIndex = [7,8,9].indexOf(currentLevel);
-    if (levelBtns[levelIndex]) levelBtns[levelIndex].classList.add('active');
+    // Sync buttons
+    document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
+    const lb = $(`lvl${currentLevel}`); if (lb) lb.classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const nb = $(`nav-${currentType}`); if (nb) nb.classList.add('active');
 
-    await loadContent();
+    if (!isSubscribed) {
+      $('lockedPage').style.display = 'flex';
+      $('contentView').style.display = 'none';
+      if (role === 'parent') $('lockedMsg').textContent = 'لا يوجد منظورون مفعّلون. يرجى تجديد الاشتراك.';
+    } else {
+      $('lockedPage').style.display = 'none';
+      $('contentView').style.display = 'block';
+      await loadContent();
+      updateCounts();
+    }
+
     $('loadingScreen').style.display = 'none';
     $('appContainer').style.display  = 'flex';
   });
 
-  // ── Load content ──
-  async function loadContent() {
-    updateSectionHeader();
-    $('contentGrid').innerHTML = `
-      <div class="empty-state">
-        <i class="fas fa-spinner fa-spin"></i>
-        <h3>جاري التحميل...</h3>
-      </div>`;
-
-    try {
-      const q = query(
-        collection(db, 'videos'),
-        where('level', '==', String(currentLevel)),
-        where('type',  '==', currentType)
-      );
-      const snap = await getDocs(q);
-      allContent = [];
-      snap.forEach(d => allContent.push({ id: d.id, ...d.data() }));
-    } catch (e) {
-      // Firebase not configured yet — show demo content
-      allContent = getDemoContent();
-    }
-
-    // Update counts in sidebar
-    updateCounts();
-    renderContent(allContent);
-    buildFilterBar();
+  function setupSidebar() {
+    const name = CUD.firstName ? `${CUD.firstName} ${CUD.lastName||''}`.trim() : (CU.displayName||CU.email);
+    $('sidebarAvatar').textContent = name.charAt(0).toUpperCase();
+    $('sidebarName').textContent   = name;
+    $('sidebarRole').textContent   = ROLES[CUD.userType] || CUD.userType;
+    const active = CUD.subscriptionStatus === 'active';
+    $('sidebarSubBadge').className   = `sub-badge ${active?'sub-active':'sub-inactive'}`;
+    $('sidebarSubBadge').textContent = active ? '✓ مفعّل' : '✗ غير مفعّل';
   }
 
-  function getDemoContent() {
-    if (currentType !== 'lesson') return [];
-    return [
-      { id:'1', title:'الأعداد الطبيعية', chapter:'الوحدة الأولى', desc:'مفهوم الأعداد الطبيعية وعملياتها الأساسية', videoUrl:'https://www.youtube.com/watch?v=dQw4w9WgXcQ', pdfUrl:'', level: String(currentLevel), type:'lesson' },
-      { id:'2', title:'الأعداد العشرية', chapter:'الوحدة الأولى', desc:'قراءة وكتابة الأعداد العشرية والعمليات عليها', videoUrl:'', pdfUrl:'#', level: String(currentLevel), type:'lesson' },
-      { id:'3', title:'الكسور', chapter:'الوحدة الثانية', desc:'تعريف الكسور وإجراء العمليات الحسابية عليها', videoUrl:'https://www.youtube.com/watch?v=dQw4w9WgXcQ', pdfUrl:'#', level: String(currentLevel), type:'lesson' },
-    ];
+  function lockLevelBtns(allowed) {
+    [7,8,9].forEach(l => { const b=$(`lvl${l}`); if(b) b.disabled=!allowed.includes(l); });
+  }
+
+  async function loadContent() {
+    updateSectionHeader();
+    $('contentGrid').innerHTML = `<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><h3>جاري التحميل...</h3></div>`;
+    try {
+      const q = query(collection(db,'videos'), where('level','==',String(currentLevel)), where('type','==',currentType));
+      const snap = await getDocs(q);
+      allContent = [];
+      snap.forEach(d => allContent.push({id:d.id,...d.data()}));
+    } catch(e) {
+      $('contentGrid').innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle" style="color:var(--danger)"></i><h3>خطأ في التحميل</h3><p>${e.message}</p></div>`;
+      return;
+    }
+    buildFilterBar();
+    renderContent(allContent);
   }
 
   async function updateCounts() {
-    const types = Object.keys(typeConfig);
-    for (const t of types) {
+    for (const t of Object.keys(TYPE_CFG)) {
       try {
-        const q = query(
-          collection(db, 'videos'),
-          where('level', '==', String(currentLevel)),
-          where('type',  '==', t)
-        );
-        const snap = await getDocs(q);
-        const el = $(`count-${t}`);
-        if (el) el.textContent = snap.size;
+        const snap = await getDocs(query(collection(db,'videos'), where('level','==',String(currentLevel)), where('type','==',t)));
+        const el = $(`count-${t}`); if (el) el.textContent = snap.size;
       } catch {}
     }
   }
 
   function updateSectionHeader() {
-    const cfg = typeConfig[currentType] || typeConfig.lesson;
-
+    const cfg = TYPE_CFG[currentType] || TYPE_CFG.lesson;
     $('sectionIcon').style.background = cfg.color;
     $('sectionIcon').innerHTML = `<i class="fas ${cfg.icon}" style="color:${cfg.iconColor}"></i>`;
-    $('sectionTitle').textContent   = cfg.label;
-    $('sectionSubtitle').textContent = levelLabel[currentLevel];
-    $('breadLevel').textContent     = levelLabel[currentLevel];
-    $('breadType').textContent      = cfg.label;
+    $('sectionTitle').textContent    = cfg.label;
+    $('sectionSubtitle').textContent = LEVELS[currentLevel];
   }
 
   function buildFilterBar() {
-    const chapters = [...new Set(allContent.map(c => c.chapter).filter(Boolean))];
+    const chapters = [...new Set(allContent.map(c=>c.chapter).filter(Boolean))];
     const bar = $('filterBar');
     bar.innerHTML = `<button class="filter-btn active" onclick="filterByChapter('all',this)">الكل</button>`;
     chapters.forEach(ch => {
-      bar.innerHTML += `<button class="filter-btn" onclick="filterByChapter('${ch}',this)">${ch}</button>`;
+      bar.innerHTML += `<button class="filter-btn" onclick="filterByChapter(${JSON.stringify(ch)},this)">${ch}</button>`;
     });
   }
 
   function renderContent(items) {
     $('sectionCount').textContent = `${items.length} عنصر`;
-
     if (!items.length) {
-      $('contentGrid').innerHTML = `
-        <div class="empty-state">
-          <i class="fas fa-folder-open"></i>
-          <h3>لا يوجد محتوى بعد</h3>
-          <p>سيتم إضافة المحتوى قريباً</p>
-        </div>`;
+      $('contentGrid').innerHTML = `<div class="empty-state"><i class="fas fa-folder-open"></i><h3>لا يوجد محتوى بعد</h3><p>سيتم إضافة المحتوى قريباً</p></div>`;
       return;
     }
-
-    $('contentGrid').innerHTML = items.map(item => buildCard(item)).join('');
+    $('contentGrid').innerHTML = items.map(buildCard).join('');
   }
 
-  const SECTIONS = {algebra:'جبر',geometry:'هندسة',statistics:'إحصاء',general:'عام'};
-
   function buildCard(item) {
-    const videos    = item.videoUrls?.length ? item.videoUrls : (item.videoUrl ? [{url:item.videoUrl,title:''}] : []);
-    const firstYtId = extractYouTubeId(videos[0]?.url || '');
-    const hasPdfText     = !!item.pdfText;
-    const hasPdfSolution = !!item.pdfSolution;
+    const videos     = item.videoUrls?.length ? item.videoUrls : (item.videoUrl?[{url:item.videoUrl,title:''}]:[]);
+    const firstYtId  = extractYTId(videos[0]?.url||'');
+    const hasPdfText = !!item.pdfText;
+    const hasPdfSol  = !!item.pdfSolution;
     const multiVideo = videos.length > 1;
-    const cfg    = typeConfig[item.type] || typeConfig.lesson;
+    const cfg = TYPE_CFG[item.type] || TYPE_CFG.lesson;
 
     const thumbHTML = firstYtId
-      ? `<div class="card-thumb" onclick="${isSubscribed ? `openVideo('${item.id}')` : 'goSubscribe()'}">
+      ? `<div class="card-thumb" onclick="openViewer('${item.id}','video')">
            <img src="https://img.youtube.com/vi/${firstYtId}/hqdefault.jpg" alt="${item.title}" loading="lazy">
            <div class="thumb-overlay"><div class="play-btn"><i class="fas fa-play"></i></div></div>
-           <span class="card-type-badge" style="background:${cfg.color};color:${cfg.iconColor};border:1px solid ${cfg.iconColor}40">
-             <i class="fas ${cfg.icon}"></i>
-           </span>
-           ${multiVideo ? `<span style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);color:white;font-size:.72rem;font-weight:700;padding:3px 8px;border-radius:20px"><i class="fas fa-layer-group"></i> ${videos.length} حصص</span>` : ''}
-           ${!isSubscribed ? `<div class="locked-overlay" onclick="goSubscribe()"><i class="fas fa-lock"></i><p>اشترك للمشاهدة</p></div>` : ''}
+           <span class="card-type-badge" style="background:${cfg.color};color:${cfg.iconColor};border:1px solid ${cfg.iconColor}40"><i class="fas ${cfg.icon}"></i></span>
+           ${multiVideo?`<span class="multi-badge"><i class="fas fa-layer-group"></i> ${videos.length} حصص</span>`:''}
          </div>`
-      : `<div class="card-thumb-empty">
-           <div class="card-thumb-empty-inner">
-             <i class="fas fa-file-pdf" style="color:var(--danger)"></i>
-             <span>PDF فقط</span>
-           </div>
-         </div>`;
+      : `<div class="card-thumb-empty"><i class="fas fa-file-pdf" style="color:var(--danger)"></i><span>PDF فقط</span></div>`;
 
     return `
       <div class="content-card">
         ${thumbHTML}
         <div class="card-body">
           <div class="card-meta">
-            <span class="card-level">السنة ${item.level}</span>
-            ${item.section ? `<span class="card-chapter">${SECTIONS[item.section]||item.section}</span>` : ''}
-            ${item.chapter ? `<span class="card-chapter">${item.chapter}</span>` : ''}
+            <span class="badge-level">السنة ${item.level}</span>
+            ${item.section?`<span class="badge-section">${SECTIONS[item.section]||item.section}</span>`:''}
+            ${item.chapter?`<span class="badge-chapter">${item.chapter}</span>`:''}
           </div>
           <div class="card-title">${item.title}</div>
-          ${item.desc ? `<div class="card-desc">${item.desc}</div>` : ''}
+          ${item.desc?`<div class="card-desc">${item.desc}</div>`:''}
           <div class="card-actions">
-            ${firstYtId
-              ? `<button class="btn-watch" onclick="${isSubscribed ? `openVideo('${item.id}')` : 'goSubscribe()'}">
-                   <i class="fas fa-${isSubscribed ? 'play' : 'lock'}"></i>
-                   ${isSubscribed ? (multiVideo ? `مشاهدة (${videos.length} حصص)` : 'مشاهدة الدرس') : 'اشترك للمشاهدة'}
-                 </button>`
-              : ''}
-            ${hasPdfText
-              ? `<button class="btn-pdf" style="background:rgba(239,68,68,.1);color:var(--danger)" onclick="${isSubscribed ? `openPdf('${item.pdfText}')` : 'goSubscribe()'}">
-                   <i class="fas fa-file-pdf"></i> النص
-                 </button>`
-              : ''}
-            ${hasPdfSolution
-              ? `<button class="btn-pdf" style="background:rgba(16,185,129,.1);color:var(--success)" onclick="${isSubscribed ? `openPdf('${item.pdfSolution}')` : 'goSubscribe()'}">
-                   <i class="fas fa-file-pdf"></i> الإصلاح
-                 </button>`
-              : ''}
+            ${firstYtId?`<button class="btn-watch" onclick="openViewer('${item.id}','video')">
+              <i class="fas fa-play"></i>${multiVideo?`مشاهدة (${videos.length} حصص)`:'مشاهدة الدرس'}
+            </button>`:''}
+            ${hasPdfText?`<button class="btn-pdf" style="background:rgba(239,68,68,.1);color:var(--danger)" onclick="openViewer('${item.id}','pdf-text')">
+              <i class="fas fa-file-pdf"></i> النص
+            </button>`:''}
+            ${hasPdfSol?`<button class="btn-pdf" style="background:rgba(16,185,129,.1);color:var(--success)" onclick="openViewer('${item.id}','pdf-sol')">
+              <i class="fas fa-file-pdf"></i> الإصلاح
+            </button>`:''}
           </div>
         </div>
       </div>`;
   }
 
-  // ── Open video modal ──
-  window.openVideo = function(itemId) {
-    if (!isSubscribed) { goSubscribe(); return; }
+  window.openViewer = function(itemId, tab='video') {
     const item = allContent.find(i => i.id === itemId);
     if (!item) return;
 
-    const videos = item.videoUrls?.length ? item.videoUrls : (item.videoUrl ? [{url:item.videoUrl,title:''}] : []);
-    if (!videos.length) return;
+    const videos     = item.videoUrls?.length ? item.videoUrls : (item.videoUrl?[{url:item.videoUrl,title:''}]:[]);
+    const hasPdfText = !!item.pdfText;
+    const hasPdfSol  = !!item.pdfSolution;
+    const hasVideo   = videos.length > 0;
+    currentVideos = videos;
 
-    $('modalTitle').textContent   = item.title;
-    $('modalLevel').textContent   = levelLabel[item.level] || `السنة ${item.level}`;
-    $('modalChapter').textContent = item.chapter || '';
+    $('viewerTitle').textContent   = item.title;
+    $('viewerLevel').textContent   = LEVELS[item.level] || `السنة ${item.level}`;
+    $('viewerChapter').textContent = item.chapter || '';
 
-    // بناء تبويبات الحصص إذا كان أكثر من فيديو
-    const tabsEl = $('modalVideoTabs');
+    // Tabs availability
+    $('tab-video').disabled    = !hasVideo;
+    $('tab-pdf-text').disabled = !hasPdfText;
+    $('tab-pdf-sol').disabled  = !hasPdfSol;
+
+    // Playlist
+    const pt = $('playlistTabs');
     if (videos.length > 1) {
-      tabsEl.style.display = 'flex';
-      tabsEl.innerHTML = videos.map((v,i) => `
-        <button class="video-tab ${i===0?'active':''}" onclick="switchVideoTab(${i},'${itemId}')">
-          <i class="fas fa-play-circle"></i> ${v.title || `حصة ${i+1}`}
+      pt.style.display = 'flex';
+      pt.innerHTML = videos.map((v,i)=>`
+        <button class="playlist-tab ${i===0?'active':''}" onclick="switchVideo(${i})">
+          <i class="fas fa-play-circle"></i> ${v.title||`حصة ${i+1}`}
         </button>`).join('');
-    } else {
-      tabsEl.style.display = 'none';
-    }
+    } else { pt.style.display = 'none'; }
 
-    const firstYt = extractYouTubeId(videos[0]?.url || '');
-    $('videoIframe').src = firstYt ? `https://www.youtube.com/embed/${firstYt}?autoplay=1&rel=0` : '';
+    // Load video
+    if (hasVideo) {
+      const ytId = extractYTId(videos[0].url||'');
+      $('videoIframe').src = ytId ? `https://www.youtube.com/embed/${ytId}?rel=0` : '';
+    } else { $('videoIframe').src = ''; }
 
-    // PDF buttons
-    const pdfTextBtn = $('modalPdfTextBtn');
-    const pdfSolBtn  = $('modalPdfSolBtn');
-    if (item.pdfText)     { pdfTextBtn.href = item.pdfText;     pdfTextBtn.style.display = 'flex'; }
-    else pdfTextBtn.style.display = 'none';
-    if (item.pdfSolution) { pdfSolBtn.href  = item.pdfSolution; pdfSolBtn.style.display  = 'flex'; }
-    else pdfSolBtn.style.display = 'none';
+    // Load PDFs into wrappers
+    renderPdf('pdfTextWrapper', item.pdfText);
+    renderPdf('pdfSolWrapper',  item.pdfSolution);
 
-    // حفظ الفيديوهات للتبديل
-    window._currentVideos = videos;
-    $('videoModal').classList.add('open');
+    // Footer actions
+    const acts = [];
+    if (hasPdfText) acts.push(`<button class="viewer-btn viewer-btn-pdf" onclick="window.open('${item.pdfText}','_blank')"><i class="fas fa-external-link-alt"></i> فتح النص</button>`);
+    if (hasPdfSol)  acts.push(`<button class="viewer-btn viewer-btn-sol" onclick="window.open('${item.pdfSolution}','_blank')"><i class="fas fa-external-link-alt"></i> فتح الإصلاح</button>`);
+    $('viewerActions').innerHTML = acts.join('');
+
+    // Fix tab if unavailable
+    if (tab === 'video'    && !hasVideo)   tab = hasPdfText ? 'pdf-text' : 'pdf-sol';
+    if (tab === 'pdf-text' && !hasPdfText) tab = hasVideo ? 'video' : 'pdf-sol';
+    if (tab === 'pdf-sol'  && !hasPdfSol)  tab = hasVideo ? 'video' : 'pdf-text';
+
+    switchViewerTab(tab);
+    $('viewerModal').classList.add('open');
     document.body.style.overflow = 'hidden';
   };
 
-  window.switchVideoTab = function(index, itemId) {
-    const videos = window._currentVideos || [];
-    const ytId   = extractYouTubeId(videos[index]?.url || '');
+  window.switchVideo = function(index) {
+    const ytId = extractYTId(currentVideos[index]?.url||'');
     if (ytId) $('videoIframe').src = `https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0`;
-    document.querySelectorAll('.video-tab').forEach((t,i) => t.classList.toggle('active', i === index));
+    document.querySelectorAll('.playlist-tab').forEach((t,i)=>t.classList.toggle('active',i===index));
   };
 
-  window.closeVideoModal = function() {
+  window.switchViewerTab = function(tab) {
+    ['video','pdf-text','pdf-sol'].forEach(t => {
+      const btn = $(`tab-${t}`); if (btn) btn.classList.toggle('active', t===tab);
+    });
+    document.querySelectorAll('.viewer-body').forEach(b=>b.classList.remove('active'));
+    const body = $(`body-${tab}`); if (body) body.classList.add('active');
+  };
+
+  window.closeViewer = function() {
     $('videoIframe').src = '';
-    $('videoModal').classList.remove('open');
+    $('viewerModal').classList.remove('open');
     document.body.style.overflow = '';
   };
 
-  window.openPdf = function(url) {
-    if (!isSubscribed) { goSubscribe(); return; }
-    window.open(url, '_blank');
-  };
-
-  window.goSubscribe = function() {
-    window.location.href = 'dashboard.html';
-  };
-
-  // ── Level & Type selection ──
   window.selectLevel = async function(level, btn) {
+    if (!allowedLevels.includes(level)) { toast('هذا المستوى غير متاح لك','warning'); return; }
     currentLevel = level;
-    document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.level-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     updateURL();
+    filteredContent = [];
     await loadContent();
+    updateCounts();
   };
 
   window.selectType = async function(type, el) {
     currentType = type;
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
     el.classList.add('active');
     updateURL();
+    filteredContent = [];
     await loadContent();
   };
 
-  // ── Filter ──
   window.filterByChapter = function(chapter, btn) {
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    filteredContent = chapter === 'all' ? allContent : allContent.filter(i => i.chapter === chapter);
+    filteredContent = chapter==='all' ? allContent : allContent.filter(i=>i.chapter===chapter);
     renderContent(filteredContent);
   };
 
@@ -1003,45 +676,28 @@
     const q = $('searchInput').value.toLowerCase().trim();
     const base = filteredContent.length ? filteredContent : allContent;
     if (!q) { renderContent(base); return; }
-    renderContent(base.filter(i =>
-      (i.title || '').toLowerCase().includes(q) ||
-      (i.chapter || '').toLowerCase().includes(q) ||
-      (i.desc || '').toLowerCase().includes(q)
+    renderContent(base.filter(i=>
+      (i.title||'').toLowerCase().includes(q)||
+      (i.chapter||'').toLowerCase().includes(q)||
+      (i.desc||'').toLowerCase().includes(q)
     ));
   };
 
-  // ── Helpers ──
-  function extractYouTubeId(url) {
+  function extractYTId(url) {
     const m = (url||'').match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
     return m ? m[1] : null;
-  }
-
-  function toast(msg, type='info') {
-    const c = document.getElementById('toastContainer');
-    const t = document.createElement('div');
-    t.className = `toast toast-${type}`;
-    t.innerHTML = `<i class="fas fa-${type==='success'?'check-circle':type==='danger'?'exclamation-circle':'info-circle'}"></i> ${msg}`;
-    c.appendChild(t);
-    setTimeout(() => t.remove(), 3500);
   }
 
   function updateURL() {
     const url = new URL(window.location);
     url.searchParams.set('level', currentLevel);
-    url.searchParams.set('type', currentType);
+    url.searchParams.set('type',  currentType);
     window.history.replaceState({}, '', url);
   }
 
-  // ── Hamburger ──
-  $('hamburgerBtn').addEventListener('click', () => {
-    $('sidebar').classList.toggle('open');
-  });
-
-  // ── Close modal on backdrop ──
-  $('videoModal').addEventListener('click', e => {
-    if (e.target === $('videoModal')) closeVideoModal();
-  });
+  $('hamburgerBtn').addEventListener('click', () => $('sidebar').classList.toggle('open'));
+  $('viewerModal').addEventListener('click', e => { if (e.target===$('viewerModal')) closeViewer(); });
+  document.addEventListener('keydown', e => { if (e.key==='Escape') closeViewer(); });
 </script>
-
 </body>
 </html>
