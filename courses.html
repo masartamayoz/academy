@@ -354,36 +354,45 @@
     setTimeout(() => { t.style.cssText='opacity:0;transition:opacity .3s'; setTimeout(()=>t.remove(),300); }, 3200);
   }
 
-  // ── PDF loader ──
+  // ── PDF loader — Multi-fallback ──
   function renderPdf(wrapperId, url) {
     const wrapper = $(wrapperId);
     if (!url) {
-      wrapper.innerHTML = `
-        <div class="pdf-fallback">
-          <i class="fas fa-file-pdf"></i>
-          <p>لا يوجد ملف PDF</p>
-        </div>`;
+      wrapper.innerHTML = `<div class="pdf-fallback"><i class="fas fa-file-pdf"></i><p>لا يوجد ملف PDF</p></div>`;
       return;
     }
 
-    // Google Docs Viewer — الأكثر موثوقية لعرض PDF من Cloudinary
-    const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
-
+    // استراتيجية: عرض مباشر أولاً، ثم Google Docs، ثم زر التحميل
     wrapper.innerHTML = `
-      <div style="width:100%;height:100%;position:relative">
-        <iframe
-          src="${viewerUrl}"
-          style="width:100%;height:100%;border:none"
-          allow="fullscreen"
-        ></iframe>
-        <div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%)">
-          <a href="${url}" target="_blank"
-             style="background:rgba(0,0,0,.7);color:white;padding:7px 16px;border-radius:8px;font-size:.8rem;font-weight:700;display:flex;align-items:center;gap:6px;text-decoration:none">
-            <i class="fas fa-external-link-alt"></i> فتح في تبويب جديد
-          </a>
+      <div style="width:100%;height:100%;display:flex;flex-direction:column">
+        <div style="display:flex;gap:6px;padding:8px 12px;background:rgba(0,0,0,.3);align-items:center;flex-shrink:0">
+          <span style="font-size:.78rem;color:rgba(255,255,255,.7)">طريقة العرض:</span>
+          <button onclick="setPdfViewer('${wrapperId}','direct','${url}')"   id="${wrapperId}-btn-direct"  style="padding:4px 10px;border-radius:6px;border:none;font-family:inherit;font-size:.75rem;font-weight:700;cursor:pointer;background:var(--blue-light);color:white">مباشر</button>
+          <button onclick="setPdfViewer('${wrapperId}','gdocs','${url}')"    id="${wrapperId}-btn-gdocs"   style="padding:4px 10px;border-radius:6px;border:none;font-family:inherit;font-size:.75rem;font-weight:700;cursor:pointer;background:rgba(255,255,255,.15);color:white">Google Docs</button>
+          <a href="${url}" target="_blank" style="margin-right:auto;padding:4px 12px;border-radius:6px;background:var(--danger);color:white;font-size:.75rem;font-weight:700;display:flex;align-items:center;gap:4px"><i class="fas fa-external-link-alt"></i> فتح خارجياً</a>
+        </div>
+        <div id="${wrapperId}-frame" style="flex:1;background:#525659">
+          <iframe src="${url}" style="width:100%;height:100%;border:none"></iframe>
         </div>
       </div>`;
   }
+
+  window.setPdfViewer = function(wrapperId, mode, url) {
+    const frame = $(`${wrapperId}-frame`);
+    if (!frame) return;
+    // تحديث أزرار الاختيار
+    [`${wrapperId}-btn-direct`,`${wrapperId}-btn-gdocs`].forEach(id => {
+      const el = $(id);
+      if (el) el.style.background = 'rgba(255,255,255,.15)';
+    });
+    const activeBtn = $(`${wrapperId}-btn-${mode}`);
+    if (activeBtn) activeBtn.style.background = 'var(--blue-light)';
+
+    const src = mode === 'gdocs'
+      ? `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`
+      : url;
+    frame.innerHTML = `<iframe src="${src}" style="width:100%;height:100%;border:none"></iframe>`;
+  };
 
   // ── Auth ──
   onAuthStateChanged(auth, async user => {
