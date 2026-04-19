@@ -272,9 +272,26 @@
     </div>
 
     <div class="page" id="page-student-sessions">
+      <div id="studentGroupInfo" style="margin-bottom:20px"></div>
       <div class="card">
-        <div class="card-header"><div class="card-title"><i class="fas fa-calendar-alt"></i> حصصي المباشرة</div></div>
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-calendar-alt"></i> حصصي المباشرة</div>
+          <span class="badge badge-info" id="studentGroupBadge"></span>
+        </div>
         <div id="studentSessionsList" class="sessions-list"></div>
+      </div>
+      <div class="card" style="margin-top:0">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-history"></i> سجل حضوري</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>التاريخ</th><th>الموضوع</th><th>وقت الانضمام</th><th>الحالة</th></tr></thead>
+            <tbody id="studentAttendanceTable">
+              <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--gray-400)">لا توجد سجلات</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -529,13 +546,67 @@
       </div>
     </div>
 
+    <div class="page" id="page-admin-groups">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-layer-group"></i> إدارة المجموعات</div>
+          <button class="btn btn-primary btn-sm" onclick="openGroupModal()">
+            <i class="fas fa-plus"></i> مجموعة جديدة
+          </button>
+        </div>
+
+        <!-- فلترة حسب المستوى -->
+        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+          <button class="admin-tab active" onclick="filterGroupsByLevel('all',this)">الكل</button>
+          <button class="admin-tab" onclick="filterGroupsByLevel('7',this)">السنة السابعة</button>
+          <button class="admin-tab" onclick="filterGroupsByLevel('8',this)">السنة الثامنة</button>
+          <button class="admin-tab" onclick="filterGroupsByLevel('9',this)">السنة التاسعة</button>
+        </div>
+
+        <div id="groupsList"></div>
+      </div>
+    </div>
+
+    <div class="page" id="page-admin-schedule">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-calendar-week"></i> الجدول الأسبوعي</div>
+          <div style="display:flex;gap:8px">
+            <select class="form-control" id="scheduleWeekFilter" style="width:160px" onchange="loadSchedule()">
+              <option value="current">هذا الأسبوع</option>
+              <option value="next">الأسبوع القادم</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="generateAllSessions()">
+              <i class="fas fa-magic"></i> توليد حصص الأسبوع
+            </button>
+          </div>
+        </div>
+        <div id="weeklySchedule"></div>
+      </div>
+    </div>
+
     <div class="page" id="page-admin-sessions">
       <div class="card">
-        <div class="card-header"><div class="card-title"><i class="fas fa-chalkboard-teacher"></i> حصص المدرسين</div></div>
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-clipboard-list"></i> الحصص والحضور</div>
+          <select class="form-control" id="sessionsFilter" style="width:180px" onchange="loadAdminSessionsFiltered()">
+            <option value="pending">في الانتظار</option>
+            <option value="completed">مكتملة</option>
+            <option value="all">الكل</option>
+          </select>
+        </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>المدرس</th><th>التاريخ</th><th>المستوى</th><th>القسم</th><th>الطلاب</th><th>رابط Meet</th><th>الحالة</th><th>إجراء</th></tr></thead>
-            <tbody id="allSessionsTable"><tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-400)">لا توجد حصص</td></tr></tbody>
+            <thead>
+              <tr>
+                <th>المجموعة</th><th>التاريخ</th><th>الوقت</th>
+                <th>الموضوع</th><th>المربي</th><th>الحضور</th>
+                <th>رابط Meet</th><th>الحالة</th><th>إجراء</th>
+              </tr>
+            </thead>
+            <tbody id="allSessionsTable">
+              <tr><td colspan="9" style="text-align:center;padding:32px;color:var(--gray-400)">لا توجد حصص</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -808,7 +879,161 @@
 
 <div id="toastContainer"></div>
 
-<!-- Modal: Edit Content -->
+<!-- Modal: Group Management -->
+<div class="modal-overlay" id="groupModal">
+  <div class="modal-box" style="max-width:600px">
+    <button class="modal-close" onclick="document.getElementById('groupModal').classList.remove('open')"><i class="fas fa-times"></i></button>
+    <div class="modal-title" id="groupModalTitle">إنشاء مجموعة جديدة</div>
+    <div class="modal-subtitle">حدّد إعدادات المجموعة والجدول الأسبوعي الثابت</div>
+    <input type="hidden" id="groupModalId">
+    <form id="groupForm">
+      <div class="form-grid" style="margin-bottom:16px">
+        <div class="form-group">
+          <label>المستوى الدراسي *</label>
+          <select class="form-control" id="gLevel" required>
+            <option value="">اختر</option>
+            <option value="7">السنة السابعة أساسي</option>
+            <option value="8">السنة الثامنة أساسي</option>
+            <option value="9">السنة التاسعة أساسي</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>اسم المجموعة *</label>
+          <input type="text" class="form-control" id="gName" placeholder="مثال: المجموعة أ" required>
+        </div>
+        <div class="form-group">
+          <label>المربي المسؤول</label>
+          <select class="form-control" id="gTeacher">
+            <option value="">اختر المربي</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>الحد الأقصى للتلاميذ</label>
+          <input type="number" class="form-control" id="gMaxStudents" value="20" min="5" max="30">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label>رابط Google Meet الثابت *</label>
+        <input type="url" class="form-control" id="gMeetLink" placeholder="https://meet.google.com/xxx-xxxx-xxx" required>
+        <small style="color:var(--gray-400);font-size:.78rem;margin-top:4px;display:block">
+          أنشئ رابطاً ثابتاً من Google Calendar أو Meet
+        </small>
+      </div>
+
+      <!-- الجدول الأسبوعي -->
+      <div style="background:var(--gray-50);border-radius:12px;padding:18px;margin-bottom:16px">
+        <div style="font-size:.9rem;font-weight:700;color:var(--blue-dark);margin-bottom:14px">
+          <i class="fas fa-calendar-week" style="color:var(--blue-light)"></i>
+          الجدول الأسبوعي (حصتان في الأسبوع)
+        </div>
+        <div class="form-grid" style="margin-bottom:12px">
+          <div class="form-group">
+            <label>يوم الحصة الأولى *</label>
+            <select class="form-control" id="gDay1" required>
+              <option value="">اختر اليوم</option>
+              <option value="monday">الاثنين</option>
+              <option value="tuesday">الثلاثاء</option>
+              <option value="wednesday">الأربعاء</option>
+              <option value="thursday">الخميس</option>
+              <option value="friday">الجمعة</option>
+              <option value="saturday">السبت</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>وقت الحصة الأولى *</label>
+            <input type="time" class="form-control" id="gTime1" required>
+          </div>
+          <div class="form-group">
+            <label>يوم الحصة الثانية *</label>
+            <select class="form-control" id="gDay2" required>
+              <option value="">اختر اليوم</option>
+              <option value="monday">الاثنين</option>
+              <option value="tuesday">الثلاثاء</option>
+              <option value="wednesday">الأربعاء</option>
+              <option value="thursday">الخميس</option>
+              <option value="friday">الجمعة</option>
+              <option value="saturday">السبت</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>وقت الحصة الثانية *</label>
+            <input type="time" class="form-control" id="gTime2" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>مدة الحصة (دقيقة)</label>
+          <input type="number" class="form-control" id="gDuration" value="90" min="30" max="180">
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%">
+        <i class="fas fa-save"></i> حفظ المجموعة
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Edit Session (Exception) -->
+<div class="modal-overlay" id="editSessionModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="document.getElementById('editSessionModal').classList.remove('open')"><i class="fas fa-times"></i></button>
+    <div class="modal-title">تعديل حصة استثنائي</div>
+    <div class="modal-subtitle">هذا التعديل يؤثر على هذه الحصة فقط ولا يغير الجدول الثابت</div>
+    <input type="hidden" id="editSessionId">
+    <div class="form-grid" style="margin-bottom:16px">
+      <div class="form-group">
+        <label>التاريخ الجديد</label>
+        <input type="date" class="form-control" id="editSessDate">
+      </div>
+      <div class="form-group">
+        <label>الوقت الجديد</label>
+        <input type="time" class="form-control" id="editSessTime">
+      </div>
+      <div class="form-group">
+        <label>الموضوع</label>
+        <select class="form-control" id="editSessType">
+          <option value="lesson">درس</option>
+          <option value="exercise">سلسلة تمارين</option>
+          <option value="exam">فرض مراقبة</option>
+          <option value="review">مراجعة</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>القسم</label>
+        <select class="form-control" id="editSessSection">
+          <option value="algebra">جبر</option>
+          <option value="geometry">هندسة</option>
+          <option value="general">عام</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>عنوان الحصة</label>
+      <input type="text" class="form-control" id="editSessTopic" placeholder="مثال: المعادلات من الدرجة الأولى">
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>رابط Meet (إذا تغيّر)</label>
+      <input type="url" class="form-control" id="editSessMeet" placeholder="https://meet.google.com/xxx">
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" style="flex:1" onclick="saveSessionEdit()">
+        <i class="fas fa-save"></i> حفظ التعديل
+      </button>
+      <button class="btn btn-danger-outline" onclick="cancelSession()">
+        <i class="fas fa-ban"></i> إلغاء الحصة
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Attendance Report -->
+<div class="modal-overlay" id="attendanceModal">
+  <div class="modal-box" style="max-width:600px">
+    <button class="modal-close" onclick="document.getElementById('attendanceModal').classList.remove('open')"><i class="fas fa-times"></i></button>
+    <div class="modal-title">تقرير الحضور</div>
+    <div id="attendanceContent" style="margin-top:16px"></div>
+  </div>
+</div>
 <div class="modal-overlay" id="editContentModal">
   <div class="modal-box" style="max-width:640px">
     <button class="modal-close" onclick="document.getElementById('editContentModal').classList.remove('open')"><i class="fas fa-times"></i></button>
@@ -972,11 +1197,13 @@ function buildNav(role) {
       {icon:'fa-wallet',label:'محفظتي',page:'teacher-wallet'},
     ],
     admin:[
-      {icon:'fa-tachometer-alt',label:'لوحة التحكم',page:'admin-overview'},
-      {icon:'fa-users',label:'المستخدمون',page:'admin-users'},
-      {icon:'fa-chalkboard-teacher',label:'حصص المدرسين',page:'admin-sessions'},
-      {icon:'fa-wallet',label:'محافظ المدرسين',page:'admin-wallets'},
-      {icon:'fa-plus-circle',label:'إدارة المحتوى',page:'admin-content'},
+      {icon:'fa-tachometer-alt', label:'لوحة التحكم',     page:'admin-overview'},
+      {icon:'fa-users',          label:'المستخدمون',      page:'admin-users'},
+      {icon:'fa-layer-group',    label:'المجموعات',       page:'admin-groups'},
+      {icon:'fa-calendar-week',  label:'الجدول الأسبوعي', page:'admin-schedule'},
+      {icon:'fa-clipboard-list', label:'الحصص والحضور',   page:'admin-sessions'},
+      {icon:'fa-wallet',         label:'محافظ المدرسين',  page:'admin-wallets'},
+      {icon:'fa-plus-circle',    label:'إدارة المحتوى',   page:'admin-content'},
     ]
   };
   nav.innerHTML = `<div class="nav-section-title">القائمة الرئيسية</div>` +
@@ -997,10 +1224,23 @@ window.showPage = function(pageId, el) {
 };
 
 async function loadContent(role) {
-  if (role==='student') loadStudent();
-  if (role==='parent')  loadParent();
-  if (role==='teacher') loadTeacher();
-  if (role==='admin')   loadAdmin();
+  if (role === 'student') {
+    loadStudent();
+    setTimeout(loadStudentSessions, 600);
+  }
+  if (role === 'parent')  loadParent();
+  if (role === 'teacher') {
+    loadTeacher();
+    setTimeout(loadTeacherSessionsNew, 600);
+  }
+  if (role === 'admin') {
+    loadAdmin();
+    setTimeout(async () => {
+      await loadAdminGroups();
+      await loadSchedule();
+      await loadAdminSessionsFiltered();
+    }, 600);
+  }
 }
 
 // STUDENT
@@ -1804,6 +2044,783 @@ function extractYTId(url){const m=(url||'').match(/(?:v=|youtu\.be\/|embed\/)([a
 
 $('logoutBtn').addEventListener('click', async()=>{await signOut(auth);window.location.href='index.html';});
 $('hamburgerBtn').addEventListener('click', ()=>{$('sidebar').classList.toggle('open');});
+
+// ══════════════════════════════════════════════
+// نظام المجموعات الكامل
+// ══════════════════════════════════════════════
+
+const DAYS_AR = {monday:'الاثنين',tuesday:'الثلاثاء',wednesday:'الأربعاء',thursday:'الخميس',friday:'الجمعة',saturday:'السبت',sunday:'الأحد'};
+const DAYS_EN = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+const SESSION_TYPES = {lesson:'درس',exercise:'سلسلة تمارين',exam:'فرض مراقبة',review:'مراجعة'};
+
+// حساب تاريخ الحصة القادمة
+function getNextDate(dayName, timeStr, offset=0) {
+  const now = new Date();
+  now.setDate(now.getDate() + offset * 7);
+  const target = DAYS_EN.indexOf(dayName);
+  const current = now.getDay();
+  let diff = target - current;
+  if (diff < 0) diff += 7;
+  if (diff === 0) {
+    const [h,m] = timeStr.split(':').map(Number);
+    const sessionEnd = new Date(now);
+    sessionEnd.setHours(h, m+90, 0, 0);
+    if (now > sessionEnd) diff = 7;
+  }
+  const d = new Date(now);
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().split('T')[0];
+}
+
+function fmtDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('ar-TN', {weekday:'short', day:'numeric', month:'short'});
+}
+
+// هل الحصة نشطة الآن؟
+function isActive(dateStr, timeStr, duration=90) {
+  const now = new Date();
+  const start = new Date(dateStr + 'T' + timeStr + ':00');
+  const end   = new Date(start.getTime() + duration * 60000);
+  const early = new Date(start.getTime() - 15 * 60000);
+  return now >= early && now <= end;
+}
+
+// هل الحصة قادمة خلال 24 ساعة؟
+function isSoon(dateStr, timeStr) {
+  const now   = new Date();
+  const start = new Date(dateStr + 'T' + timeStr + ':00');
+  const diff  = start - now;
+  return diff > 0 && diff <= 24*60*60*1000;
+}
+
+// ── تحميل المجموعات (المدير) ──
+async function loadAdminGroups() {
+  const snap = await getDocs(collection(db,'groups'));
+  window._allGroups = [];
+  snap.forEach(d => window._allGroups.push({id:d.id,...d.data()}));
+  renderGroupsList(window._allGroups);
+}
+
+function renderGroupsList(groups) {
+  const container = $('groupsList');
+  if (!groups.length) {
+    container.innerHTML = `<div class="empty-state"><i class="fas fa-layer-group"></i><h3>لا توجد مجموعات بعد</h3><p>أنشئ أول مجموعة لتبدأ</p></div>`;
+    return;
+  }
+
+  const byLevel = {};
+  groups.forEach(g => {
+    if (!byLevel[g.level]) byLevel[g.level] = [];
+    byLevel[g.level].push(g);
+  });
+
+  let html = '';
+  ['7','8','9'].forEach(lvl => {
+    if (!byLevel[lvl]) return;
+    html += `<div style="margin-bottom:24px">
+      <h3 style="font-size:.95rem;font-weight:800;color:var(--blue-dark);margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--gray-200)">
+        <i class="fas fa-graduation-cap" style="color:var(--blue-light)"></i>
+        السنة ${lvl === '7' ? 'السابعة' : lvl === '8' ? 'الثامنة' : 'التاسعة'} أساسي
+      </h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">
+        ${byLevel[lvl].map(g => groupCard(g)).join('')}
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function groupCard(g) {
+  const pct = Math.round((g.currentCount||0) / (g.maxStudents||20) * 100);
+  const statusColor = g.status==='active' ? 'var(--success)' : g.status==='full' ? 'var(--danger)' : 'var(--gray-400)';
+  const schedule = (g.schedule||[]).map(s => `${DAYS_AR[s.day]||s.day} ${s.time}`).join(' • ');
+
+  return `
+    <div style="background:white;border:1px solid var(--gray-200);border-radius:14px;padding:20px;position:relative">
+      <div style="position:absolute;top:14px;left:14px">
+        <span class="badge" style="background:${statusColor}20;color:${statusColor}">
+          ${g.status==='active'?'نشطة':g.status==='full'?'ممتلئة':'معطلة'}
+        </span>
+      </div>
+      <h4 style="font-size:1rem;font-weight:800;color:var(--blue-dark);margin-bottom:4px">${g.name||'—'}</h4>
+      <p style="font-size:.82rem;color:var(--gray-600);margin-bottom:12px">
+        <i class="fas fa-chalkboard-teacher"></i> ${g.teacherName||'لم يُحدَّد المربي'}
+      </p>
+
+      <!-- شريط الامتلاء -->
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--gray-600);margin-bottom:4px">
+          <span>التلاميذ</span>
+          <span>${g.currentCount||0} / ${g.maxStudents||20}</span>
+        </div>
+        <div style="height:6px;background:var(--gray-200);border-radius:50px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${pct>=90?'var(--danger)':pct>=70?'var(--warning)':'var(--success)'};border-radius:50px;transition:width .4s"></div>
+        </div>
+      </div>
+
+      <p style="font-size:.8rem;color:var(--gray-600);margin-bottom:12px">
+        <i class="fas fa-calendar" style="color:var(--blue-light)"></i> ${schedule||'لم يُحدَّد الجدول'}
+      </p>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-outline btn-sm" onclick="editGroup('${g.id}')">
+          <i class="fas fa-edit"></i> تعديل
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="generateGroupSessions('${g.id}')">
+          <i class="fas fa-magic"></i> توليد حصص
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="viewGroupStudents('${g.id}','${g.name}')">
+          <i class="fas fa-users"></i> التلاميذ
+        </button>
+        ${g.meetLink ? `<a href="${g.meetLink}" target="_blank" class="btn btn-success btn-sm"><i class="fab fa-google"></i> Meet</a>` : ''}
+      </div>
+    </div>`;
+}
+
+window.filterGroupsByLevel = function(level, btn) {
+  document.querySelectorAll('#page-admin-groups .admin-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const filtered = level === 'all' ? window._allGroups : (window._allGroups||[]).filter(g => g.level === level);
+  renderGroupsList(filtered);
+};
+
+// ── إنشاء / تعديل مجموعة ──
+window.openGroupModal = async function(groupId=null) {
+  // تحميل قائمة المربين
+  const sel = $('gTeacher');
+  sel.innerHTML = '<option value="">اختر المربي</option>';
+  const uSnap = await getDocs(query(collection(db,'users'), where('userType','==','teacher')));
+  uSnap.forEach(d => {
+    const u = d.data();
+    const name = u.firstName ? `${u.firstName} ${u.lastName||''}` : u.name;
+    sel.innerHTML += `<option value="${d.id}" data-name="${name}">${name}</option>`;
+  });
+
+  if (groupId) {
+    $('groupModalTitle').textContent = 'تعديل المجموعة';
+    $('groupModalId').value = groupId;
+    const snap = await getDoc(doc(db,'groups',groupId));
+    const g = snap.data();
+    $('gLevel').value = g.level || '';
+    $('gName').value  = g.name  || '';
+    $('gTeacher').value = g.teacherId || '';
+    $('gMeetLink').value = g.meetLink || '';
+    $('gMaxStudents').value = g.maxStudents || 20;
+    $('gDuration').value = g.duration || 90;
+    if (g.schedule?.[0]) { $('gDay1').value = g.schedule[0].day; $('gTime1').value = g.schedule[0].time; }
+    if (g.schedule?.[1]) { $('gDay2').value = g.schedule[1].day; $('gTime2').value = g.schedule[1].time; }
+  } else {
+    $('groupModalTitle').textContent = 'إنشاء مجموعة جديدة';
+    $('groupModalId').value = '';
+    $('groupForm').reset();
+  }
+  $('groupModal').classList.add('open');
+};
+
+window.editGroup = (id) => openGroupModal(id);
+
+$('groupForm')?.addEventListener('submit', async e => {
+  e.preventDefault();
+  const groupId = $('groupModalId').value;
+  const teacherSel = $('gTeacher');
+  const teacherName = teacherSel.options[teacherSel.selectedIndex]?.dataset?.name || '';
+
+  const data = {
+    level:        $('gLevel').value,
+    name:         $('gName').value,
+    teacherId:    $('gTeacher').value,
+    teacherName,
+    meetLink:     $('gMeetLink').value,
+    maxStudents:  parseInt($('gMaxStudents').value) || 20,
+    duration:     parseInt($('gDuration').value) || 90,
+    schedule: [
+      { day: $('gDay1').value, time: $('gTime1').value, duration: parseInt($('gDuration').value)||90 },
+      { day: $('gDay2').value, time: $('gTime2').value, duration: parseInt($('gDuration').value)||90 }
+    ],
+    status: 'active'
+  };
+
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true; btn.textContent = 'جاري الحفظ...';
+
+  try {
+    if (groupId) {
+      await updateDoc(doc(db,'groups',groupId), data);
+    } else {
+      data.currentCount = 0;
+      data.createdAt = serverTimestamp();
+      await addDoc(collection(db,'groups'), data);
+    }
+    alert('✅ تم حفظ المجموعة!');
+    $('groupModal').classList.remove('open');
+    loadAdminGroups();
+  } catch(err) { alert('خطأ: ' + err.message); }
+  finally { btn.disabled=false; btn.innerHTML='<i class="fas fa-save"></i> حفظ المجموعة'; }
+});
+
+// ── توليد حصص الأسبوع ──
+window.generateGroupSessions = async function(groupId) {
+  const snap = await getDoc(doc(db,'groups',groupId));
+  if (!snap.exists()) return;
+  const g = { id: groupId, ...snap.data() };
+  const created = await createSessionsFromGroup(g, 0);
+  const next    = await createSessionsFromGroup(g, 1);
+  alert(`✅ تم توليد ${created + next} حصة جديدة للمجموعة ${g.name}`);
+  loadAdminGroups();
+};
+
+window.generateAllSessions = async function() {
+  const snap = await getDocs(query(collection(db,'groups'), where('status','==','active')));
+  let total = 0;
+  for (const d of snap.docs) {
+    const g = { id: d.id, ...d.data() };
+    total += await createSessionsFromGroup(g, 0);
+    total += await createSessionsFromGroup(g, 1);
+  }
+  alert(`✅ تم توليد ${total} حصة جديدة لجميع المجموعات`);
+  loadSchedule();
+};
+
+async function createSessionsFromGroup(g, weekOffset=0) {
+  let created = 0;
+  for (const slot of (g.schedule||[])) {
+    const dateStr = getNextDate(slot.day, slot.time, weekOffset);
+    const existing = await getDocs(query(
+      collection(db,'sessions'),
+      where('groupId','==',g.id),
+      where('date','==',dateStr)
+    ));
+    if (existing.empty) {
+      const [h,m] = slot.time.split(':').map(Number);
+      const endMin = h*60+m+(slot.duration||90);
+      const endTime = `${String(Math.floor(endMin/60)).padStart(2,'0')}:${String(endMin%60).padStart(2,'0')}`;
+      await addDoc(collection(db,'sessions'), {
+        groupId:         g.id,
+        groupName:       g.name || '',
+        level:           g.level,
+        teacherId:       g.teacherId || '',
+        teacherName:     g.teacherName || '',
+        date:            dateStr,
+        dayName:         slot.day,
+        startTime:       slot.time,
+        endTime,
+        duration:        slot.duration || 90,
+        meetLink:        g.meetLink || '',
+        topic:           '',
+        type:            'lesson',
+        section:         'general',
+        status:          'scheduled',
+        teacherConfirmed: false,
+        adminConfirmed:  false,
+        teacherNote:     '',
+        isException:     false,
+        createdAt:       serverTimestamp()
+      });
+      created++;
+    }
+  }
+  return created;
+}
+
+// ── الجدول الأسبوعي ──
+async function loadSchedule() {
+  const snap = await getDocs(query(collection(db,'sessions'), orderBy('date','asc')));
+  const sessions = [];
+  snap.forEach(d => sessions.push({id:d.id,...d.data()}));
+
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay());
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 13); // أسبوعان
+
+  const filtered = sessions.filter(s => {
+    const d = new Date(s.date + 'T00:00:00');
+    return d >= weekStart && d <= weekEnd;
+  });
+
+  if (!filtered.length) {
+    $('weeklySchedule').innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-calendar"></i>
+        <h3>لا توجد حصص مجدولة</h3>
+        <p>اضغط "توليد حصص الأسبوع" لإنشاء الحصص تلقائياً</p>
+      </div>`;
+    return;
+  }
+
+  // تجميع حسب التاريخ
+  const byDate = {};
+  filtered.forEach(s => {
+    if (!byDate[s.date]) byDate[s.date] = [];
+    byDate[s.date].push(s);
+  });
+
+  let html = '<div style="display:flex;flex-direction:column;gap:16px">';
+  Object.keys(byDate).sort().forEach(date => {
+    const sessions = byDate[date];
+    const dateObj  = new Date(date + 'T00:00:00');
+    const dayName  = DAYS_AR[DAYS_EN[dateObj.getDay()]] || '';
+    const isToday  = date === new Date().toISOString().split('T')[0];
+
+    html += `
+      <div style="background:${isToday?'rgba(37,99,235,.06)':'white'};border:${isToday?'2px solid var(--blue-light)':'1px solid var(--gray-200)'};border-radius:14px;padding:18px">
+        <div style="font-size:.9rem;font-weight:800;color:var(--blue-dark);margin-bottom:12px;display:flex;align-items:center;gap:8px">
+          <i class="fas fa-calendar-day" style="color:var(--blue-light)"></i>
+          ${dayName} ${dateObj.toLocaleDateString('ar-TN',{day:'numeric',month:'long'})}
+          ${isToday ? '<span class="badge badge-info">اليوم</span>' : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${sessions.map(s => scheduleSessionRow(s)).join('')}
+        </div>
+      </div>`;
+  });
+  html += '</div>';
+  $('weeklySchedule').innerHTML = html;
+}
+
+function scheduleSessionRow(s) {
+  const active = isActive(s.date, s.startTime, s.duration);
+  const soon   = isSoon(s.date, s.startTime);
+  const statusColor = active ? 'var(--success)' : soon ? 'var(--gold)' : 'var(--gray-400)';
+  const statusLabel = active ? '🟢 جارية الآن' : soon ? '🟡 قريباً' : s.status === 'cancelled' ? '🔴 ملغاة' : '⚪ مجدولة';
+
+  return `
+    <div style="display:flex;align-items:center;gap:12px;background:var(--gray-50);border-radius:10px;padding:12px 14px;flex-wrap:wrap">
+      <div style="min-width:80px;font-weight:700;color:var(--blue-dark);font-size:.88rem">${s.startTime} - ${s.endTime||''}</div>
+      <div style="flex:1;min-width:150px">
+        <div style="font-weight:700;font-size:.88rem;color:var(--blue-dark)">${s.groupName||'—'} • السنة ${s.level}</div>
+        <div style="font-size:.78rem;color:var(--gray-600)">${s.teacherName||'—'} • ${SESSION_TYPES[s.type]||'درس'}</div>
+      </div>
+      <span style="font-size:.78rem;color:${statusColor};font-weight:700">${statusLabel}</span>
+      <div style="display:flex;gap:6px">
+        ${s.meetLink ? `<a href="${s.meetLink}" target="_blank" class="btn btn-success btn-sm"><i class="fab fa-google"></i> Meet</a>` : ''}
+        <button class="btn btn-outline btn-sm" onclick="openEditSession('${s.id}','${s.date}','${s.startTime}','${s.type}','${s.section||''}','${s.topic||''}','${s.meetLink||''}')">
+          <i class="fas fa-edit"></i>
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="viewAttendance('${s.id}')">
+          <i class="fas fa-users"></i>
+        </button>
+      </div>
+    </div>`;
+}
+
+// ── تعديل حصة استثنائي ──
+window.openEditSession = function(id, date, time, type, section, topic, meet) {
+  $('editSessionId').value = id;
+  $('editSessDate').value = date;
+  $('editSessTime').value = time;
+  $('editSessType').value = type || 'lesson';
+  $('editSessSection').value = section || 'general';
+  $('editSessTopic').value = decodeURIComponent(topic || '');
+  $('editSessMeet').value = meet || '';
+  $('editSessionModal').classList.add('open');
+};
+
+window.saveSessionEdit = async function() {
+  const id = $('editSessionId').value;
+  await updateDoc(doc(db,'sessions',id), {
+    date:      $('editSessDate').value,
+    startTime: $('editSessTime').value,
+    type:      $('editSessType').value,
+    section:   $('editSessSection').value,
+    topic:     $('editSessTopic').value,
+    meetLink:  $('editSessMeet').value || undefined,
+    isException: true
+  });
+  alert('✅ تم حفظ التعديل الاستثنائي');
+  $('editSessionModal').classList.remove('open');
+  loadSchedule();
+};
+
+window.cancelSession = async function() {
+  if (!confirm('هل تريد إلغاء هذه الحصة؟')) return;
+  const id = $('editSessionId').value;
+  await updateDoc(doc(db,'sessions',id), { status: 'cancelled' });
+  alert('تم إلغاء الحصة');
+  $('editSessionModal').classList.remove('open');
+  loadSchedule();
+};
+
+// ── حصص المدير ──
+async function loadAdminSessionsFiltered() {
+  const filter = $('sessionsFilter')?.value || 'pending';
+  let q;
+  if (filter === 'pending') {
+    q = query(collection(db,'sessions'), where('adminConfirmed','==',false), where('status','!=','cancelled'), orderBy('status'), orderBy('date','desc'));
+  } else if (filter === 'completed') {
+    q = query(collection(db,'sessions'), where('adminConfirmed','==',true), orderBy('date','desc'));
+  } else {
+    q = query(collection(db,'sessions'), orderBy('date','desc'));
+  }
+
+  try {
+    const snap = await getDocs(q);
+    const rows = [];
+    snap.forEach(d => {
+      const s = d.data();
+      const active = isActive(s.date, s.startTime, s.duration);
+      rows.push(`<tr>
+        <td><strong>${s.groupName||'—'}</strong><br><span style="font-size:.78rem;color:var(--gray-400)">السنة ${s.level}</span></td>
+        <td style="font-size:.85rem">${fmtDate(s.date)}</td>
+        <td style="font-weight:700">${s.startTime||'—'}</td>
+        <td>${SESSION_TYPES[s.type]||'درس'}<br><span style="font-size:.78rem;color:var(--gray-400)">${s.topic||''}</span></td>
+        <td style="font-size:.85rem">${s.teacherName||'—'}</td>
+        <td><button class="btn btn-outline btn-sm" onclick="viewAttendance('${d.id}')"><i class="fas fa-users"></i></button></td>
+        <td>${s.meetLink?`<a href="${s.meetLink}" target="_blank" style="color:var(--success);font-size:.82rem"><i class="fab fa-google"></i> Meet</a>`:'—'}</td>
+        <td>
+          ${active ? '<span class="badge badge-success">جارية الآن</span>' :
+            s.status==='cancelled' ? '<span class="badge badge-danger">ملغاة</span>' :
+            s.adminConfirmed ? '<span class="badge badge-success">مؤكدة</span>' :
+            s.teacherConfirmed ? '<span class="badge badge-warning">تحقق مربي</span>' :
+            '<span class="badge badge-info">مجدولة</span>'}
+        </td>
+        <td style="display:flex;gap:4px">
+          ${!s.adminConfirmed && s.status!=='cancelled' ? `
+            <button class="btn btn-success btn-sm" onclick="adminConfirmSession('${d.id}','${s.teacherId}')">
+              <i class="fas fa-check"></i> تأكيد
+            </button>` : ''}
+          <button class="btn btn-outline btn-sm" onclick="openEditSession('${d.id}','${s.date}','${s.startTime}','${s.type}','${s.section||''}','${encodeURIComponent(s.topic||'')}','${s.meetLink||''}')">
+            <i class="fas fa-edit"></i>
+          </button>
+        </td>
+      </tr>`);
+    });
+    $('allSessionsTable').innerHTML = rows.join('') ||
+      `<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--gray-400)">لا توجد حصص</td></tr>`;
+  } catch(err) {
+    $('allSessionsTable').innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--danger)">${err.message}</td></tr>`;
+  }
+}
+
+window.adminConfirmSession = async function(sessionId, teacherId) {
+  await updateDoc(doc(db,'sessions',sessionId), { adminConfirmed: true, status: 'completed' });
+  // إضافة 20 دينار لمحفظة المربي
+  if (teacherId) {
+    const wRef = doc(db,'wallets',teacherId);
+    const wSnap = await getDoc(wRef);
+    const earned = (wSnap.exists() ? wSnap.data().earned||0 : 0) + 20;
+    await setDoc(wRef, { earned }, { merge: true });
+  }
+  alert('✅ تم تأكيد الحصة (+20 د.ت للمربي)');
+  loadAdminSessionsFiltered();
+};
+
+// ── تقرير الحضور ──
+window.viewAttendance = async function(sessionId) {
+  const [sessSnap, attSnap] = await Promise.all([
+    getDoc(doc(db,'sessions',sessionId)),
+    getDocs(query(collection(db,'attendance'), where('sessionId','==',sessionId)))
+  ]);
+
+  const s = sessSnap.data() || {};
+  const attendees = [];
+  attSnap.forEach(d => attendees.push(d.data()));
+
+  $('attendanceContent').innerHTML = `
+    <div style="background:var(--gray-50);border-radius:10px;padding:14px;margin-bottom:16px">
+      <p><strong>المجموعة:</strong> ${s.groupName||'—'} — السنة ${s.level}</p>
+      <p><strong>التاريخ:</strong> ${fmtDate(s.date)} ${s.startTime||''}</p>
+      <p><strong>المربي:</strong> ${s.teacherName||'—'}</p>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <strong style="color:var(--blue-dark)">الحاضرون</strong>
+      <span class="badge badge-${attendees.length>0?'success':'warning'}">${attendees.length} حاضر</span>
+    </div>
+    ${attendees.length ? `
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${attendees.map(a => `
+          <div style="display:flex;align-items:center;justify-content:space-between;background:var(--gray-50);border-radius:8px;padding:10px 14px">
+            <span style="font-weight:600;font-size:.88rem">${a.studentName||'—'}</span>
+            <span style="font-size:.78rem;color:var(--gray-600)">
+              ${a.joinTime?.toDate ? a.joinTime.toDate().toLocaleTimeString('ar-TN',{hour:'2-digit',minute:'2-digit'}) : '—'}
+            </span>
+          </div>`).join('')}
+      </div>` :
+      `<div class="empty-state"><i class="fas fa-user-slash"></i><h3>لا يوجد حضور مسجّل بعد</h3></div>`
+    }`;
+  $('attendanceModal').classList.add('open');
+};
+
+window.viewGroupStudents = async function(groupId, groupName) {
+  const snap = await getDocs(query(collection(db,'groupStudents'), where('groupId','==',groupId)));
+  const students = [];
+  snap.forEach(d => students.push(d.data()));
+
+  $('attendanceContent').innerHTML = `
+    <div style="font-size:.9rem;font-weight:800;color:var(--blue-dark);margin-bottom:14px">
+      تلاميذ ${groupName} (${students.length})
+    </div>
+    ${students.length ? students.map(s => `
+      <div style="background:var(--gray-50);border-radius:8px;padding:10px 14px;margin-bottom:8px">
+        <strong style="font-size:.88rem">${s.studentName||'—'}</strong>
+      </div>`).join('') :
+      '<div class="empty-state"><i class="fas fa-users"></i><h3>لا يوجد تلاميذ بعد</h3></div>'
+    }`;
+  $('attendanceModal').classList.add('open');
+};
+
+// ── حصص التلميذ (مع نظام المجموعات) ──
+async function loadStudentSessions() {
+  try {
+    // إيجاد مجموعة التلميذ
+    const gsSnap = await getDocs(query(
+      collection(db,'groupStudents'),
+      where('studentId','==',CU.uid)
+    ));
+
+    if (gsSnap.empty) {
+      $('studentGroupInfo').innerHTML = `
+        <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:12px;padding:16px">
+          <p style="font-weight:700;color:var(--gold)"><i class="fas fa-info-circle"></i> لم تُوزَّع على مجموعة بعد</p>
+          <p style="font-size:.85rem;color:var(--gray-600);margin-top:6px">سيتم توزيعك على مجموعة بعد تفعيل اشتراكك</p>
+        </div>`;
+      $('studentSessionsList').innerHTML = `<div class="empty-state"><i class="fas fa-calendar"></i><h3>لا توجد حصص</h3></div>`;
+      return;
+    }
+
+    const groupId = gsSnap.docs[0].data().groupId;
+    const gSnap = await getDoc(doc(db,'groups',groupId));
+    const g = gSnap.data() || {};
+
+    $('studentGroupBadge').textContent = g.name || '';
+    $('studentGroupInfo').innerHTML = `
+      <div style="background:linear-gradient(135deg,var(--blue-dark),var(--blue-mid));border-radius:14px;padding:20px;color:white;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:.82rem;color:rgba(255,255,255,.65);margin-bottom:4px">مجموعتك</div>
+          <div style="font-weight:800;font-size:1.1rem">${g.name||'—'}</div>
+          <div style="font-size:.85rem;color:rgba(255,255,255,.75);margin-top:4px">
+            <i class="fas fa-chalkboard-teacher"></i> ${g.teacherName||'—'}
+          </div>
+        </div>
+        <div style="text-align:left">
+          <div style="font-size:.82rem;color:rgba(255,255,255,.65);margin-bottom:6px">جدول الحصص</div>
+          ${(g.schedule||[]).map(s => `
+            <div style="font-size:.85rem;color:var(--gold-light);font-weight:600">
+              ${DAYS_AR[s.day]||s.day} — ${s.time}
+            </div>`).join('')}
+        </div>
+      </div>`;
+
+    // تحميل حصص المجموعة
+    const sessSnap = await getDocs(query(
+      collection(db,'sessions'),
+      where('groupId','==',groupId),
+      orderBy('date','asc')
+    ));
+
+    const sessions = [];
+    sessSnap.forEach(d => sessions.push({id:d.id,...d.data()}));
+
+    const now = new Date().toISOString().split('T')[0];
+    const upcoming = sessions.filter(s => s.date >= now && s.status !== 'cancelled');
+
+    $('studentSessionsList').innerHTML = upcoming.length ? upcoming.map(s => {
+      const active = isActive(s.date, s.startTime, s.duration);
+      const soon   = isSoon(s.date, s.startTime);
+
+      return `
+        <div class="session-item" style="${active?'border-color:var(--success);background:rgba(16,185,129,.06)':''}">
+          <div class="session-info">
+            <h4>
+              ${active ? '🟢 ' : soon ? '🟡 ' : ''}
+              ${fmtDate(s.date)} — ${s.startTime||''}
+              ${s.topic ? `<span style="font-size:.78rem;color:var(--gray-600)"> • ${s.topic}</span>` : ''}
+            </h4>
+            <p>
+              ${SESSION_TYPES[s.type]||'درس'} •
+              ${SECTIONS_AR[s.section]||'عام'} •
+              المدة: ${s.duration||90} دقيقة
+            </p>
+          </div>
+          ${s.meetLink && (active || soon) ?
+            `<button class="btn btn-success btn-sm" onclick="joinSession('${s.id}','${s.meetLink}','${groupId}')">
+              <i class="fab fa-google"></i>
+              ${active ? 'انضم الآن' : 'سينطلق قريباً'}
+            </button>` :
+            s.status === 'cancelled' ?
+            `<span class="badge badge-danger">ملغاة</span>` :
+            `<span class="badge badge-info">مجدولة</span>`
+          }
+        </div>`;
+    }).join('') :
+    `<div class="empty-state"><i class="fas fa-calendar-check"></i><h3>لا توجد حصص قادمة</h3><p>سيتم إضافة حصص قريباً</p></div>`;
+
+    // سجل الحضور
+    const attSnap = await getDocs(query(
+      collection(db,'attendance'),
+      where('studentId','==',CU.uid),
+      orderBy('joinTime','desc')
+    ));
+    const attRows = [];
+    attSnap.forEach(d => {
+      const a = d.data();
+      const sessData = sessions.find(s => s.id === a.sessionId);
+      attRows.push(`<tr>
+        <td>${sessData ? fmtDate(sessData.date) : '—'}</td>
+        <td>${sessData?.topic || SESSION_TYPES[sessData?.type] || '—'}</td>
+        <td>${a.joinTime?.toDate ? a.joinTime.toDate().toLocaleTimeString('ar-TN',{hour:'2-digit',minute:'2-digit'}) : '—'}</td>
+        <td><span class="badge badge-success">حاضر</span></td>
+      </tr>`);
+    });
+    $('studentAttendanceTable').innerHTML = attRows.join('') ||
+      `<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--gray-400)">لا توجد سجلات بعد</td></tr>`;
+
+  } catch(err) {
+    $('studentSessionsList').innerHTML = `<div class="empty-state"><i class="fas fa-exclamation"></i><h3>خطأ في التحميل</h3><p>${err.message}</p></div>`;
+  }
+}
+
+// ── تسجيل الحضور عند النقر على Meet ──
+window.joinSession = async function(sessionId, meetLink, groupId) {
+  try {
+    const name = CUD.firstName ? `${CUD.firstName} ${CUD.lastName||''}` : CUD.name;
+
+    // تحقق من توقيت الحصة
+    const sessSnap = await getDoc(doc(db,'sessions',sessionId));
+    const s = sessSnap.data();
+    if (!isActive(s.date, s.startTime, s.duration)) {
+      alert('⚠️ الحصة ليست في وقتها الآن — يمكنك الانضمام من 15 دقيقة قبل البداية');
+      return;
+    }
+
+    // تسجيل الحضور
+    const existing = await getDocs(query(
+      collection(db,'attendance'),
+      where('sessionId','==',sessionId),
+      where('studentId','==',CU.uid)
+    ));
+
+    if (existing.empty) {
+      await addDoc(collection(db,'attendance'), {
+        sessionId, studentId: CU.uid, studentName: name,
+        groupId, joinTime: serverTimestamp(), status: 'attended'
+      });
+    }
+
+    // فتح Meet
+    window.open(meetLink, '_blank');
+
+  } catch(err) {
+    // في حال فشل تسجيل الحضور — افتح Meet على أي حال
+    console.error(err);
+    window.open(meetLink, '_blank');
+  }
+};
+
+// ── حصص المربي مع نظام المجموعات ──
+async function loadTeacherSessionsNew() {
+  try {
+    const snap = await getDocs(query(
+      collection(db,'sessions'),
+      where('teacherId','==',CU.uid),
+      orderBy('date','desc')
+    ));
+
+    const sessions = [];
+    snap.forEach(d => sessions.push({id:d.id,...d.data()}));
+
+    // الإحصائيات
+    const confirmed = sessions.filter(s => s.adminConfirmed);
+    const pending   = sessions.filter(s => s.teacherConfirmed && !s.adminConfirmed);
+    const earned    = confirmed.length * 20;
+
+    const wSnap = await getDoc(doc(db,'wallets',CU.uid));
+    const paid  = wSnap.exists() ? wSnap.data().paid || 0 : 0;
+
+    $('tBalance').innerHTML  = `${earned - paid} <span>د.ت</span>`;
+    $('tBalance2').innerHTML = `${earned - paid} <span>د.ت</span>`;
+    $('tTotalSess').textContent = confirmed.length;
+    $('tEarned').textContent    = `${earned} د.ت`;
+    $('tPaid').textContent      = `${paid} د.ت`;
+
+    // الحصص الأخيرة
+    const upcoming = sessions.filter(s => s.status !== 'cancelled').slice(0, 5);
+    $('teacherSessionsList').innerHTML = upcoming.map(s => {
+      const active = isActive(s.date, s.startTime, s.duration);
+      return `
+        <div class="session-item" style="${active?'border-color:var(--success)':''}">
+          <div class="session-info">
+            <h4>${active?'🟢 ':''}${fmtDate(s.date)} ${s.startTime||''} — ${s.groupName||'السنة '+s.level}</h4>
+            <p>${SESSION_TYPES[s.type]||'درس'} • ${SECTIONS_AR[s.section]||'عام'} • ${s.duration||90} دقيقة</p>
+            ${s.meetLink ? `<p style="font-size:.78rem"><a href="${s.meetLink}" target="_blank" style="color:var(--success)"><i class="fab fa-google"></i> ${s.meetLink}</a></p>` : ''}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+            <span class="badge ${s.adminConfirmed?'badge-success':s.teacherConfirmed?'badge-warning':'badge-info'}">
+              ${s.adminConfirmed?'مؤكدة':s.teacherConfirmed?'انتظار مدير':'مجدولة'}
+            </span>
+            ${active && !s.teacherConfirmed ? `
+              <button class="btn btn-primary btn-sm" onclick="teacherConfirmSession('${s.id}')">
+                <i class="fas fa-check"></i> تأكيد إجراء الحصة
+              </button>` : ''}
+            ${s.meetLink && active ? `
+              <a href="${s.meetLink}" target="_blank" class="btn btn-success btn-sm">
+                <i class="fab fa-google"></i> افتح Meet
+              </a>` : ''}
+          </div>
+        </div>`;
+    }).join('') || `<div class="empty-state"><i class="fas fa-calendar"></i><h3>لا توجد حصص</h3></div>`;
+
+    // جدول الحصص الكامل
+    $('teacherSessionsTable').innerHTML = sessions.map(s => `
+      <tr>
+        <td>${fmtDate(s.date)}</td>
+        <td>${s.groupName||'—'}</td>
+        <td>${SECTIONS_AR[s.section]||'—'}</td>
+        <td>${s.duration||90} دق</td>
+        <td>—</td>
+        <td>${s.meetLink ? `<a href="${s.meetLink}" target="_blank" style="color:var(--success);font-size:.82rem"><i class="fab fa-google"></i> Meet</a>` : '—'}</td>
+        <td style="font-weight:700;color:${s.adminConfirmed?'var(--success)':'var(--gray-400)'}">
+          ${s.adminConfirmed ? '20 د.ت' : '—'}
+        </td>
+        <td><span class="badge ${s.adminConfirmed?'badge-success':s.teacherConfirmed?'badge-warning':'badge-info'}">
+          ${s.adminConfirmed?'مؤكدة':s.teacherConfirmed?'انتظار':'مجدولة'}
+        </span></td>
+      </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-400)">لا توجد حصص</td></tr>`;
+
+    // المعاملات
+    const txRows = confirmed.map(s => `
+      <tr>
+        <td>${fmtDate(s.date)}</td>
+        <td>${s.groupName||''} — ${SESSION_TYPES[s.type]||'درس'}</td>
+        <td style="color:var(--success);font-weight:700">+20 د.ت</td>
+        <td><span class="badge badge-success">مكتسب</span></td>
+      </tr>`);
+    if (paid > 0) txRows.push(`
+      <tr><td>—</td><td>دفعة من الإدارة</td>
+      <td style="color:var(--danger);font-weight:700">-${paid} د.ت</td>
+      <td><span class="badge badge-danger">خصم</span></td></tr>`);
+    $('teacherTransactions').innerHTML = txRows.join('') ||
+      `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--gray-400)">لا توجد معاملات</td></tr>`;
+
+  } catch(err) { console.error(err); }
+}
+
+// المربي يؤكد أن الحصة أُجريت
+window.teacherConfirmSession = async function(sessionId) {
+  await updateDoc(doc(db,'sessions',sessionId), {
+    teacherConfirmed: true,
+    teacherConfirmedAt: serverTimestamp()
+  });
+  alert('✅ تم تأكيد الحصة — في انتظار مراجعة المدير');
+  loadTeacherSessionsNew();
+};
+
+// تكامل مع loadAdmin
+const _origLoadAdmin = window.loadAdmin || loadAdmin;
+async function loadAdminFull() {
+  await loadAdmin();
+  // تحميل المجموعات والجدول
+  await loadAdminGroups();
+  await loadSchedule();
+  await loadAdminSessionsFiltered();
+}
+
+// إضافة قواعد لصفحة الجدول
+window.loadSchedule = loadSchedule;
+window.loadAdminSessionsFiltered = loadAdminSessionsFiltered;
 </script>
 </body>
 </html>
