@@ -377,6 +377,17 @@
       </div>
     </div>
 
+    <div class="page" id="page-parent-sessions">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-calendar-alt"></i> حصص منظوري المباشرة</div>
+        </div>
+        <div id="parentSessionsContent">
+          <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><h3>جاري التحميل...</h3></div>
+        </div>
+      </div>
+    </div>
+
     <div class="page" id="page-parent-link">
       <div class="card">
         <div class="card-header"><div class="card-title"><i class="fas fa-link"></i> ربط منظور بحسابك</div></div>
@@ -1188,6 +1199,7 @@ function buildNav(role) {
     ],
     parent:[
       {icon:'fa-home',label:'الرئيسية',page:'parent-overview'},
+      {icon:'fa-calendar-alt',label:'حصص منظوري',page:'parent-sessions'},
       {icon:'fa-link',label:'ربط منظور',page:'parent-link'},
       {icon:'fa-credit-card',label:'اشتراك منظوري',page:'parent-subscription'},
     ],
@@ -1229,6 +1241,12 @@ async function loadContent(role) {
     setTimeout(loadStudentSessions, 600);
   }
   if (role === 'parent')  loadParent();
+  // تحميل حصص المنظور عند فتح الصفحة
+  const origShowPage = window.showPage;
+  window.showPage = function(page) {
+    origShowPage(page);
+    if (page === 'parent-sessions') loadParentSessions();
+  };
   if (role === 'teacher') {
     loadTeacher();
     setTimeout(loadTeacherSessionsNew, 600);
@@ -1949,6 +1967,134 @@ async function loadParentReceiptsHistory() {
 }
 
 // ══ PARENT CHILDREN — show name not email ══
+
+// ══ حصص منظوري (الولي) ══
+async function loadParentSessions() {
+  const el = $('parentSessionsContent');
+  if (!el) return;
+  el.innerHTML = `<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><h3>جاري التحميل...</h3></div>`;
+
+  try {
+    const linksSnap = await getDocs(query(
+      collection(db,'parentChildren'),
+      where('parentId','==',CU.uid)
+    ));
+
+    if (linksSnap.empty) {
+      el.innerHTML = `<div class="empty-state"><i class="fas fa-child"></i><h3>لا يوجد منظورون مرتبطون</h3><p>اذهب لصفحة "ربط منظور" للبدء</p></div>`;
+      return;
+    }
+
+    let html = '';
+
+    for (const linkDoc of linksSnap.docs) {
+      const link = linkDoc.data();
+      const childSnap = await getDoc(doc(db,'users', link.childId));
+      if (!childSnap.exists()) continue;
+      const child = childSnap.data();
+      const childName = child.firstName ? `${child.firstName} ${child.lastName||''}`.trim() : (child.name||'—');
+      const childActive = child.subscriptionStatus === 'active';
+
+      // جلب مجموعة المنظور
+      const gsSnap = await getDocs(query(
+        collection(db,'groupStudents'),
+        where('studentId','==', link.childId)
+      ));
+
+      html += `
+        <div style="margin-bottom:28px">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--gray-200)">
+            <div style="width:42px;height:42px;border-radius:50%;background:rgba(37,99,235,.1);color:var(--blue-light);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1rem;flex-shrink:0">
+              ${childName.charAt(0)}
+            </div>
+            <div>
+              <div style="font-weight:800;font-size:.95rem;color:var(--blue-dark)">${childName}</div>
+              <div style="font-size:.78rem;color:var(--gray-600)">
+                السنة ${child.level||'—'} •
+                <span style="color:${childActive?'var(--success)':'var(--danger)'};font-weight:700">
+                  ${childActive ? '✅ مشترك' : '❌ غير مشترك'}
+                </span>
+              </div>
+            </div>
+          </div>`;
+
+      if (gsSnap.empty) {
+        html += `
+          <div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:14px">
+            <p style="font-size:.85rem;color:var(--gold);font-weight:700">
+              <i class="fas fa-info-circle"></i>
+              ${childActive ? 'لم يُضَف إلى مجموعة بعد — سيتم ذلك قريباً' : 'يجب تفعيل الاشتراك أولاً'}
+            </p>
+          </div>
+        </div>`;
+        continue;
+      }
+
+      const groupId = gsSnap.docs[0].data().groupId;
+      const gSnap = await getDoc(doc(db,'groups',groupId));
+      const g = gSnap.data() || {};
+
+      html += `
+        <div style="background:linear-gradient(135deg,var(--blue-dark),var(--blue-mid));border-radius:12px;padding:16px;color:white;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <div style="font-size:.75rem;color:rgba(255,255,255,.6);margin-bottom:4px">المجموعة</div>
+            <div style="font-weight:800;font-size:1rem">${g.name||'—'}</div>
+            <div style="font-size:.82rem;color:rgba(255,255,255,.75);margin-top:4px">
+              <i class="fas fa-chalkboard-teacher"></i> ${g.teacherName||'—'}
+            </div>
+          </div>
+          <div>
+            <div style="font-size:.75rem;color:rgba(255,255,255,.6);margin-bottom:6px">جدول الحصص</div>
+            ${(g.schedule||[]).map(s=>`
+              <div style="font-size:.82rem;color:var(--gold-light);font-weight:600">
+                ${DAYS_AR[s.day]||s.day} — ${s.time}
+              </div>`).join('')}
+          </div>
+        </div>`;
+
+      const now = new Date().toISOString().split('T')[0];
+      const sessSnap = await getDocs(query(
+        collection(db,'sessions'),
+        where('groupId','==',groupId),
+        orderBy('date','asc')
+      ));
+
+      const upcoming = [];
+      sessSnap.forEach(d => {
+        const s = {id:d.id,...d.data()};
+        if (s.date >= now && s.status !== 'cancelled') upcoming.push(s);
+      });
+
+      if (!upcoming.length) {
+        html += `<div class="empty-state" style="padding:20px 0"><i class="fas fa-calendar"></i><h3>لا توجد حصص قادمة</h3></div>`;
+      } else {
+        html += upcoming.map(s => {
+          const active = isActive(s.date, s.startTime, s.duration);
+          const soon   = isSoon(s.date, s.startTime);
+          return `
+            <div class="session-item" style="${active?'border-color:var(--success);background:rgba(16,185,129,.05)':''}">
+              <div class="session-info">
+                <h4>
+                  ${active?'🟢 ':soon?'🟡 ':''}
+                  ${fmtDate(s.date)} — ${s.startTime||''}
+                  ${s.topic?`<span style="font-size:.78rem;color:var(--gray-600)"> • ${s.topic}</span>`:''}
+                </h4>
+                <p>${SESSION_TYPES[s.type]||'درس'} • ${SECTIONS[s.section]||'عام'} • المدة: ${s.duration||90} دقيقة</p>
+              </div>
+              ${active?`<span class="badge badge-success">🟢 جارية الآن</span>`
+                :soon?`<span class="badge badge-warning">🟡 قريباً</span>`
+                :`<span class="badge badge-info">مجدولة</span>`}
+            </div>`;
+        }).join('');
+      }
+      html += `</div>`;
+    }
+
+    el.innerHTML = html || `<div class="empty-state"><i class="fas fa-calendar"></i><h3>لا توجد بيانات</h3></div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle" style="color:var(--danger)"></i><h3>خطأ في التحميل</h3><p>${e.message}</p></div>`;
+  }
+}
 
 // ══ CONTENT EDIT ══
 window.loadContentList = async function() {
