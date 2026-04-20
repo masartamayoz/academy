@@ -2253,10 +2253,10 @@ $('groupForm')?.addEventListener('submit', async e => {
       data.createdAt = serverTimestamp();
       await addDoc(collection(db,'groups'), data);
     }
-    alert('✅ تم حفظ المجموعة!');
+    toast('تم حفظ المجموعة بنجاح!','success');
     $('groupModal').classList.remove('open');
     loadAdminGroups();
-  } catch(err) { alert('خطأ: ' + err.message); }
+  } catch(err) { toast('خطأ: ' + err.message,'danger'); }
   finally { btn.disabled=false; btn.innerHTML='<i class="fas fa-save"></i> حفظ المجموعة'; }
 });
 
@@ -2267,7 +2267,7 @@ window.generateGroupSessions = async function(groupId) {
   const g = { id: groupId, ...snap.data() };
   const created = await createSessionsFromGroup(g, 0);
   const next    = await createSessionsFromGroup(g, 1);
-  alert(`✅ تم توليد ${created + next} حصة جديدة للمجموعة ${g.name}`);
+  toast(`تم توليد ${created + next} حصة جديدة للمجموعة ${g.name}`,'success');
   loadAdminGroups();
 };
 
@@ -2279,7 +2279,7 @@ window.generateAllSessions = async function() {
     total += await createSessionsFromGroup(g, 0);
     total += await createSessionsFromGroup(g, 1);
   }
-  alert(`✅ تم توليد ${total} حصة جديدة لجميع المجموعات`);
+  toast(`تم توليد ${total} حصة جديدة لجميع المجموعات`,'success');
   loadSchedule();
 };
 
@@ -2430,7 +2430,7 @@ window.saveSessionEdit = async function() {
     meetLink:  $('editSessMeet').value || undefined,
     isException: true
   });
-  alert('✅ تم حفظ التعديل الاستثنائي');
+  toast('تم حفظ التعديل الاستثنائي','success');
   $('editSessionModal').classList.remove('open');
   loadSchedule();
 };
@@ -2439,7 +2439,7 @@ window.cancelSession = async function() {
   if (!confirm('هل تريد إلغاء هذه الحصة؟')) return;
   const id = $('editSessionId').value;
   await updateDoc(doc(db,'sessions',id), { status: 'cancelled' });
-  alert('تم إلغاء الحصة');
+  toast('تم إلغاء الحصة','danger');
   $('editSessionModal').classList.remove('open');
   loadSchedule();
 };
@@ -2504,7 +2504,7 @@ window.adminConfirmSession = async function(sessionId, teacherId) {
     const earned = (wSnap.exists() ? wSnap.data().earned||0 : 0) + 20;
     await setDoc(wRef, { earned }, { merge: true });
   }
-  alert('✅ تم تأكيد الحصة (+20 د.ت للمربي)');
+  toast('تم تأكيد الحصة — +20 د.ت للمربي','success');
   loadAdminSessionsFiltered();
 };
 
@@ -2682,7 +2682,7 @@ window.joinSession = async function(sessionId, meetLink, groupId) {
     const sessSnap = await getDoc(doc(db,'sessions',sessionId));
     const s = sessSnap.data();
     if (!isActive(s.date, s.startTime, s.duration)) {
-      alert('⚠️ الحصة ليست في وقتها الآن — يمكنك الانضمام من 15 دقيقة قبل البداية');
+      toast('الحصة ليست في وقتها الآن — يمكنك الانضمام من 15 دقيقة قبل البداية','warning');
       return;
     }
 
@@ -2804,7 +2804,7 @@ window.teacherConfirmSession = async function(sessionId) {
     teacherConfirmed: true,
     teacherConfirmedAt: serverTimestamp()
   });
-  alert('✅ تم تأكيد الحصة — في انتظار مراجعة المدير');
+  toast('تم تأكيد الحصة — في انتظار مراجعة المدير','success');
   loadTeacherSessionsNew();
 };
 
