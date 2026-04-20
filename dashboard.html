@@ -2786,7 +2786,7 @@ async function loadStudentSessions() {
             </h4>
             <p>
               ${SESSION_TYPES[s.type]||'درس'} •
-              ${SECTIONS_AR[s.section]||'عام'} •
+              ${SECTIONS[s.section]||'عام'} •
               المدة: ${s.duration||90} دقيقة
             </p>
           </div>
@@ -2899,7 +2899,7 @@ async function loadTeacherSessionsNew() {
         <div class="session-item" style="${active?'border-color:var(--success)':''}">
           <div class="session-info">
             <h4>${active?'🟢 ':''}${fmtDate(s.date)} ${s.startTime||''} — ${s.groupName||'السنة '+s.level}</h4>
-            <p>${SESSION_TYPES[s.type]||'درس'} • ${SECTIONS_AR[s.section]||'عام'} • ${s.duration||90} دقيقة</p>
+            <p>${SESSION_TYPES[s.type]||'درس'} • ${SECTIONS[s.section]||'عام'} • ${s.duration||90} دقيقة</p>
             ${s.meetLink ? `<p style="font-size:.78rem"><a href="${s.meetLink}" target="_blank" style="color:var(--success)"><i class="fab fa-google"></i> ${s.meetLink}</a></p>` : ''}
           </div>
           <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
@@ -2923,7 +2923,7 @@ async function loadTeacherSessionsNew() {
       <tr>
         <td>${fmtDate(s.date)}</td>
         <td>${s.groupName||'—'}</td>
-        <td>${SECTIONS_AR[s.section]||'—'}</td>
+        <td>${SECTIONS[s.section]||'—'}</td>
         <td>${s.duration||90} دق</td>
         <td>—</td>
         <td>${s.meetLink ? `<a href="${s.meetLink}" target="_blank" style="color:var(--success);font-size:.82rem"><i class="fab fa-google"></i> Meet</a>` : '—'}</td>
