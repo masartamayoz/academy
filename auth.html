@@ -274,10 +274,11 @@
 
   let selectedRole  = 'student';
   let selectedLevel = '7';
+  let isRegistering = false;
 
-  // إذا المستخدم مسجّل → وجّهه للداشبورد
+  // إذا المستخدم مسجّل → وجّهه للداشبورد (ليس أثناء التسجيل)
   onAuthStateChanged(auth, user => {
-    if (user) window.location.href = 'dashboard.html';
+    if (user && !isRegistering) window.location.href = 'dashboard.html';
   });
 
   // ── Toast ──
@@ -364,6 +365,7 @@
     if (pass.length<6) { toast('كلمة المرور ضعيفة — 6 أحرف على الأقل','warning'); return; }
     const btn = $('registerBtn');
     btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> جاري الإنشاء...';
+    isRegistering = true; // منع onAuthStateChanged من التوجيه المبكر
     try {
       const {user} = await createUserWithEmailAndPassword(auth, email, pass);
       await updateProfile(user, {displayName:`${firstName} ${lastName}`});
@@ -374,8 +376,10 @@
         subscriptionStatus: 'inactive',
         createdAt: serverTimestamp()
       });
+      // البيانات حُفظت ← الآن يمكن التوجيه
       window.location.href = 'dashboard.html';
     } catch(err) {
+      isRegistering = false;
       toast(authError(err.code),'danger');
     } finally { btn.disabled=false; btn.innerHTML='<i class="fas fa-user-plus"></i> إنشاء الحساب'; }
   };
