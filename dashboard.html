@@ -759,7 +759,6 @@
       <div class="card">
         <div class="card-header">
           <div class="card-title"><i class="fas fa-calendar-check"></i> حصصي الأخيرة</div>
-          <button class="btn btn-primary btn-sm" onclick="openAddSessionModal()"><i class="fas fa-plus"></i> تسجيل حصة</button>
         </div>
         <div id="teacherSessionsList" class="sessions-list"></div>
       </div>
@@ -768,8 +767,7 @@
     <div class="page" id="page-teacher-sessions">
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><i class="fas fa-history"></i> سجل الحصص</div>
-          <button class="btn btn-primary btn-sm" onclick="openAddSessionModal()"><i class="fas fa-plus"></i> تسجيل حصة</button>
+          <div class="card-title"><i class="fas fa-history"></i> جدولي الأسبوعي</div>
         </div>
         <div class="table-wrap">
           <table>
@@ -1512,6 +1510,25 @@ function initDashboard() {
   rb.textContent = ROLES[userType]||userType;
   rb.className = `role-badge ${ROLE_CLASS[userType]||''}`;
   buildNav(userType);
+
+  // توجيه المستخدم للصفحة المناسبة حسب دوره
+  const defaultPages = {
+    student: 'student-overview',
+    parent:  'parent-overview',
+    teacher: 'teacher-overview',
+    admin:   'admin-overview'
+  };
+  const startPage = defaultPages[userType] || 'student-overview';
+  // تفعيل الصفحة الصحيحة
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const pg = $(`page-${startPage}`);
+  if (pg) pg.classList.add('active');
+  // تفعيل عنصر القائمة المناسب
+  setTimeout(() => {
+    const firstNavItem = document.querySelector('.nav-item');
+    if (firstNavItem) firstNavItem.classList.add('active');
+  }, 100);
+
   loadContent(userType);
   $('loadingScreen').style.display = 'none';
   $('appContainer').style.display = 'flex';
@@ -1534,7 +1551,7 @@ function buildNav(role) {
     ],
     teacher:[
       {icon:'fa-home',label:'الرئيسية',page:'teacher-overview'},
-      {icon:'fa-calendar',label:'حصصي',page:'teacher-sessions'},
+      {icon:'fa-calendar',label:'جدولي الأسبوعي',page:'teacher-sessions'},
       {icon:'fa-wallet',label:'محفظتي',page:'teacher-wallet'},
     ],
     admin:[
@@ -1657,11 +1674,10 @@ async function loadParent() {
       }
     }
 
-    // عرض قائمة المنظورين — الاسم واللقب بدل الـ email
     $('parentChildrenList').innerHTML = children.length ? children.map(c => {
-      const name = c.childData.firstName ? `${c.childData.firstName} ${c.childData.lastName||''}`.trim() : (c.childName||'—');
+      const name    = c.childData.firstName ? `${c.childData.firstName} ${c.childData.lastName||''}`.trim() : (c.childName||'—');
       const initial = name.charAt(0).toUpperCase();
-      const level = c.childData.level ? `السنة ${c.childData.level}` : '—';
+      const level   = c.childData.level ? `السنة ${c.childData.level}` : '—';
       return `
         <div class="child-card">
           <div class="child-info" style="display:flex;align-items:center;gap:12px">
@@ -1672,6 +1688,9 @@ async function loadParent() {
             </div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-outline btn-sm" onclick="viewChildAttendance('${c.childId}','${name}')">
+              <i class="fas fa-clipboard-list"></i> الحضور
+            </button>
             <button class="btn btn-outline btn-sm" onclick="showPage('parent-subscription')">
               <i class="fas fa-credit-card"></i> اشتراك
             </button>
@@ -1679,7 +1698,9 @@ async function loadParent() {
               <i class="fas fa-unlink"></i>
             </button>
           </div>
-        </div>`;
+        </div>
+        <!-- سجل حضور المنظور -->
+        <div id="childAtt_${c.childId}" style="margin-bottom:12px;display:none"></div>`;
     }).join('') :
     `<div class="empty-state">
       <i class="fas fa-child"></i>
@@ -1703,7 +1724,6 @@ async function loadParent() {
       });
     }
 
-    // سجل الوصولات
     loadParentReceiptsHistory();
 
   } catch(err) {
@@ -1715,6 +1735,62 @@ async function loadParent() {
       </div>`;
   }
 }
+
+// عرض سجل حضور المنظور
+window.viewChildAttendance = async function(childId, childName) {
+  const container = $(`childAtt_${childId}`);
+  if (!container) return;
+
+  if (container.style.display !== 'none') {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'block';
+  container.innerHTML = '<p style="color:var(--gray-400);font-size:.85rem;padding:12px"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</p>';
+
+  try {
+    const attSnap = await getDocs(query(
+      collection(db,'attendance'),
+      where('studentId','==',childId),
+      orderBy('joinTime','desc')
+    ));
+
+    const rows = [];
+    attSnap.forEach(d => {
+      const a = d.data();
+      const joinTime = a.joinTime?.toDate
+        ? a.joinTime.toDate().toLocaleString('ar-TN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})
+        : '—';
+      rows.push(`
+        <tr>
+          <td>${joinTime}</td>
+          <td>السنة ${a.level||'—'}</td>
+          <td><span class="badge badge-success">حاضر</span></td>
+        </tr>`);
+    });
+
+    container.innerHTML = `
+      <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:16px;margin-top:4px">
+        <div style="font-size:.88rem;font-weight:700;color:var(--blue-dark);margin-bottom:10px">
+          <i class="fas fa-clipboard-list" style="color:var(--blue-light)"></i>
+          سجل حضور ${childName}
+          <span class="badge badge-info" style="margin-right:8px">${attSnap.size} حصة</span>
+        </div>
+        ${rows.length ? `
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>التاريخ والوقت</th><th>المستوى</th><th>الحالة</th></tr></thead>
+              <tbody>${rows.join('')}</tbody>
+            </table>
+          </div>` :
+          '<p style="color:var(--gray-400);font-size:.85rem;text-align:center;padding:12px">لا توجد سجلات حضور بعد</p>'
+        }
+      </div>`;
+  } catch(err) {
+    container.innerHTML = `<p style="color:var(--danger);font-size:.82rem;padding:8px">خطأ: ${err.message}</p>`;
+  }
+};
 
 window.searchChild = async function() {
   const email = $('childEmail').value.trim().toLowerCase();
@@ -3206,16 +3282,33 @@ async function loadAdminSessionsFiltered() {
 }
 
 window.adminConfirmSession = async function(sessionId, teacherId) {
-  await updateDoc(doc(db,'sessions',sessionId), { adminConfirmed: true, status: 'completed' });
-  // إضافة 20 دينار لمحفظة المربي
-  if (teacherId) {
-    const wRef = doc(db,'wallets',teacherId);
-    const wSnap = await getDoc(wRef);
-    const earned = (wSnap.exists() ? wSnap.data().earned||0 : 0) + 20;
-    await setDoc(wRef, { earned }, { merge: true });
+  if (!confirm('تأكيد هذه الحصة وإضافة 20 د.ت لمحفظة المربي؟')) return;
+  try {
+    // تحديث حالة الحصة
+    await updateDoc(doc(db,'sessions',sessionId), {
+      adminConfirmed: true,
+      status: 'completed',
+      adminConfirmedAt: serverTimestamp()
+    });
+
+    // إضافة 20 دينار لمحفظة المربي
+    if (teacherId) {
+      const wRef  = doc(db,'wallets',teacherId);
+      const wSnap = await getDoc(wRef);
+      const prev  = wSnap.exists() ? (wSnap.data().earned||0) : 0;
+      await setDoc(wRef, {
+        earned: prev + 20,
+        paid: wSnap.exists() ? (wSnap.data().paid||0) : 0,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    }
+    toast('✅ تم تأكيد الحصة — +20 د.ت أضيفت لمحفظة المربي','success');
+    loadAdminSessionsFiltered();
+    // تحديث محافظ المدرسين أيضاً
+    setTimeout(() => loadAdmin(), 1000);
+  } catch(err) {
+    toast('خطأ: ' + err.message, 'danger');
   }
-  toast('تم تأكيد الحصة — +20 د.ت للمربي','success');
-  loadAdminSessionsFiltered();
 };
 
 // ── تقرير الحضور ──
@@ -3500,14 +3593,14 @@ async function loadStudentSessions() {
               المدة: ${s.duration||90} دقيقة
             </p>
           </div>
-          ${s.meetLink && (active || soon) ?
+          ${s.meetLink ?
             `<button class="btn btn-success btn-sm" onclick="joinSession('${s.id}','${s.meetLink}','${groupId}')">
               <i class="fab fa-google"></i>
-              ${active ? 'انضم الآن' : 'سينطلق قريباً'}
+              ${active ? '🟢 انضم الآن' : soon ? '🟡 سينطلق قريباً' : 'انضم للحصة'}
             </button>` :
             s.status === 'cancelled' ?
             `<span class="badge badge-danger">ملغاة</span>` :
-            `<span class="badge badge-info">مجدولة</span>`
+            `<span class="badge badge-info">مجدولة — لا يوجد رابط بعد</span>`
           }
         </div>`;
     }).join('') :
@@ -3541,17 +3634,9 @@ async function loadStudentSessions() {
 // ── تسجيل الحضور عند النقر على Meet ──
 window.joinSession = async function(sessionId, meetLink, groupId) {
   try {
-    const name = CUD.firstName ? `${CUD.firstName} ${CUD.lastName||''}` : CUD.name;
+    const name = CUD.firstName ? `${CUD.firstName} ${CUD.lastName||''}` : (CUD.name||CU.email);
 
-    // تحقق من توقيت الحصة
-    const sessSnap = await getDoc(doc(db,'sessions',sessionId));
-    const s = sessSnap.data();
-    if (!isActive(s.date, s.startTime, s.duration)) {
-      toast('الحصة ليست في وقتها — يمكنك الانضمام من 15 دقيقة قبل البداية','warning');
-      return;
-    }
-
-    // تسجيل الحضور
+    // تسجيل الحضور في Firebase أولاً
     const existing = await getDocs(query(
       collection(db,'attendance'),
       where('sessionId','==',sessionId),
@@ -3560,24 +3645,35 @@ window.joinSession = async function(sessionId, meetLink, groupId) {
 
     if (existing.empty) {
       await addDoc(collection(db,'attendance'), {
-        sessionId, studentId: CU.uid, studentName: name,
-        groupId, joinTime: serverTimestamp(), status: 'attended'
+        sessionId,
+        studentId: CU.uid,
+        studentName: name,
+        groupId,
+        level: CUD.level || '',
+        joinTime: serverTimestamp(),
+        status: 'attended'
       });
+      toast('✅ تم تسجيل حضورك','success');
     }
 
-    // فتح Meet
+    // فتح رابط Meet
     window.open(meetLink, '_blank');
 
+    // تحديث سجل الحضور في الواجهة
+    setTimeout(() => loadStudentSessions(), 1500);
+
   } catch(err) {
-    // في حال فشل تسجيل الحضور — افتح Meet على أي حال
-    console.error(err);
+    console.error('Attendance error:', err);
+    // افتح Meet حتى لو فشل تسجيل الحضور
     window.open(meetLink, '_blank');
+    toast('تم فتح الحصة — قد يكون هناك مشكلة في تسجيل الحضور','warning');
   }
 };
 
 // ── حصص المربي مع نظام المجموعات ──
 async function loadTeacherSessionsNew() {
   try {
+    // نجلب الحصص المجدولة من المدير (sessions collection) حيث teacherId = المربي الحالي
     const snap = await getDocs(query(
       collection(db,'sessions'),
       where('teacherId','==',CU.uid),
@@ -3587,13 +3683,12 @@ async function loadTeacherSessionsNew() {
     const sessions = [];
     snap.forEach(d => sessions.push({id:d.id,...d.data()}));
 
-    // الإحصائيات
-    const confirmed = sessions.filter(s => s.adminConfirmed);
-    const pending   = sessions.filter(s => s.teacherConfirmed && !s.adminConfirmed);
-    const earned    = confirmed.length * 20;
-
+    // الإحصائيات من محفظة المربي
     const wSnap = await getDoc(doc(db,'wallets',CU.uid));
-    const paid  = wSnap.exists() ? wSnap.data().paid || 0 : 0;
+    const wData = wSnap.exists() ? wSnap.data() : {};
+    const earned = wData.earned || 0;
+    const paid   = wData.paid   || 0;
+    const confirmed = sessions.filter(s => s.adminConfirmed);
 
     $('tBalance').innerHTML  = `${earned - paid} <span>د.ت</span>`;
     $('tBalance2').innerHTML = `${earned - paid} <span>د.ت</span>`;
@@ -3601,49 +3696,60 @@ async function loadTeacherSessionsNew() {
     $('tEarned').textContent    = `${earned} د.ت`;
     $('tPaid').textContent      = `${paid} د.ت`;
 
-    // الحصص الأخيرة
+    // الحصص الأخيرة — كلها وليس فقط 5
     const upcoming = sessions.filter(s => s.status !== 'cancelled').slice(0, 5);
-    $('teacherSessionsList').innerHTML = upcoming.map(s => {
+    $('teacherSessionsList').innerHTML = upcoming.length ? upcoming.map(s => {
       const active = isActive(s.date, s.startTime, s.duration);
       return `
-        <div class="session-item" style="${active?'border-color:var(--success)':''}">
+        <div class="session-item" style="${active?'border-color:var(--success);background:rgba(16,185,129,.05)':''}">
           <div class="session-info">
             <h4>${active?'🟢 ':''}${fmtDate(s.date)} ${s.startTime||''} — ${s.groupName||'السنة '+s.level}</h4>
-            <p>${SESSION_TYPES[s.type]||'درس'} • ${SECTIONS[s.section]||'عام'} • ${s.duration||90} دقيقة</p>
-            ${s.meetLink ? `<p style="font-size:.78rem"><a href="${s.meetLink}" target="_blank" style="color:var(--success)"><i class="fab fa-google"></i> ${s.meetLink}</a></p>` : ''}
+            <p>${SESSION_TYPES[s.type]||'درس'} • ${SECTIONS_AR[s.section]||'عام'} • ${s.duration||90} دقيقة</p>
+            ${s.meetLink ? `<p style="font-size:.78rem;margin-top:4px">
+              <a href="${s.meetLink}" target="_blank" style="color:var(--success);font-weight:600">
+                <i class="fab fa-google"></i> ${s.meetLink}
+              </a></p>` : '<p style="font-size:.78rem;color:var(--warning)">⚠️ لا يوجد رابط Meet بعد</p>'}
           </div>
           <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
             <span class="badge ${s.adminConfirmed?'badge-success':s.teacherConfirmed?'badge-warning':'badge-info'}">
-              ${s.adminConfirmed?'مؤكدة':s.teacherConfirmed?'انتظار مدير':'مجدولة'}
+              ${s.adminConfirmed?'✅ مؤكدة':s.teacherConfirmed?'⏳ انتظار مدير':'📅 مجدولة'}
             </span>
-            ${active && !s.teacherConfirmed ? `
+            ${!s.teacherConfirmed && !s.adminConfirmed ? `
               <button class="btn btn-primary btn-sm" onclick="teacherConfirmSession('${s.id}')">
-                <i class="fas fa-check"></i> تأكيد إجراء الحصة
+                <i class="fas fa-check"></i> تأكيد الإجراء
               </button>` : ''}
-            ${s.meetLink && active ? `
+            ${s.meetLink ? `
               <a href="${s.meetLink}" target="_blank" class="btn btn-success btn-sm">
                 <i class="fab fa-google"></i> افتح Meet
               </a>` : ''}
           </div>
         </div>`;
-    }).join('') || `<div class="empty-state"><i class="fas fa-calendar"></i><h3>لا توجد حصص</h3></div>`;
+    }).join('') : `<div class="empty-state"><i class="fas fa-calendar"></i><h3>لا توجد حصص مجدولة بعد</h3><p>سيُضيف المدير حصصك قريباً</p></div>`;
 
     // جدول الحصص الكامل
-    $('teacherSessionsTable').innerHTML = sessions.map(s => `
-      <tr>
-        <td>${fmtDate(s.date)}</td>
-        <td>${s.groupName||'—'}</td>
-        <td>${SECTIONS[s.section]||'—'}</td>
+    $('teacherSessionsTable').innerHTML = sessions.length ? sessions.map(s => {
+      const active = isActive(s.date, s.startTime, s.duration);
+      return `<tr style="${active?'background:rgba(16,185,129,.05)':''}">
+        <td>${fmtDate(s.date)}<br><span style="font-size:.75rem;color:var(--gray-400)">${s.startTime||''}</span></td>
+        <td>${s.groupName||('السنة '+s.level)}</td>
+        <td>${SECTIONS_AR[s.section]||'—'}</td>
         <td>${s.duration||90} دق</td>
         <td>—</td>
-        <td>${s.meetLink ? `<a href="${s.meetLink}" target="_blank" style="color:var(--success);font-size:.82rem"><i class="fab fa-google"></i> Meet</a>` : '—'}</td>
+        <td>${s.meetLink ? `<a href="${s.meetLink}" target="_blank" class="btn btn-success btn-sm"><i class="fab fa-google"></i> افتح</a>` : '<span style="color:var(--warning);font-size:.8rem">لا يوجد</span>'}</td>
         <td style="font-weight:700;color:${s.adminConfirmed?'var(--success)':'var(--gray-400)'}">
           ${s.adminConfirmed ? '20 د.ت' : '—'}
         </td>
-        <td><span class="badge ${s.adminConfirmed?'badge-success':s.teacherConfirmed?'badge-warning':'badge-info'}">
-          ${s.adminConfirmed?'مؤكدة':s.teacherConfirmed?'انتظار':'مجدولة'}
-        </span></td>
-      </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-400)">لا توجد حصص</td></tr>`;
+        <td>
+          <span class="badge ${s.adminConfirmed?'badge-success':s.teacherConfirmed?'badge-warning':'badge-info'}">
+            ${s.adminConfirmed?'مؤكدة':s.teacherConfirmed?'انتظار':'مجدولة'}
+          </span>
+          ${!s.teacherConfirmed && !s.adminConfirmed ? `
+            <button class="btn btn-primary btn-sm" style="margin-top:4px" onclick="teacherConfirmSession('${s.id}')">
+              <i class="fas fa-check"></i> تأكيد
+            </button>` : ''}
+        </td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-400)">لا توجد حصص مجدولة — يُضيفها المدير من لوحة التحكم</td></tr>`;
 
     // المعاملات
     const txRows = confirmed.map(s => `

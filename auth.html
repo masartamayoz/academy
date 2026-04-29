@@ -226,6 +226,58 @@
           </div>
         </div>
 
+        <!-- بيانات إضافية للتلميذ -->
+        <div id="studentExtraFields" style="display:block">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label>تاريخ الميلاد</label>
+              <input type="date" class="form-control" id="regBirthDate">
+            </div>
+            <div class="form-group">
+              <label>الولاية</label>
+              <select class="form-control" id="regWilaya">
+                <option value="">اختر الولاية</option>
+                <option>تونس</option><option>أريانة</option><option>بن عروس</option>
+                <option>منوبة</option><option>نابل</option><option>زغوان</option>
+                <option>بنزرت</option><option>باجة</option><option>جندوبة</option>
+                <option>الكاف</option><option>سليانة</option><option>سوسة</option>
+                <option>المنستير</option><option>المهدية</option><option>صفاقس</option>
+                <option>القيروان</option><option>القصرين</option><option>سيدي بوزيد</option>
+                <option>قابس</option><option>مدنين</option><option>تطاوين</option>
+                <option>قفصة</option><option>توزر</option><option>قبلي</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label>المعتمدية</label>
+              <input type="text" class="form-control" id="regMoughataa" placeholder="المعتمدية">
+            </div>
+            <div class="form-group">
+              <label>المدرسة / المعهد</label>
+              <input type="text" class="form-control" id="regSchool" placeholder="اسم المعهد">
+            </div>
+          </div>
+        </div>
+
+        <!-- بيانات إضافية لولي الأمر -->
+        <div id="parentExtraFields" style="display:none">
+          <div class="form-group">
+            <label>الولاية</label>
+            <select class="form-control" id="regParentWilaya">
+              <option value="">اختر الولاية</option>
+              <option>تونس</option><option>أريانة</option><option>بن عروس</option>
+              <option>منوبة</option><option>نابل</option><option>زغوان</option>
+              <option>بنزرت</option><option>باجة</option><option>جندوبة</option>
+              <option>الكاف</option><option>سليانة</option><option>سوسة</option>
+              <option>المنستير</option><option>المهدية</option><option>صفاقس</option>
+              <option>القيروان</option><option>القصرين</option><option>سيدي بوزيد</option>
+              <option>قابس</option><option>مدنين</option><option>تطاوين</option>
+              <option>قفصة</option><option>توزر</option><option>قبلي</option>
+            </select>
+          </div>
+        </div>
+
         <div class="form-group">
           <label>كلمة المرور</label>
           <div class="input-wrapper">
@@ -323,7 +375,9 @@
     selectedRole = role;
     document.querySelectorAll('#roleGrid .select-card').forEach(c=>c.classList.remove('active'));
     el.classList.add('active');
-    $('levelSection').style.display = role==='student' ? 'block' : 'none';
+    $('levelSection').style.display         = role==='student' ? 'block' : 'none';
+    $('studentExtraFields').style.display   = role==='student' ? 'block' : 'none';
+    $('parentExtraFields').style.display    = role==='parent'  ? 'block' : 'none';
   };
 
   window.selectLevel = function(level, btn) {
@@ -356,27 +410,32 @@
 
   // ── Register ──
   window.doRegister = async function() {
-    const firstName = $('regFirstName').value.trim();
-    const lastName  = $('regLastName').value.trim();
-    const email     = $('regEmail').value.trim();
-    const phone     = $('regPhone').value.trim();
-    const pass      = $('regPassword').value;
+    const firstName   = $('regFirstName').value.trim();
+    const lastName    = $('regLastName').value.trim();
+    const email       = $('regEmail').value.trim();
+    const phone       = $('regPhone').value.trim();
+    const pass        = $('regPassword').value;
+    const birthDate   = $('regBirthDate')?.value   || '';
+    const wilaya      = $('regWilaya')?.value       || $('regParentWilaya')?.value || '';
+    const moughataa   = $('regMoughataa')?.value    || '';
+    const school      = $('regSchool')?.value       || '';
+
     if (!firstName||!lastName||!email||!pass) { toast('يرجى إكمال جميع الحقول','warning'); return; }
     if (pass.length<6) { toast('كلمة المرور ضعيفة — 6 أحرف على الأقل','warning'); return; }
     const btn = $('registerBtn');
     btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> جاري الإنشاء...';
-    isRegistering = true; // منع onAuthStateChanged من التوجيه المبكر
+    isRegistering = true;
     try {
       const {user} = await createUserWithEmailAndPassword(auth, email, pass);
       await updateProfile(user, {displayName:`${firstName} ${lastName}`});
       await setDoc(doc(db,'users',user.uid), {
         firstName, lastName, email, phone,
-        userType: selectedRole,
-        level:    selectedRole==='student' ? selectedLevel : '',
+        userType:  selectedRole,
+        level:     selectedRole==='student' ? selectedLevel : '',
+        birthDate, wilaya, moughataa, school,
         subscriptionStatus: 'inactive',
         createdAt: serverTimestamp()
       });
-      // البيانات حُفظت ← الآن يمكن التوجيه
       window.location.href = 'dashboard.html';
     } catch(err) {
       isRegistering = false;
