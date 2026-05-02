@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>العروض والأسعار — أكاديمية مسار التميز</title>
+  <meta name="description" content="اشترك في أكاديمية مسار التميز — دروس رياضيات للسنوات 7، 8، 9 بأسعار في متناول الجميع">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --blue-dark:#0a1628; --blue-mid:#0d2147; --blue:#1a3a6e;
+      --blue-light:#2563eb; --gold:#f59e0b; --gold-light:#fbbf24;
+      --white:#fff; --gray-50:#f8fafc; --gray-100:#f1f5f9;
+      --gray-200:#e2e8f0; --gray-400:#94a3b8; --gray-600:#475569;
+      --gray-800:#1e293b; --success:#10b981; --danger:#ef4444;
+      --purple:#8b5cf6;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{font-family:'Tajawal',sans-serif;background:var(--gray-50);color:var(--gray-800);line-height:1.7}
+    a{text-decoration:none;color:inherit}
+    .container{max-width:1100px;margin:0 auto;padding:0 20px}
+
+    /* HEADER */
+    header{background:linear-gradient(135deg,var(--blue-dark),var(--blue-mid));padding:14px 0;position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(0,0,0,.25)}
+    .header-inner{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .logo{display:flex;align-items:center;gap:12px}
+    .logo img{width:44px;height:44px;border-radius:10px;background:white;padding:3px;object-fit:contain}
+    .logo h1{font-size:1rem;font-weight:800;color:white}
+    .logo span{font-size:.7rem;color:var(--gold-light);display:block}
+    .header-nav{display:flex;gap:4px}
+    .header-nav a{color:rgba(255,255,255,.8);font-size:.85rem;font-weight:500;padding:7px 12px;border-radius:8px;transition:all .2s}
+    .header-nav a:hover{background:rgba(255,255,255,.1);color:white}
+    .header-nav a.active{color:var(--gold-light);font-weight:700}
+    .btn-auth{background:var(--gold);color:var(--blue-dark);padding:8px 18px;border-radius:8px;font-weight:700;font-size:.88rem;transition:all .2s}
+    .btn-auth:hover{background:var(--gold-light)}
+
+    /* HERO */
+    .hero{background:linear-gradient(135deg,var(--blue-dark),var(--blue-mid),var(--blue));padding:60px 0 80px;text-align:center;position:relative;overflow:hidden}
+    .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(245,158,11,.12) 0%,transparent 60%)}
+    .hero-content{position:relative;z-index:1}
+    .hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:var(--gold-light);padding:6px 18px;border-radius:50px;font-size:.85rem;font-weight:700;margin-bottom:16px}
+    .hero h1{font-size:clamp(1.8rem,4vw,3rem);font-weight:900;color:white;margin-bottom:12px}
+    .hero h1 span{color:var(--gold)}
+    .hero p{font-size:1rem;color:rgba(255,255,255,.75);max-width:540px;margin:0 auto}
+
+    /* TOGGLE */
+    .plan-toggle{display:flex;align-items:center;justify-content:center;gap:16px;margin:40px 0 20px}
+    .toggle-label{font-size:.95rem;font-weight:700;color:var(--gray-600)}
+    .toggle-label.active{color:var(--blue-light)}
+    .toggle-switch{width:52px;height:28px;background:var(--blue-light);border-radius:50px;position:relative;cursor:pointer;transition:background .3s;border:none}
+    .toggle-switch::after{content:'';position:absolute;top:3px;right:3px;width:22px;height:22px;background:white;border-radius:50%;transition:transform .3s}
+    .toggle-switch.live::after{transform:translateX(-24px)}
+
+    /* SECTION TITLE */
+    .section-title{text-align:center;margin-bottom:40px}
+    .section-tag{display:inline-block;background:rgba(37,99,235,.1);color:var(--blue-light);border:1px solid rgba(37,99,235,.2);padding:5px 16px;border-radius:50px;font-size:.82rem;font-weight:700;margin-bottom:12px}
+    .section-title h2{font-size:clamp(1.4rem,3vw,2rem);font-weight:900;color:var(--blue-dark)}
+
+    /* PRICING SECTIONS */
+    .section{padding:60px 0}
+    .section.alt{background:white}
+
+    /* VIDEO PLAN */
+    .video-plan-card{background:linear-gradient(135deg,var(--blue-dark),var(--blue-mid));border-radius:20px;padding:40px;color:white;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:24px;position:relative;overflow:hidden;max-width:700px;margin:0 auto}
+    .video-plan-card::before{content:'';position:absolute;top:-40px;left:-40px;width:180px;height:180px;background:rgba(245,158,11,.08);border-radius:50%}
+    .video-plan-left h3{font-size:1.2rem;font-weight:800;color:var(--gold-light);margin-bottom:6px}
+    .video-plan-left p{font-size:.9rem;color:rgba(255,255,255,.7);margin-bottom:16px}
+    .video-plan-features{list-style:none}
+    .video-plan-features li{font-size:.88rem;color:rgba(255,255,255,.85);padding:4px 0;display:flex;align-items:center;gap:8px}
+    .video-plan-features li i{color:var(--gold-light);width:16px}
+    .video-plan-price{text-align:center;flex-shrink:0}
+    .price-num{font-size:3.5rem;font-weight:900;color:var(--gold);line-height:1}
+    .price-unit{font-size:1rem;font-weight:700;color:rgba(255,255,255,.6)}
+    .price-per{font-size:.82rem;color:rgba(255,255,255,.5);margin-top:4px}
+    .includes-badge{background:rgba(16,185,129,.2);color:#6ee7b7;border:1px solid rgba(16,185,129,.3);padding:4px 12px;border-radius:50px;font-size:.78rem;font-weight:700;margin-top:8px;display:inline-block}
+
+    /* LIVE PLANS GRID */
+    .plans-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px}
+    .plan-card{background:white;border:2px solid var(--gray-200);border-radius:16px;padding:28px 22px;position:relative;transition:all .3s}
+    .plan-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,.1);border-color:var(--blue-light)}
+    .plan-card.featured{background:linear-gradient(135deg,var(--blue-dark),var(--blue-mid));color:white;border-color:var(--blue-light)}
+    .plan-card.summer{background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;border-color:#8b5cf6}
+    .popular-badge{position:absolute;top:-13px;right:20px;background:var(--gold);color:var(--blue-dark);padding:3px 16px;border-radius:50px;font-size:.78rem;font-weight:800}
+    .plan-period{font-size:.82rem;font-weight:700;margin-bottom:6px}
+    .plan-card.featured .plan-period{color:var(--gold-light)}
+    .plan-card.summer .plan-period{color:#c4b5fd}
+    .plan-name{font-size:1.1rem;font-weight:800;color:var(--blue-dark);margin-bottom:4px}
+    .plan-card.featured .plan-name,.plan-card.summer .plan-name{color:white}
+    .plan-dates{font-size:.78rem;color:var(--gray-600);margin-bottom:16px;display:flex;align-items:center;gap:6px}
+    .plan-card.featured .plan-dates,.plan-card.summer .plan-dates{color:rgba(255,255,255,.6)}
+    .plan-price-wrap{margin-bottom:16px}
+    .plan-price-num{font-size:2.6rem;font-weight:900;color:var(--blue-light);line-height:1}
+    .plan-card.featured .plan-price-num,.plan-card.summer .plan-price-num{color:var(--gold)}
+    .plan-price-unit{font-size:.9rem;font-weight:700;color:var(--gray-600)}
+    .plan-card.featured .plan-price-unit,.plan-card.summer .plan-price-unit{color:rgba(255,255,255,.6)}
+    .plan-sessions{font-size:.82rem;color:var(--gray-600);margin-bottom:4px}
+    .plan-card.featured .plan-sessions,.plan-card.summer .plan-sessions{color:rgba(255,255,255,.65)}
+    .plan-features{list-style:none;margin-bottom:20px}
+    .plan-features li{font-size:.85rem;padding:5px 0;border-bottom:1px solid rgba(0,0,0,.06);display:flex;align-items:center;gap:8px}
+    .plan-card.featured .plan-features li,.plan-card.summer .plan-features li{border-color:rgba(255,255,255,.1);color:rgba(255,255,255,.85)}
+    .plan-features li:last-child{border:none}
+    .plan-features li i{color:var(--success);width:14px;font-size:.82rem}
+    .plan-card.featured .plan-features li i,.plan-card.summer .plan-features li i{color:var(--gold-light)}
+    .btn-plan{width:100%;padding:12px;border-radius:10px;font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer;border:none;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+    .btn-plan-outline{background:transparent;border:2px solid var(--blue-light);color:var(--blue-light)}
+    .btn-plan-outline:hover{background:var(--blue-light);color:white}
+    .btn-plan-gold{background:var(--gold);color:var(--blue-dark)}
+    .btn-plan-gold:hover{background:var(--gold-light)}
+    .btn-plan-purple{background:#8b5cf6;color:white}
+    .btn-plan-purple:hover{background:#7c3aed}
+
+    /* MONTHLY PLAN */
+    .monthly-plan{background:white;border:2px solid var(--gray-200);border-radius:16px;padding:28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px;max-width:600px;margin:0 auto;transition:all .3s}
+    .monthly-plan:hover{border-color:var(--blue-light);box-shadow:0 8px 24px rgba(37,99,235,.1)}
+    .monthly-left h3{font-size:1rem;font-weight:800;color:var(--blue-dark);margin-bottom:4px}
+    .monthly-left p{font-size:.85rem;color:var(--gray-600)}
+    .monthly-price{font-size:2.4rem;font-weight:900;color:var(--blue-light)}
+    .monthly-price span{font-size:1rem;color:var(--gray-600)}
+
+    /* COMPARE TABLE */
+    .compare-table{width:100%;border-collapse:collapse;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.06)}
+    .compare-table th{background:var(--blue-dark);color:white;padding:14px 16px;text-align:right;font-size:.88rem;font-weight:700}
+    .compare-table th:first-child{border-radius:0}
+    .compare-table td{padding:12px 16px;font-size:.85rem;border-bottom:1px solid var(--gray-100);vertical-align:middle}
+    .compare-table tr:last-child td{border:none}
+    .compare-table tr:hover td{background:var(--gray-50)}
+    .compare-table .check{color:var(--success);font-size:1rem}
+    .compare-table .cross{color:var(--danger);font-size:1rem}
+
+    /* FAQ */
+    .faq-list{max-width:700px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+    .faq-item{background:white;border:1px solid var(--gray-200);border-radius:12px;overflow:hidden}
+    .faq-q{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;cursor:pointer;font-weight:700;font-size:.92rem;color:var(--blue-dark)}
+    .faq-q i{transition:transform .3s;color:var(--blue-light);font-size:.85rem}
+    .faq-item.open .faq-q i{transform:rotate(180deg)}
+    .faq-a{display:none;padding:0 20px 16px;font-size:.88rem;color:var(--gray-600);line-height:1.8}
+    .faq-item.open .faq-a{display:block}
+
+    /* CTA */
+    .cta-section{background:linear-gradient(135deg,var(--blue-dark),var(--blue-mid));padding:60px 0;text-align:center}
+    .cta-section h2{font-size:clamp(1.6rem,3vw,2.4rem);font-weight:900;color:white;margin-bottom:12px}
+    .cta-section h2 span{color:var(--gold)}
+    .cta-section p{color:rgba(255,255,255,.7);margin-bottom:28px}
+    .btn-cta{display:inline-flex;align-items:center;gap:8px;background:var(--gold);color:var(--blue-dark);padding:14px 32px;border-radius:12px;font-weight:700;font-size:1rem;transition:all .25s}
+    .btn-cta:hover{background:var(--gold-light);transform:translateY(-2px)}
+
+    /* FOOTER */
+    footer{background:var(--blue-dark);color:rgba(255,255,255,.5);padding:24px 0;text-align:center;font-size:.82rem}
+    footer a{color:var(--gold-light)}
+
+    @media(max-width:768px){
+      .header-nav{display:none}
+      .plans-grid{grid-template-columns:1fr}
+      .video-plan-card{flex-direction:column;text-align:center}
+      .monthly-plan{flex-direction:column;text-align:center}
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="container">
+    <div class="header-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/logo.png" alt="مسار التميز" onerror="this.style.display='none'">
+        <div><h1>أكاديمية مسار التميز</h1><span>التعليم الثانوي في تونس</span></div>
+      </a>
+      <nav class="header-nav">
+        <a href="index.html">الرئيسية</a>
+        <a href="courses.html">الدروس</a>
+        <a href="pricing.html" class="active">العروض</a>
+        <a href="about.html">من نحن</a>
+        <a href="contact.html">تواصل معنا</a>
+      </nav>
+      <a href="auth.html" class="btn-auth"><i class="fas fa-sign-in-alt"></i> تسجيل الدخول</a>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-badge"><i class="fas fa-tags"></i> عروض وأسعار 2025-2026</div>
+      <h1>تعليم <span>ممتاز</span> بسعر في متناول الجميع</h1>
+      <p>اختر العرض المناسب لك — دروس مسجّلة أو حصص مباشرة مع أفضل المدرسين</p>
+    </div>
+  </div>
+</section>
+
+<main>
+
+  <!-- عرض التسجيلات -->
+  <section class="section">
+    <div class="container">
+      <div class="section-title">
+        <div class="section-tag">📹 عرض التسجيلات</div>
+        <h2>شاهد الدروس في أي وقت</h2>
+        <p style="color:var(--gray-600);font-size:.95rem;margin-top:8px">جميع التسجيلات متاحة طوال السنة الدراسية — مجانًا مع أي اشتراك في الحصص المباشرة</p>
+      </div>
+
+      <div class="video-plan-card">
+        <div class="video-plan-left">
+          <h3>عرض التسجيلات السنوي</h3>
+          <p>مشاهدة جميع الدروس المسجّلة طوال السنة الدراسية</p>
+          <ul class="video-plan-features">
+            <li><i class="fas fa-check"></i> جميع دروس السنة الدراسية</li>
+            <li><i class="fas fa-check"></i> فيديو + PDF لكل درس</li>
+            <li><i class="fas fa-check"></i> سلاسل تمارين + فروض مع إصلاح</li>
+            <li><i class="fas fa-check"></i> إمكانية المشاهدة في أي وقت</li>
+            <li><i class="fas fa-check"></i> مجاني مع أي اشتراك في الحصص</li>
+          </ul>
+        </div>
+        <div class="video-plan-price">
+          <div class="price-num">50</div>
+          <div class="price-unit">د.ت</div>
+          <div class="price-per">للسنة الدراسية كاملة</div>
+          <div class="includes-badge"><i class="fas fa-gift"></i> مجاني مع الحصص المباشرة</div>
+          <a href="auth.html#register" style="display:inline-flex;align-items:center;gap:8px;background:var(--gold);color:var(--blue-dark);padding:12px 24px;border-radius:10px;font-weight:700;font-size:.92rem;margin-top:16px;transition:all .2s">
+            <i class="fas fa-play-circle"></i> اشترك الآن
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- الحصص المباشرة -->
+  <section class="section alt">
+    <div class="container">
+      <div class="section-title">
+        <div class="section-tag">🎥 الحصص المباشرة</div>
+        <h2>حصص تفاعلية مع مدرّس متخصص</h2>
+        <p style="color:var(--gray-600);font-size:.95rem;margin-top:8px">حصتان في الأسبوع عبر Google Meet — التسجيلات مجانية مع أي عرض</p>
+      </div>
+
+      <!-- الثلاثيات -->
+      <div class="plans-grid" style="margin-bottom:32px">
+
+        <!-- الثلاثي 1 -->
+        <div class="plan-card featured">
+          <div class="popular-badge">الأكثر طلباً</div>
+          <div class="plan-period">الثلاثي الأول</div>
+          <div class="plan-name">سبتمبر → ديسمبر</div>
+          <div class="plan-dates">
+            <i class="fas fa-calendar-alt"></i>
+            1 سبتمبر — 22 ديسمبر 2025
+          </div>
+          <div class="plan-price-wrap">
+            <div class="plan-price-num">100</div>
+            <div class="plan-price-unit">د.ت</div>
+          </div>
+          <div class="plan-sessions"><i class="fas fa-video"></i> ~24 حصة مباشرة</div>
+          <ul class="plan-features">
+            <li><i class="fas fa-check"></i> حصتان/أسبوع عبر Google Meet</li>
+            <li><i class="fas fa-check"></i> التسجيلات مجاناً</li>
+            <li><i class="fas fa-check"></i> تصحيح تمارين وواجبات</li>
+            <li><i class="fas fa-check"></i> تقرير دوري لولي الأمر</li>
+          </ul>
+          <a href="auth.html#register" class="btn-plan btn-plan-gold">
+            <i class="fas fa-rocket"></i> اشترك الآن
+          </a>
+        </div>
+
+        <!-- الثلاثي 2 -->
+        <div class="plan-card">
+          <div class="plan-period">الثلاثي الثاني</div>
+          <div class="plan-name">ديسمبر → مارس</div>
+          <div class="plan-dates">
+            <i class="fas fa-calendar-alt"></i>
+            23 ديسمبر 2025 — 22 مارس 2026
+          </div>
+          <div class="plan-price-wrap">
+            <div class="plan-price-num">90</div>
+            <div class="plan-price-unit">د.ت</div>
+          </div>
+          <div class="plan-sessions"><i class="fas fa-video"></i> ~22 حصة مباشرة</div>
+          <ul class="plan-features">
+            <li><i class="fas fa-check"></i> حصتان/أسبوع عبر Google Meet</li>
+            <li><i class="fas fa-check"></i> التسجيلات مجاناً</li>
+            <li><i class="fas fa-check"></i> تصحيح تمارين وواجبات</li>
+            <li><i class="fas fa-check"></i> تقرير دوري لولي الأمر</li>
+          </ul>
+          <a href="auth.html#register" class="btn-plan btn-plan-outline">
+            <i class="fas fa-calendar-check"></i> اشترك الآن
+          </a>
+        </div>
+
+        <!-- الثلاثي 3 -->
+        <div class="plan-card">
+          <div class="plan-period">الثلاثي الثالث</div>
+          <div class="plan-name">مارس → جوان</div>
+          <div class="plan-dates">
+            <i class="fas fa-calendar-alt"></i>
+            23 مارس — 10 جوان 2026
+          </div>
+          <div class="plan-price-wrap">
+            <div class="plan-price-num">90</div>
+            <div class="plan-price-unit">د.ت</div>
+          </div>
+          <div class="plan-sessions"><i class="fas fa-video"></i> ~22 حصة مباشرة</div>
+          <ul class="plan-features">
+            <li><i class="fas fa-check"></i> حصتان/أسبوع عبر Google Meet</li>
+            <li><i class="fas fa-check"></i> التسجيلات مجاناً</li>
+            <li><i class="fas fa-check"></i> تصحيح تمارين وواجبات</li>
+            <li><i class="fas fa-check"></i> تقرير دوري لولي الأمر</li>
+          </ul>
+          <a href="auth.html#register" class="btn-plan btn-plan-outline">
+            <i class="fas fa-calendar-check"></i> اشترك الآن
+          </a>
+        </div>
+
+        <!-- مراجعة أوت -->
+        <div class="plan-card summer">
+          <div class="plan-period">🌞 مراجعة الصيف</div>
+          <div class="plan-name">مراجعة أوت</div>
+          <div class="plan-dates">
+            <i class="fas fa-calendar-alt"></i>
+            1 أوت — 31 أوت 2026
+          </div>
+          <div class="plan-price-wrap">
+            <div class="plan-price-num">50</div>
+            <div class="plan-price-unit">د.ت</div>
+          </div>
+          <div class="plan-sessions"><i class="fas fa-video"></i> ~8 حصص مكثّفة</div>
+          <ul class="plan-features">
+            <li><i class="fas fa-check"></i> مراجعة شاملة للسنة</li>
+            <li><i class="fas fa-check"></i> تحضير للسنة الجديدة</li>
+            <li><i class="fas fa-check"></i> حصص مكثّفة</li>
+            <li><i class="fas fa-check"></i> التسجيلات مجاناً</li>
+          </ul>
+          <a href="auth.html#register" class="btn-plan btn-plan-purple">
+            <i class="fas fa-sun"></i> اشترك الآن
+          </a>
+        </div>
+
+      </div>
+
+      <!-- الاشتراك الشهري -->
+      <div class="section-title" style="margin-bottom:20px">
+        <div class="section-tag">📅 اشتراك شهري</div>
+        <h2>مرونة أكثر — اشترك لمدة شهر</h2>
+      </div>
+      <div class="monthly-plan">
+        <div class="monthly-left">
+          <h3>الاشتراك الشهري</h3>
+          <p>يبدأ من تاريخ التفعيل ويستمر 30 يوماً — مناسب لمن يريد المرونة</p>
+          <ul style="list-style:none;margin-top:10px;display:flex;flex-wrap:wrap;gap:8px">
+            <li style="background:rgba(37,99,235,.08);color:var(--blue-light);padding:4px 12px;border-radius:50px;font-size:.8rem;font-weight:600"><i class="fas fa-check"></i> حصتان/أسبوع</li>
+            <li style="background:rgba(16,185,129,.08);color:var(--success);padding:4px 12px;border-radius:50px;font-size:.8rem;font-weight:600"><i class="fas fa-check"></i> تسجيلات مجانية</li>
+            <li style="background:rgba(245,158,11,.08);color:var(--gold);padding:4px 12px;border-radius:50px;font-size:.8rem;font-weight:600"><i class="fas fa-check"></i> 30 يوماً كاملة</li>
+          </ul>
+        </div>
+        <div style="text-align:center">
+          <div class="monthly-price">40 <span>د.ت</span></div>
+          <div style="font-size:.8rem;color:var(--gray-400);margin-bottom:12px">/شهر</div>
+          <a href="auth.html#register" style="display:inline-flex;align-items:center;gap:8px;background:var(--blue-light);color:white;padding:11px 22px;border-radius:10px;font-weight:700;font-size:.92rem;transition:all .2s">
+            <i class="fas fa-calendar"></i> اشترك الآن
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- جدول المقارنة -->
+  <section class="section">
+    <div class="container">
+      <div class="section-title">
+        <div class="section-tag">📊 مقارنة العروض</div>
+        <h2>اختر الأنسب لك</h2>
+      </div>
+      <div style="overflow-x:auto;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.06)">
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th>الميزة</th>
+              <th>التسجيلات فقط<br><small>50 د.ت/سنة</small></th>
+              <th>ثلاثي 1<br><small>100 د.ت</small></th>
+              <th>ثلاثي 2 أو 3<br><small>90 د.ت</small></th>
+              <th>شهري<br><small>40 د.ت</small></th>
+              <th>مراجعة أوت<br><small>50 د.ت</small></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>مشاهدة التسجيلات</strong></td>
+              <td><i class="fas fa-check check"></i></td>
+              <td><i class="fas fa-check check"></i></td>
+              <td><i class="fas fa-check check"></i></td>
+              <td><i class="fas fa-check check"></i></td>
+              <td><i class="fas fa-check check"></i></td>
+            </tr>
+            <tr>
+              <td><strong>حصص مباشرة عبر Meet</strong></td>
+              <td><i class="fas fa-times cross"></i></td>
+              <td><i class="fas fa-check check"></i> ~24 حصة</td>
+              <td><i class="fas fa-check check"></i> ~22 حصة</td>
+              <td><i class="fas fa-check check"></i> ~8 حصص</td>
+              <td><i class="fas fa-check check"></i> ~8 حصص</td>
+            </tr>
+            <tr>
+              <td><strong>تصحيح واجبات</strong></td>
+              <td><i class="fas fa-times cross"></i></td>
+              <td><i class="fas fa-check check"></i></td>
+              <td><i class="fas fa-check check"></i></td>
+              <td><i class="fas fa-check check"></i></td>
+              <td><i class="fas fa-check check"></i></td>
+            </tr>
+            <tr>
+              <td><strong>متابعة ولي الأمر</strong></td>
+              <td><i class="fas fa-check check"></i></td>
+              <td><i class="fas fa-check check"></i></td>
+              <td><i class="fas fa-check check"></i></td>
+              <td><i class="fas fa-check check"></i></td>
+              <td><i class="fas fa-check check"></i></td>
+            </tr>
+            <tr>
+              <td><strong>سعر الحصة الواحدة</strong></td>
+              <td>—</td>
+              <td style="color:var(--success);font-weight:700">≈ 4.2 د.ت</td>
+              <td style="color:var(--success);font-weight:700">≈ 4.1 د.ت</td>
+              <td style="color:var(--gold);font-weight:700">≈ 5 د.ت</td>
+              <td style="color:var(--gold);font-weight:700">≈ 6.3 د.ت</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section alt">
+    <div class="container">
+      <div class="section-title">
+        <div class="section-tag">❓ أسئلة شائعة</div>
+        <h2>كل ما تحتاج معرفته</h2>
+      </div>
+      <div class="faq-list">
+
+        <div class="faq-item">
+          <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+            كيف أدفع وأُرسل وصل الخلاص؟
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-a">
+            بعد إنشاء حسابك، قم بالدفع عبر التحويل البنكي أو البريد التونسي أو تطبيق D17 أو Carte eDinar، ثم ارفع صورة الوصل من لوحة التحكم. سيتم تفعيل حسابك خلال 24 ساعة.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+            هل التسجيلات مجانية مع الحصص المباشرة؟
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-a">
+            نعم! عند الاشتراك في أي عرض حصص مباشرة (ثلاثي أو شهري)، تحصل على إمكانية مشاهدة جميع التسجيلات مجاناً طوال مدة اشتراكك.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+            ماذا يحدث عند انتهاء الاشتراك؟
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-a">
+            ستتلقى تنبيهاً قبل 7 أيام من انتهاء اشتراكك. يمكنك التجديد في أي وقت من لوحة التحكم. في حال عدم التجديد، يتوقف الوصول للحصص المباشرة لكن يمكنك الاطلاع على المحتوى المجاني.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+            هل يمكن لولي الأمر متابعة ابنه؟
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-a">
+            نعم. ينشئ ولي الأمر حساباً خاصاً ثم يربطه بحساب التلميذ. يمكنه بعد ذلك متابعة سجل الحضور وحالة الاشتراك وتاريخ انتهائه ودفع الاشتراك مباشرة.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+            ما المستويات الدراسية المتاحة حالياً؟
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-a">
+            حالياً نقدم دروس الرياضيات للسنوات السابعة والثامنة والتاسعة أساسي. نعمل على توسيع المحتوى ليشمل مواد أخرى قريباً.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="container">
+    <h2>ابدأ رحلتك نحو <span>التميز</span> اليوم</h2>
+    <p>انضم لمئات التلاميذ الذين يتعلمون مع أفضل المدرسين في تونس</p>
+    <a href="auth.html#register" class="btn-cta">
+      <i class="fas fa-user-plus"></i> أنشئ حسابك مجاناً
+    </a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <p>© 2026 أكاديمية مسار التميز —
+      <a href="index.html">الرئيسية</a> |
+      <a href="courses.html">الدروس</a> |
+      <a href="pricing.html">العروض</a> |
+      <a href="contact.html">تواصل معنا</a>
+    </p>
+  </div>
+</footer>
+
+<script src="navbar.js"></script>
+</body>
+</html>
