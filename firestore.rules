@@ -76,7 +76,15 @@ service cloud.firestore {
 
     // Users Collection
     match /users/{userId} {
-      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow read: if isSignedIn() && (
+        isOwner(userId) || 
+        isAdmin() || 
+        (isParent() && resource.data.userType == 'student')
+      );
+      allow list: if isSignedIn() && (
+        isAdmin() || 
+        (isParent() && resource.data.userType == 'student')
+      );
       allow create: if isSignedIn() && (isOwner(userId) || isAdmin());
       allow update: if isSignedIn() && (isAdmin() || isOwner(userId));
       allow delete: if isAdmin();
@@ -125,7 +133,7 @@ service cloud.firestore {
     match /parentChildren/{linkId} {
       allow read: if isAdmin() || (isSignedIn() && (existing().parentId == request.auth.uid || existing().childId == request.auth.uid));
       allow create: if isAdmin() || isParent();
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || (isParent() && existing().parentId == request.auth.uid);
     }
 
     // Wallets

@@ -56,8 +56,12 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
         }
       }
       setChildren(list);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('Error loading children:', err);
+      // Detailed logging for AI Studio to catch rules issues
+      if (err.code === 'permission-denied') {
+        console.error('Permission denied on parentChildren or users collection');
+      }
     } finally {
       setLoading(false);
     }
@@ -71,10 +75,19 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
     setLinkError('');
     try {
       // 1. Check if student exists by ID
-      let studentSnap = await getDoc(doc(db, 'users', childIdInput.trim()));
+      let studentSnap = null;
+      try {
+        studentSnap = await getDoc(doc(db, 'users', childIdInput.trim()));
+      } catch (err: any) {
+        if (err.code === 'permission-denied') {
+           console.warn('Direct UID lookup failed (permission denied), falling back to search');
+        } else {
+           throw err;
+        }
+      }
       
-      // 1b. If not found by ID, try finding by email
-      if (!studentSnap.exists()) {
+      // 1b. If not found or permission denied, try finding by email
+      if (!studentSnap || !studentSnap.exists()) {
         const qEmail = query(collection(db, 'users'), where('email', '==', childIdInput.trim()), where('userType', '==', 'student'));
         const emailSnap = await getDocs(qEmail);
         if (!emailSnap.empty) {
@@ -83,7 +96,7 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
       }
 
       if (!studentSnap || !studentSnap.exists()) {
-        setLinkError('رقم التلميذ أو البريد غير صحيح');
+        setLinkError('رقم التلميذ أو البريد غير صحيح أو ليس لحساب تلميذ');
         return;
       }
       
@@ -111,15 +124,19 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
       await addDoc(collection(db, 'parentChildren'), {
         parentId: user.uid,
         childId: studentId,
-        linkedAt: serverTimestamp()
+        createdAt: serverTimestamp() // Match blueprint
       });
 
       setChildIdInput('');
       setShowLinkModal(false);
       loadChildren();
-    } catch (err) {
-      console.error(err);
-      setLinkError('حدث خطأ أثناء محاولة الربط');
+    } catch (err: any) {
+      console.error('Linking Error:', err);
+      if (err.code === 'permission-denied') {
+        setLinkError('فشل الربط بسبب نقص الصلاحيات. يرجى التأكد من أن حسابك مصنف كـ "ولي أمر".');
+      } else {
+        setLinkError('حدث خطأ أثناء محاولة الربط - ' + (err.message || 'خطأ مجهول'));
+      }
     } finally {
       setLinking(false);
     }

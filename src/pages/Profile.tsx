@@ -143,6 +143,33 @@ export default function Profile() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                            <div className="space-y-2">
+                              <label className="text-[0.7rem] font-bold text-gray-400 uppercase tracking-widest px-1">نوع الحساب</label>
+                              <div className="relative">
+                                <select 
+                                  value={userData?.userType}
+                                  onChange={async (e) => {
+                                     const newType = e.target.value;
+                                     if (confirm('تغيير نوع الحساب قد يؤثر على صلاحياتك وجدولة دروسك. هل أنت متأكد؟')) {
+                                        try {
+                                           setSaving(true);
+                                           await updateDoc(doc(db, 'users', auth.currentUser!.uid), { userType: newType });
+                                           setUserData({ ...userData, userType: newType });
+                                        } finally {
+                                           setSaving(false);
+                                        }
+                                     }
+                                  }}
+                                  className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-3.5 pr-10 text-[0.92rem] font-bold outline-none focus:border-blue-light focus:bg-white cursor-pointer transition-all shadow-inner appearance-none"
+                                >
+                                   <option value="student">تلميذ</option>
+                                   <option value="parent">ولي أمر</option>
+                                   {userData?.userType === 'teacher' && <option value="teacher">أستاذ</option>}
+                                   {userData?.userType === 'admin' && <option value="admin">مدير</option>}
+                                </select>
+                                <Shield className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                              </div>
+                           </div>
+                           <div className="space-y-2">
                               <label className="text-[0.7rem] font-bold text-gray-400 uppercase tracking-widest px-1">البريد الإلكتروني</label>
                               <div className="relative">
                                 <input readOnly value={userData?.email} type="email" className="w-full rounded-2xl border border-gray-50 bg-gray-50 p-3.5 pr-10 text-[0.92rem] font-bold text-gray-300 outline-none cursor-not-allowed shadow-inner" />

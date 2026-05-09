@@ -57,10 +57,21 @@ export default function Auth() {
   useEffect(() => {
     if (location.hash === '#register') setMode('register');
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user && !loading) {
+      if (user && !loading && !localStorage.getItem('pendingGoogleUser')) {
         navigate('/dashboard');
       }
     });
+
+    // Check for pending Google user
+    const pending = localStorage.getItem('pendingGoogleUser');
+    if (pending) {
+      const data = JSON.parse(pending);
+      setFirstName(data.parts?.[0] || '');
+      setLastName(data.parts?.slice(1).join(' ') || '');
+      setEmail(data.email || '');
+      setMode('register');
+    }
+
     return () => unsubscribe();
   }, [location.hash, navigate]);
 
@@ -81,7 +92,7 @@ export default function Auth() {
       case 'auth/invalid-email':
         return 'صيغة البريد غير صحيحة';
       case 'auth/network-request-failed':
-        return 'فشل الاتصال بالخادم — يرجى التحقق من الإنترنت وتأكد من أن النطاق (Domain) مسموح به في إعدادات Firebase';
+        return 'فشل الاتصال بالخادم — يرجى التحقق من إعدادات النطاق (Domain) في Firebase console وإضافته للقائمة المسموح بها (Authorized Domains).';
       case 'auth/too-many-requests':
         return 'محاولات كثيرة خاطئة — يرجى المحاولة لاحقاً';
       default:
@@ -96,6 +107,7 @@ export default function Auth() {
     try {
       console.log('Logging in with:', email);
       await signInWithEmailAndPassword(auth, email, password);
+      localStorage.removeItem('pendingGoogleUser');
       navigate('/dashboard');
     } catch (err: any) {
       console.error('Login Error Object:', err);
@@ -105,12 +117,22 @@ export default function Auth() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!firstName || !lastName || !email || !password) { setError('يرجى إكمال الحقول الأساسية'); return; }
-    if (password.length < 6) { setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return; }
+    const pending = localStorage.getItem('pendingGoogleUser');
+    
+    if (!firstName || !lastName || !email || (!password && !pending)) { 
+      setError('يرجى إكمال الحقول الأساسية'); 
+      return; 
+    }
     
     setLoading(true); setError('');
     try {
-      const { user } = await createUserWithEmailAndPassword(auth, email, password);
+      let user = auth.currentUser;
+
+      if (!user) {
+        const res = await createUserWithEmailAndPassword(auth, email, password);
+        user = res.user;
+      }
+
       await updateProfile(user, { displayName: `${firstName} ${lastName}` });
       
       const userData = {
@@ -123,6 +145,7 @@ export default function Auth() {
       };
       
       await setDoc(doc(db, 'users', user.uid), userData);
+      localStorage.removeItem('pendingGoogleUser');
       navigate('/dashboard');
     } catch (err: any) {
       setError(handleAuthError(err.code));
@@ -136,16 +159,15 @@ export default function Auth() {
       const snap = await getDoc(doc(db, 'users', user.uid));
       
       if (!snap.exists()) {
-        const parts = (user.displayName || '').split(' ');
-        await setDoc(doc(db, 'users', user.uid), {
-          firstName: parts[0] || '',
-          lastName: parts.slice(1).join(' ') || '',
+        localStorage.setItem('pendingGoogleUser', JSON.stringify({
+          uid: user.uid,
           email: user.email,
-          userType: 'student',
-          level: '',
-          subscriptionStatus: 'inactive',
-          createdAt: serverTimestamp()
-        });
+          displayName: user.displayName,
+          parts: (user.displayName || '').split(' ')
+        }));
+        setMode('register');
+        setError('يرجى إكمال اختيار نوع الحساب لإتمام التسجيل بـ Google');
+        return;
       }
       navigate('/dashboard');
     } catch (err: any) {
