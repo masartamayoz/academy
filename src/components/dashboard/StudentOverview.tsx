@@ -60,6 +60,9 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
         userName: userData.displayName || 'مستخدم',
         userEmail: user.email,
         receiptURL: receiptFile,
+        planName: userData.pendingPlan?.name || 'اشتراك عام',
+        planId: userData.pendingPlan?.id || 'general',
+        price: userData.pendingPlan?.price || '—',
         status: 'pending',
         level: userData.level || 'غير محدد',
         createdAt: serverTimestamp()

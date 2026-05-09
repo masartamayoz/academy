@@ -1978,14 +1978,14 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                   <div key={r.id} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex items-center justify-between group">
                      <div className="flex items-center gap-5">
                         <div className="h-14 w-14 rounded-2xl bg-gray-50 flex items-center justify-center overflow-hidden border border-gray-100">
-                           {r.receiptUrl ? <img src={r.receiptUrl} alt="Receipt" className="w-full h-full object-cover" /> : <ReceiptIcon className="text-gray-300" />}
+                           {(r.receiptURL || r.receiptUrl) ? <img src={r.receiptURL || r.receiptUrl} alt="Receipt" className="w-full h-full object-cover" /> : <ReceiptIcon className="text-gray-300" />}
                         </div>
                         <div>
                            <h4 className="text-sm font-black text-blue-dark">{u?.displayName || 'مستخدم مجهول'}</h4>
                            <p className="text-[0.65rem] text-gray-400 font-bold">{u?.phone || 'بدون هاتف'} • {new Date(r.createdAt?.toDate()).toLocaleString('ar-TN')}</p>
                            <div className="mt-2 flex gap-2">
-                             <span className="px-2 py-0.5 rounded-lg bg-blue-50 text-blue-dark text-[0.55rem] font-black">{r.plan || 'شهري'}</span>
-                             <span className="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-600 text-[0.55rem] font-black">{r.amount || '--'} د.ت</span>
+                             <span className="px-2 py-0.5 rounded-lg bg-blue-50 text-blue-dark text-[0.55rem] font-black">{r.planName || r.plan || 'اشتراك'}</span>
+                             <span className="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-600 text-[0.55rem] font-black">{r.price || r.amount || '--'} د.ت</span>
                            </div>
                         </div>
                      </div>

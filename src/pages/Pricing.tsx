@@ -1,14 +1,84 @@
 import Navbar from '@/src/components/layout/Navbar';
 import Footer from '@/src/components/layout/Footer';
-import { Check, X, ShieldQuestion, Tag, PlayCircle, Calendar, Rocket, Sun } from 'lucide-react';
-import { useState } from 'react';
+import { Check, X, ShieldQuestion, Tag, PlayCircle, Calendar, Rocket, Sun, Receipt, Upload, Loader2, Camera, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/src/lib/utils';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { auth, db } from '../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function PricingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [userData, setUserData] = useState<any>(null);
+  const [showSubModal, setShowSubModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [uploading, setUploading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      setUser(u);
+      if (u) {
+        const snap = await getDoc(doc(db, 'users', u.uid));
+        if (snap.exists()) setUserData(snap.data());
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleSubscribeClick = (plan: any) => {
+    if (!user) {
+      navigate('/auth#register');
+      return;
+    }
+    setSelectedPlan(plan);
+    setShowSubModal(true);
+  };
+
+  const handleUploadReceipt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !selectedPlan) return;
+
+    setUploading(true);
+    try {
+      await addDoc(collection(db, 'receipts'), {
+        userId: user.uid,
+        userEmail: user.email,
+        userName: userData?.displayName || user.displayName,
+        planId: selectedPlan.id,
+        planName: selectedPlan.name,
+        price: selectedPlan.price,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+        receiptURL: 'https://images.unsplash.com/photo-1554224155-169641357599?auto=format&fit=crop&q=80&w=300'
+      });
+
+      setSuccess(true);
+      setTimeout(() => {
+        setShowSubModal(false);
+        setSuccess(false);
+        navigate('/dashboard');
+      }, 3000);
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ أثناء رفع الوصل');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const plans = [
+    { 
+      id: 'recordings_yearly',
+      name: 'عرض التسجيلات السنوي',
+      price: '50',
+      period: 'سنة كاملة',
+      type: 'recordings'
+    },
     { 
       id: 'trimester1', 
       name: 'الثلاثي الأول', 
@@ -52,6 +122,13 @@ export default function PricingPage() {
       featured: false,
       icon: Sun,
       color: 'purple'
+    },
+    {
+      id: 'monthly',
+      name: 'الاشتراك الشهري',
+      price: '40',
+      period: '30 يوم',
+      type: 'live'
     }
   ];
 
@@ -87,7 +164,7 @@ export default function PricingPage() {
                <h2 className="text-3xl font-black text-blue-dark">شاهد الدروس في أي وقت</h2>
             </div>
             
-            <div className="mx-auto max-w-3xl overflow-hidden rounded-3xl bg-gradient-to-br from-blue-dark to-blue-mid p-10 text-white shadow-2xl flex flex-wrap items-center justify-between gap-8">
+            <div className="mx-auto max-w-3xl overflow-hidden rounded-3xl bg-gradient-to-br from-blue-dark to-blue-mid p-10 text-white shadow-2xl flex flex-wrap items-center justify-between gap-8 text-right">
               <div className="flex-1 min-w-[300px]">
                 <h3 className="text-xl font-black text-gold-light mb-2">عرض التسجيلات السنوي</h3>
                 <p className="text-white/70 mb-6 font-Tajawal">مشاهدة جميع الدروس المسجّلة طوال السنة الدراسية لكل المستويات.</p>
@@ -102,9 +179,12 @@ export default function PricingPage() {
               <div className="text-center w-full sm:w-auto">
                 <div className="text-5xl font-black text-gold-brand">50</div>
                 <div className="text-white/50 text-sm mt-1">د.ت / سنة</div>
-                <Link to="/auth#register" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gold-brand px-8 py-3 text-blue-dark font-black hover:bg-gold-light transition-all">
+                <button 
+                  onClick={() => handleSubscribeClick(plans[0])}
+                  className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gold-brand px-8 py-3 text-blue-dark font-black hover:bg-gold-light transition-all"
+                >
                    <PlayCircle size={18} /> اشترك الآن
-                </Link>
+                </button>
               </div>
             </div>
           </div>
@@ -119,7 +199,7 @@ export default function PricingPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {plans.map((plan) => (
+              {plans.slice(1, 5).map((plan) => (
                 <div key={plan.id} className={cn(
                   "relative group rounded-2xl border-2 p-7 transition-all hover:-translate-y-1.5 hover:shadow-2xl",
                   plan.featured ? "border-blue-light bg-blue-dark text-white shadow-blue-900/10" : 
@@ -131,7 +211,7 @@ export default function PricingPage() {
                   <p className={cn("text-xs font-bold mb-1", plan.featured ? "text-gold-light" : "text-blue-light")}>{plan.period}</p>
                   <h4 className={cn("text-lg font-black mb-1", plan.featured ? "text-white" : "text-blue-dark")}>{plan.name}</h4>
                   <div className="flex items-center gap-1.5 text-[0.75rem] opacity-60 mb-5">
-                    <Calendar size={14} /> {plan.dates}
+                    {plan.icon && <plan.icon size={14} />} {plan.dates}
                   </div>
                   
                   <div className="mb-6 flex items-baseline gap-1.5">
@@ -140,7 +220,7 @@ export default function PricingPage() {
                   </div>
 
                   <p className="text-xs font-bold mb-4 flex items-center gap-1.5 opacity-80">
-                    <plan.icon size={16} /> {plan.sessions}
+                    {plan.icon && <plan.icon size={16} />} {plan.sessions}
                   </p>
 
                   <ul className="space-y-2 mb-8 border-t border-gray-100 pt-5">
@@ -151,13 +231,16 @@ export default function PricingPage() {
                     ))}
                   </ul>
 
-                  <Link to="/auth#register" className={cn(
-                    "block w-full rounded-xl py-3 text-center text-sm font-black transition-all",
-                    plan.featured ? "bg-gold-brand text-blue-dark hover:bg-gold-light" : 
-                    "bg-blue-light text-white hover:bg-blue-brand"
-                  )}>
+                  <button 
+                    onClick={() => handleSubscribeClick(plan)}
+                    className={cn(
+                      "block w-full rounded-xl py-3 text-center text-sm font-black transition-all",
+                      plan.featured ? "bg-gold-brand text-blue-dark hover:bg-gold-light" : 
+                      "bg-blue-light text-white hover:bg-blue-brand"
+                    )}
+                  >
                     اشترك الآن
-                  </Link>
+                  </button>
                 </div>
               ))}
             </div>
@@ -173,7 +256,12 @@ export default function PricingPage() {
                     <div className="text-3xl font-black text-blue-light leading-none">40</div>
                     <div className="text-[0.7rem] text-gray-400 mt-1">د.ت / شهر</div>
                   </div>
-                  <Link to="/auth#register" className="rounded-xl bg-blue-dark px-6 py-3 text-white font-bold text-sm hover:bg-blue-brand transition-all">اشترك</Link>
+                  <button 
+                    onClick={() => handleSubscribeClick(plans[5])}
+                    className="rounded-xl bg-blue-dark px-6 py-3 text-white font-bold text-sm hover:bg-blue-brand transition-all"
+                  >
+                    اشترك
+                  </button>
                </div>
             </div>
           </div>
@@ -219,7 +307,7 @@ export default function PricingPage() {
         </section>
 
         {/* FAQ Section */}
-        <section className="py-20 bg-gray-50 border-t border-gray-200">
+        <section className="py-20 bg-gray-50 border-t border-gray-200 text-right">
           <div className="container mx-auto px-5">
              <div className="mb-12 text-center">
                 <ShieldQuestion size={48} className="mx-auto text-blue-light mb-4 opacity-20" />
@@ -252,11 +340,113 @@ export default function PricingPage() {
            <div className="container mx-auto px-5 relative z-10">
               <h2 className="text-3xl font-black mb-4 sm:text-4xl">ابدأ رحلتك نحو <span className="text-gold-brand">التميز</span> اليوم</h2>
               <p className="text-white/60 mb-10 max-w-md mx-auto">انضم لمئات التلاميذ الذين يتعلمون مع أفضل المدرسين في تونس بنظام تفاعلي حديث.</p>
-              <Link to="/auth#register" className="inline-flex items-center gap-2 rounded-2xl bg-gold-brand px-10 py-5 text-blue-dark font-black text-lg hover:bg-gold-light hover:-translate-y-1 shadow-2xl shadow-gold-brand/20 transition-all">
+              <button 
+                onClick={() => handleSubscribeClick(plans[0])}
+                className="inline-flex items-center gap-2 rounded-2xl bg-gold-brand px-10 py-5 text-blue-dark font-black text-lg hover:bg-gold-light hover:-translate-y-1 shadow-2xl shadow-gold-brand/20 transition-all"
+              >
                 أنشئ حسابك مجاناً
-              </Link>
+              </button>
            </div>
         </section>
+      
+      <AnimatePresence>
+        {showSubModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               onClick={() => !uploading && setShowSubModal(false)}
+               className="absolute inset-0 bg-blue-dark/60 backdrop-blur-sm"
+            />
+            <motion.div 
+               initial={{ opacity: 0, scale: 0.9, y: 30 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.9, y: 30 }}
+               className="relative w-full max-w-[560px] rounded-[36px] bg-white p-10 shadow-2xl text-right"
+            >
+              {!success ? (
+                <>
+                  <div className="mb-8 flex items-center justify-between">
+                     <button onClick={() => setShowSubModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                        <X size={20} />
+                     </button>
+                     <div className="flex items-center gap-3">
+                        <h2 className="text-2xl font-black text-blue-dark">إتمام الاشتراك</h2>
+                        <div className="h-12 w-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-brand">
+                           <Receipt size={24} />
+                        </div>
+                     </div>
+                  </div>
+
+                  <div className="mb-10 rounded-3xl bg-blue-50/50 border border-blue-100 p-6">
+                     <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-bold text-gray-500">العرض المختـار:</span>
+                        <span className="text-lg font-black text-blue-brand">{selectedPlan?.name}</span>
+                     </div>
+                     <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-gray-500">المبلغ المطلوب:</span>
+                        <span className="text-2xl font-black text-blue-dark">{selectedPlan?.price} د.ت</span>
+                     </div>
+                  </div>
+
+                  <div className="space-y-6">
+                     <div className="p-6 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50">
+                        <h4 className="font-black text-blue-dark mb-3">خطوات الدفع:</h4>
+                        <ol className="space-y-3 text-sm text-gray-600 font-bold list-decimal list-inside pr-2">
+                           <li>قم بالتحويل عبر <span className="text-blue-brand">D17</span> أو <span className="text-blue-brand">البريد</span> أو <span className="text-blue-brand">البنك</span>.</li>
+                           <li>الاسم: <span className="text-blue-dark">أكاديمية مسار التميز</span></li>
+                           <li>الرقم: <span className="text-blue-dark">17 000 000 000000 000</span></li>
+                           <li>صور "وصل الخلاص" (العملية بنجاح).</li>
+                        </ol>
+                     </div>
+
+                     <form onSubmit={handleUploadReceipt} className="space-y-6">
+                        <div className="space-y-2">
+                           <label className="text-[0.7rem] font-black text-gray-400 uppercase pr-2">تحميل صورة الوصل</label>
+                           <label className="relative flex min-h-[140px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-100 bg-blue-50/30 transition-all hover:bg-blue-50 hover:border-blue-brand">
+                              <input type="file" required className="hidden" accept="image/*" />
+                              <Camera className="mb-2 text-blue-brand opacity-40" size={32} />
+                              <p className="text-sm font-black text-blue-brand">انقر لاختيار الصورة</p>
+                              <p className="text-[0.6rem] text-gray-400 mt-1">PNG, JPG (حد أقصى 5 ميجابايت)</p>
+                           </label>
+                        </div>
+
+                        <div className="flex gap-4 pt-4">
+                           <button 
+                             type="submit" 
+                             disabled={uploading}
+                             className="flex-[2] rounded-2xl bg-blue-brand py-4 text-sm font-black text-white shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                           >
+                             {uploading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+                             إرسال الوصل للتفعيل
+                           </button>
+                        </div>
+                     </form>
+                  </div>
+                  
+                  <div className="mt-8 flex items-center gap-2 text-[0.7rem] font-bold text-amber-600 bg-amber-50 p-4 rounded-xl border border-amber-100">
+                     <AlertCircle size={14} />
+                     سيتم مراجعة الوصل وتفعيل حسابك يدوياً خلال أقل من 24 ساعة.
+                  </div>
+                </>
+              ) : (
+                <div className="py-12 text-center">
+                   <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-emerald-100 text-emerald-500 shadow-xl shadow-emerald-500/10">
+                      <Check size={48} strokeWidth={3} />
+                   </div>
+                   <h3 className="text-3xl font-black text-blue-dark mb-3">تم إرسال الوصل بنجاح!</h3>
+                   <p className="text-gray-500 font-bold max-w-xs mx-auto">شكراً لثقتكم. فريقنا يقوم الآن بمراجعة العملية وسيتم إرسال تنبيه لك فور التفعيل.</p>
+                   <div className="mt-10 flex items-center justify-center gap-2 text-sm font-black text-blue-brand">
+                      <Loader2 size={18} className="animate-spin" />
+                      جاري العودة للوحة التحكم...
+                   </div>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       </main>
 
       <Footer />
