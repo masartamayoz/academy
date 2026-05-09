@@ -830,6 +830,31 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                     <label className="text-xs font-black text-gray-400 uppercase pr-2">رقم</label>
                     <input type="number" value={newContent.order} onChange={e => setNewContent({...newContent, order: parseInt(e.target.value)})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
                  </div>
+                 <div className="space-y-2">
+                    <label className="text-xs font-black text-gray-400 uppercase pr-2">حالة المحتوى</label>
+                    <div className="flex gap-2">
+                       <button 
+                         type="button"
+                         onClick={() => setNewContent({...newContent, isFree: true})}
+                         className={cn(
+                           "flex-1 py-4 rounded-2xl text-[0.7rem] font-black transition-all",
+                           newContent.isFree ? "bg-emerald-600 text-white shadow-lg" : "bg-gray-50 text-gray-400 border border-gray-100 shadow-inner"
+                         )}
+                       >
+                          مجاني (Free)
+                       </button>
+                       <button 
+                         type="button"
+                         onClick={() => setNewContent({...newContent, isFree: false})}
+                         className={cn(
+                           "flex-1 py-4 rounded-2xl text-[0.7rem] font-black transition-all",
+                           !newContent.isFree ? "bg-blue-dark text-white shadow-lg" : "bg-gray-50 text-gray-400 border border-gray-100 shadow-inner"
+                         )}
+                       >
+                          مدفوع (Paid)
+                       </button>
+                    </div>
+                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -925,6 +950,12 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                           <Layers size={12} />
                           <span>سنة {c.level}</span>
                         </div>
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-lg text-[0.6rem] font-black",
+                          c.isFree ? "bg-emerald-100 text-emerald-700" : "bg-blue-dark/5 text-blue-dark/40"
+                        )}>
+                          {c.isFree ? 'مجاني' : 'مدفوع'}
+                        </span>
                       </div>
 
                       <h4 className="text-sm font-black text-blue-dark mb-4 line-clamp-2 min-h-[2.5rem]">
@@ -2382,6 +2413,31 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
               <div className="space-y-2">
                 <label className="text-xs font-black text-gray-400 uppercase pr-2">رقم</label>
                 <input type="number" value={c.order} onChange={e => setC({...c, order: parseInt(e.target.value)})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
+              </div>
+              <div className="space-y-2">
+                 <label className="text-xs font-black text-gray-400 uppercase pr-2">حالة المحتوى</label>
+                 <div className="flex gap-2">
+                    <button 
+                      type="button"
+                      onClick={() => setC({...c, isFree: true})}
+                      className={cn(
+                        "flex-1 py-4 rounded-2xl text-[0.7rem] font-black transition-all",
+                        c.isFree ? "bg-emerald-600 text-white shadow-lg" : "bg-gray-50 text-gray-400 border border-gray-100"
+                      )}
+                    >
+                       مجاني
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setC({...c, isFree: false})}
+                      className={cn(
+                        "flex-1 py-4 rounded-2xl text-[0.7rem] font-black transition-all",
+                        !c.isFree ? "bg-blue-dark text-white shadow-lg" : "bg-gray-50 text-gray-400 border border-gray-100"
+                      )}
+                    >
+                       مدفوع
+                    </button>
+                 </div>
               </div>
               {(c.type === 'lesson' || c.type === 'exercise') && (
                 <div className="space-y-2">

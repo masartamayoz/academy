@@ -120,37 +120,35 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
   }, [activeTab, userData]);
 
   const loadOverviewData = async () => {
-    if (userData?.subscriptionStatus === 'active') {
-       setLoading(true);
-       try {
-         // Fetch videos
-         const vQuery = query(
-           collection(db, 'videos'), 
-           where('level', '==', String(userData.level || '7')),
-           limit(20)
-         );
-         const vSnap = await getDocs(vQuery);
-         const docs = vSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-         docs.sort((a: any, b: any) => {
-           const timeA = a.createdAt?.toMillis?.() || a.createdAt || 0;
-           const timeB = b.createdAt?.toMillis?.() || b.createdAt || 0;
-           return timeB - timeA;
-         });
-         setRecentVideos(docs.slice(0, 4));
+    setLoading(true);
+    try {
+      // Fetch videos
+      const vQuery = query(
+        collection(db, 'videos'), 
+        where('level', '==', String(userData?.level || '7')),
+        limit(20)
+      );
+      const vSnap = await getDocs(vQuery);
+      const docs = vSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      docs.sort((a: any, b: any) => {
+        const timeA = a.createdAt?.toMillis?.() || a.createdAt || 0;
+        const timeB = b.createdAt?.toMillis?.() || b.createdAt || 0;
+        return timeB - timeA;
+      });
+      setRecentVideos(docs.slice(0, 4));
 
-         // Fetch group info if assigned
-         if (userData.group) {
-            const gQuery = query(collection(db, 'groups'), where('name', '==', userData.group));
-            const gSnap = await getDocs(gQuery);
-            if (!gSnap.empty) {
-               setGroupInfo({ id: gSnap.docs[0].id, ...gSnap.docs[0].data() });
-            }
-         }
-       } catch (err) {
-         console.error(err);
-       } finally {
-         setLoading(false);
-       }
+      // Fetch group info if assigned
+      if (userData?.group) {
+        const gQuery = query(collection(db, 'groups'), where('name', '==', userData.group));
+        const gSnap = await getDocs(gQuery);
+        if (!gSnap.empty) {
+          setGroupInfo({ id: gSnap.docs[0].id, ...gSnap.docs[0].data() });
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -241,31 +239,89 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
               <div className="py-20 text-center"><Loader2 className="mx-auto h-10 w-10 animate-spin text-gray-200" /></div>
             ) : recentVideos.length > 0 ? (
               <div className="grid gap-4 sm:grid-cols-2">
-                {recentVideos.map(v => (
-                  <div key={v.id} className="group overflow-hidden rounded-2xl border border-gray-100 bg-white p-2 transition-all hover:border-blue-light/30 hover:shadow-xl hover:shadow-blue-900/5 relative">
-                    <div className="relative aspect-video overflow-hidden rounded-xl bg-blue-dark">
-                      <img 
-                        src={`https://img.youtube.com/vi/${extractYTId(v.videoUrl)}/mqdefault.jpg`} 
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110 opacity-80" 
-                        alt={v.title}
-                      />
-                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
-                      <div className="absolute bottom-2 right-2 rounded-md bg-blue-dark/80 px-2 py-0.5 text-[0.65rem] font-bold text-white backdrop-blur-sm">
-                        {v.type === 'lesson' ? 'درس' : 'تمارين'}
+                {recentVideos.map(v => {
+                  const ytId = extractYTId(v.videoUrls?.[0] || v.videoUrl);
+                  const isPdf = !ytId && (v.pdfText || v.pdfSolution);
+                  const isAccessible = v.isFree || userData?.subscriptionStatus === 'active';
+                  
+                  return (
+                    <div key={v.id} className="group overflow-hidden rounded-2xl border border-gray-100 bg-white p-2 transition-all hover:border-blue-light/30 hover:shadow-xl hover:shadow-blue-900/5 relative">
+                      <div className="relative aspect-video overflow-hidden rounded-xl bg-[#0A0D14]">
+                        {ytId ? (
+                          <img 
+                            src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} 
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110 opacity-70 group-hover:opacity-100" 
+                            alt={v.title}
+                          />
+                        ) : (
+                          <div className={cn(
+                            "h-full w-full flex flex-col items-center justify-center gap-2 transition-all duration-500 group-hover:scale-110",
+                            isPdf ? "bg-gradient-to-br from-red-500/20 to-red-600/5" : "bg-gradient-to-br from-blue-brand/20 to-blue-dark/5"
+                          )}>
+                            {isPdf ? (
+                              <FileText size={32} className="text-red-500/40 group-hover:text-red-500 transition-colors" />
+                            ) : (
+                              <BookOpen size={32} className="text-blue-light/40 group-hover:text-blue-brand transition-colors" />
+                            )}
+                            <div className="text-[0.6rem] font-black uppercase tracking-widest text-white/20">
+                              {isPdf ? 'Document PDF' : 'Educational Content'}
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60 transition-opacity group-hover:opacity-30" />
+                        
+                        {/* Status Badges */}
+                        <div className="absolute top-2 left-2 flex flex-col gap-2">
+                           {v.isFree ? (
+                             <span className="rounded-lg bg-emerald-500 px-2 py-0.5 text-[0.6rem] font-black text-white shadow-lg flex items-center gap-1">
+                                <Zap size={10} fill="white" /> مجاني
+                             </span>
+                           ) : (
+                             userData?.subscriptionStatus !== 'active' && (
+                               <span className="rounded-lg bg-blue-dark/80 backdrop-blur-md px-2 py-0.5 text-[0.6rem] font-black text-gold-brand shadow-lg flex items-center gap-1 border border-white/10">
+                                  <Lock size={10} /> مدفوع
+                               </span>
+                             )
+                           )}
+                        </div>
+
+                        <div className={cn(
+                          "absolute bottom-2 right-2 rounded-md px-2 py-0.5 text-[0.65rem] font-bold text-white backdrop-blur-sm",
+                          v.type === 'lesson' ? 'bg-blue-dark/80' : 
+                          v.type === 'exercise' ? 'bg-emerald-600/80' : 
+                          'bg-amber-600/80'
+                        )}>
+                          {v.type === 'lesson' ? 'درس فيديو' : 
+                           v.type === 'exercise' ? 'تمارين' : 
+                           v.type === 'assignment' ? 'فرض مراقبة' : 'فرض تأليفي'}
+                        </div>
+                        
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                           <div className={cn(
+                             "h-10 w-10 rounded-full flex items-center justify-center text-white shadow-xl scale-75 group-hover:scale-100 transition-transform",
+                             isAccessible ? (ytId ? "bg-blue-light" : "bg-gold-brand text-blue-dark") : "bg-black/60 backdrop-blur-md text-gold-brand border border-white/20"
+                           )}>
+                              {isAccessible ? (
+                                ytId ? <PlayCircle size={20} fill="white" /> : <Eye size={20} />
+                              ) : (
+                                <Lock size={20} />
+                              )}
+                           </div>
+                        </div>
                       </div>
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                         <div className="h-10 w-10 rounded-full bg-blue-light flex items-center justify-center text-white shadow-xl">
-                            <PlayCircle size={20} fill="white" />
-                         </div>
+                      <div className="p-3 text-right">
+                        <h4 className="truncate text-sm font-black text-blue-dark mb-0.5">{v.title}</h4>
+                        <div className="flex items-center justify-between">
+                          <p className="text-[0.65rem] text-gray-400 font-bold">{v.chapter}</p>
+                        </div>
                       </div>
+                      {isAccessible && (
+                        <Link to={`/courses?v=${v.id}`} className="absolute inset-0 z-10" />
+                      )}
                     </div>
-                    <div className="p-3">
-                      <h4 className="truncate text-sm font-black text-blue-dark mb-1">{v.title}</h4>
-                      <p className="text-[0.7rem] text-gray-400 font-bold">{v.chapter}</p>
-                    </div>
-                    <Link to={`/courses?v=${v.id}`} className="absolute inset-0 z-10" />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="py-20 text-center text-gray-400 border-2 border-dashed border-gray-50 rounded-3xl">
@@ -329,7 +385,7 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
 
   const extractYTId = (url: string) => {
     const m = (url || '').match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
-    return m ? m[1] : '';
+    return m ? m[1] : null;
   };
 
   const renderTabHeader = (title: string, icon: any, action?: { label: string, to: string }) => (

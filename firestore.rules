@@ -13,26 +13,30 @@ service cloud.firestore {
     
     function isEmailVerified() {
       // Allow Google login users as verified by default if they have a verified token
-      return isSignedIn() && (request.auth.token.email_verified == true || request.auth.token.firebase.sign_in_provider == 'google.com');
+      return isSignedIn() && (
+        request.auth.token.email_verified == true || 
+        request.auth.token.firebase.sign_in_provider == 'google.com'
+      );
     }
 
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(path) ? get(path).data : {};
     }
 
     function isAdmin() {
       return isSignedIn() && (
         request.auth.token.email == 'masartamayoz@gmail.com' || 
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().userType == 'admin')
+        getUserData().get('userType', 'student') == 'admin'
       );
     }
 
     function isTeacher() {
-      return isSignedIn() && (isAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().userType == 'teacher'));
+      return isSignedIn() && (isAdmin() || getUserData().get('userType', 'student') == 'teacher');
     }
 
     function isParent() {
-      return isSignedIn() && (isAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().userType == 'parent'));
+      return isSignedIn() && (isAdmin() || getUserData().get('userType', 'student') == 'parent');
     }
 
     function isOwner(userId) {
@@ -80,7 +84,11 @@ service cloud.firestore {
 
     // Videos Collection
     match /videos/{videoId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (
+        isAdmin() || 
+        isTeacher() || 
+        (resource.data.get('level', '') == getUserData().get('level', ''))
+      );
       allow write: if isAdmin();
     }
 

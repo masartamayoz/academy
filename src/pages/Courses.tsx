@@ -40,8 +40,10 @@ export default function Courses() {
   }, []);
 
   useEffect(() => {
-    loadContent();
-  }, [currentLevel, currentType]);
+    if (userData) {
+      loadContent();
+    }
+  }, [currentLevel, currentType, userData]);
 
   useEffect(() => {
     if (viewerItem) {
@@ -59,12 +61,16 @@ export default function Courses() {
   }, [viewerItem]);
 
   const loadContent = async () => {
+    let targetLevel = currentLevel;
+    if (userData?.userType === 'student' && userData?.level) {
+      targetLevel = userData.level;
+    }
+
     setLoading(true);
     try {
-      // We removed orderBy from the query to avoid composite index requirements
       const q = query(
         collection(db, 'videos'), 
-        where('level', '==', String(currentLevel)), 
+        where('level', '==', String(targetLevel)), 
         where('type', '==', currentType)
       );
       const snap = await getDocs(q);
@@ -113,20 +119,32 @@ export default function Courses() {
           <div className="p-8 border-b border-gray-50 bg-gradient-to-br from-blue-dark to-blue-mid">
              <label className="text-[0.65rem] font-black uppercase tracking-[0.15em] text-white/40 mb-4 block">اختر مستواك الدراسي</label>
              <div className="flex gap-2.5">
-               {['7', '8', '9'].map(lvl => (
-                 <button 
-                  key={lvl} 
-                  onClick={() => setCurrentLevel(lvl)} 
-                  className={cn(
-                    "flex-1 rounded-[18px] py-3 text-[1rem] font-black transition-all duration-300", 
-                    currentLevel === lvl 
-                      ? "bg-gold-brand text-blue-dark shadow-lg shadow-gold-brand/20 scale-105" 
-                      : "bg-white/10 text-white hover:bg-white/20 border border-white/10"
-                  )}
-                 >
-                   {lvl}
-                 </button>
-               ))}
+               {['7', '8', '9'].map(lvl => {
+                 const isSameLevel = lvl === String(userData?.level);
+                 const canAccess = userData?.userType === 'admin' || userData?.userType === 'teacher' || isSameLevel;
+                 
+                 return (
+                   <button 
+                    key={lvl} 
+                    disabled={!canAccess}
+                    onClick={() => canAccess && setCurrentLevel(lvl)} 
+                    className={cn(
+                      "flex-1 rounded-[18px] py-3 text-[1rem] font-black transition-all duration-300 relative", 
+                      currentLevel === lvl 
+                        ? "bg-gold-brand text-blue-dark shadow-lg shadow-gold-brand/20 scale-105" 
+                        : "bg-white/10 text-white hover:bg-white/20 border border-white/10",
+                      !canAccess && "opacity-40 cursor-not-allowed grayscale"
+                    )}
+                   >
+                     {lvl}
+                     {!canAccess && (
+                       <div className="absolute -top-1 -right-1 bg-red-500 rounded-full p-1 shadow-lg flex items-center justify-center">
+                         <Lock size={8} className="text-white" />
+                       </div>
+                     )}
+                   </button>
+                 );
+               })}
              </div>
           </div>
           
