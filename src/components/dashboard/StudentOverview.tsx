@@ -105,11 +105,11 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
 
     setUploadingReceipt(true);
     
-    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dv5xhvkr3';
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'masartamayoz-content';
 
     if (!cloudName || !uploadPreset) {
-      toast.error('إعدادات Cloudinary غير مكتملة. تأكد من ضبط VITE_CLOUDINARY_CLOUD_NAME و VITE_CLOUDINARY_UPLOAD_PRESET في إعدادات البيئة (Settings).');
+      toast.error('إعدادات Cloudinary غير مكتملة.');
       setUploadingReceipt(false);
       return;
     }

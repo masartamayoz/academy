@@ -79,12 +79,15 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
     if (!file) return;
 
     setUploadingReceipt(true);
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dv5xhvkr3';
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'masartamayoz-content';
+
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '');
+    formData.append('upload_preset', uploadPreset);
 
     try {
-      const response = await fetch(`https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/auto/upload`, {
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
         method: 'POST',
         body: formData
       });
