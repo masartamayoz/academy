@@ -136,7 +136,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
     if (!cloudName || !uploadPreset) {
-      toast.error('إعدادات Cloudinary غير مكتملة في ملف .env');
+      toast.error('إعدادات Cloudinary غير مكتملة. تأكد من ضبط VITE_CLOUDINARY_CLOUD_NAME و VITE_CLOUDINARY_UPLOAD_PRESET في إعدادات البيئة (Settings).');
       setUploading(prev => ({ ...prev, [field]: false }));
       return;
     }

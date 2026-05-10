@@ -92,7 +92,9 @@ export default function Auth() {
       case 'auth/invalid-email':
         return 'صيغة البريد غير صحيحة';
       case 'auth/network-request-failed':
-        return 'فشل الاتصال بالخادم — يرجى التأكد من إضافة رابط التطبيق الحالي إلى Authorized Domains في Firebase Console، أو جرب تحديث الصفحة إذا قمت بإضافته مؤخراً.';
+        return 'فشل الاتصال بالخادم — تأكد من جودة اتصال الإنترنت لديك أو حاول التحديث.';
+      case 'auth/unauthorized-domain':
+        return 'نطاق التطبيق غير مصرح به في Firebase — يرجى التأكد من إضافة رابط التطبيق الحالي إلى Authorized Domains في Firebase Console.';
       case 'auth/too-many-requests':
         return 'محاولات كثيرة خاطئة — يرجى المحاولة لاحقاً';
       case 'auth/popup-blocked':
