@@ -29,6 +29,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { handleFirestoreError, OperationType } from '@/src/lib/firestore-errors';
 
+import { SUBSCRIPTION_PLANS, PAYMENT_METHODS } from '@/src/constants';
+import { useSearchParams } from 'react-router-dom';
+import { Rocket, CreditCard } from 'lucide-react';
+
 interface Props {
   activeTab: string;
   userData: any;
@@ -36,6 +40,7 @@ interface Props {
 }
 
 export default function ParentOverview({ activeTab, userData, user }: Props) {
+  const [searchParams] = useSearchParams();
   const [children, setChildren] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -46,11 +51,19 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
   const [receiptFile, setReceiptFile] = useState('');
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [selectedChildForReceipt, setSelectedChildForReceipt] = useState('');
+  const [selectedPlanForSub, setSelectedPlanForSub] = useState<any>(null);
+  const [selectedMethod, setSelectedMethod] = useState<string>('');
 
   useEffect(() => {
     loadChildren();
     loadWallet();
-  }, []);
+
+    const planId = searchParams.get('planId');
+    if (planId) {
+      const plan = SUBSCRIPTION_PLANS.find(p => p.id === planId);
+      if (plan) setSelectedPlanForSub(plan);
+    }
+  }, [searchParams]);
 
   const loadWallet = async () => {
     try {
@@ -104,7 +117,10 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
         userEmail: child?.childData?.email || '',
         parentName: userData?.displayName || user.displayName,
         receiptURL: receiptFile,
-        planName: 'اشتراك (عبر الولي)',
+        planName: selectedPlanForSub?.name || 'اشتراك (عبر الولي)',
+        planId: selectedPlanForSub?.id || 'general',
+        price: selectedPlanForSub?.price || '0',
+        paymentMethod: selectedMethod,
         status: 'pending',
         createdAt: serverTimestamp()
       });
@@ -112,6 +128,8 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
       toast.success('تم إرسال الوصل للمراجعة');
       setReceiptFile('');
       setSelectedChildForReceipt('');
+      setSelectedPlanForSub(null);
+      setSelectedMethod('');
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'receipts');
     } finally {
@@ -456,65 +474,124 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                  </div>
               </div>
 
-              <div className="lg:col-span-2 bg-white rounded-3xl border border-gray-100 p-8 shadow-inner bg-gray-50/20">
-                 <h4 className="text-lg font-black text-blue-dark mb-2 flex items-center gap-2">
-                    <Upload className="text-blue-light" size={20} /> دفع اشتراك لمنظور
-                 </h4>
-                 <p className="text-xs text-gray-500 mb-6">يمكنك رفع وصل الخلاص هنا لتفعيل اشتراك أحد أبنائك.</p>
+              <div className="lg:col-span-2 space-y-8">
+                 {/* Plan Selection */}
+                 <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm">
+                    <h4 className="text-lg font-black text-blue-dark mb-6 flex items-center gap-2">
+                      <Rocket className="text-blue-light" size={20} /> اختر العرض المناسب لمنظورك
+                    </h4>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                       {SUBSCRIPTION_PLANS.map(p => (
+                         <button
+                           key={p.id}
+                           onClick={() => setSelectedPlanForSub(p)}
+                           className={cn(
+                             "p-4 rounded-2xl border-2 text-right transition-all flex items-center justify-between group",
+                             selectedPlanForSub?.id === p.id ? "border-blue-brand bg-blue-50/50" : "border-gray-50 hover:border-gray-200"
+                           )}
+                         >
+                            <div className="flex items-center gap-3">
+                               <div className={cn(
+                                 "h-10 w-10 rounded-xl flex items-center justify-center",
+                                 selectedPlanForSub?.id === p.id ? "bg-blue-brand text-white" : "bg-gray-50 text-gray-400"
+                               )}>
+                                  <p.icon size={20} />
+                               </div>
+                               <div>
+                                  <p className="text-xs font-black text-blue-dark">{p.name}</p>
+                                  <p className="text-[0.65rem] text-gray-500 font-bold">{p.price} د.ت • {p.period}</p>
+                               </div>
+                            </div>
+                            {selectedPlanForSub?.id === p.id && <CheckCircle2 size={18} className="text-blue-brand" />}
+                         </button>
+                       ))}
+                    </div>
+                 </div>
 
-                 <form onSubmit={handleUploadReceipt} className="space-y-4">
-                    <div className="space-y-2">
-                       <label className="text-[0.65rem] font-black text-gray-400 uppercase pr-2">اختر التلميذ</label>
-                       <select 
-                         value={selectedChildForReceipt}
-                         onChange={(e) => setSelectedChildForReceipt(e.target.value)}
-                         className="w-full rounded-2xl border-none bg-white px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-blue-light transition-all"
-                       >
-                          <option value="">-- اختر من القائمة --</option>
-                          {children.map(c => (
-                            <option key={c.childId} value={c.childId}>{c.childData.displayName}</option>
+                 {/* Payment Method & Upload */}
+                 {selectedPlanForSub && (
+                    <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm bg-gray-50/20">
+                       <h4 className="text-lg font-black text-blue-dark mb-2 flex items-center gap-2">
+                          <CreditCard className="text-blue-light" size={20} /> دفع الاشتراك
+                       </h4>
+                       <p className="text-xs text-gray-500 mb-6">يرجى اختيار وسيلة الدفع المناسبة ورفع صورة الوصل.</p>
+
+                       <div className="grid gap-4 mb-8">
+                          {PAYMENT_METHODS.map(m => (
+                            <button
+                              key={m.id}
+                              onClick={() => setSelectedMethod(m.id)}
+                              className={cn(
+                                "p-4 rounded-2xl border-2 text-right transition-all group relative overflow-hidden bg-white",
+                                selectedMethod === m.id ? "border-blue-brand bg-blue-50/30" : "border-gray-50"
+                              )}
+                            >
+                               <div className="relative z-10 flex items-center justify-between">
+                                  <div>
+                                     <p className="text-xs font-black text-blue-dark">{m.name}</p>
+                                     <p className="text-[0.65rem] text-blue-light/70 font-bold mt-0.5">{m.details}</p>
+                                  </div>
+                                  {selectedMethod === m.id && <CheckCircle2 size={20} className="text-blue-brand" />}
+                               </div>
+                            </button>
                           ))}
-                       </select>
-                    </div>
-
-                    <div className="relative group">
-                       <div className="flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed border-gray-200 hover:border-blue-light/50 transition-all cursor-pointer bg-white">
-                          <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-brand">
-                             <ImageIcon size={20} />
-                          </div>
-                          <input 
-                            type="text" 
-                            placeholder="رابط صورة الوصل" 
-                            value={receiptFile}
-                            onChange={(e) => setReceiptFile(e.target.value)}
-                            className="flex-1 bg-transparent border-none outline-none text-xs font-bold text-blue-dark"
-                          />
-                          <button 
-                            type="button" 
-                            onClick={() => document.getElementById('parent-receipt-upload')?.click()}
-                            className="text-xs bg-blue-50 px-3 py-2 rounded-xl text-blue-brand hover:bg-blue-100 transition-all font-bold"
-                          >
-                            {uploadingReceipt ? <Loader2 size={12} className="animate-spin" /> : 'رفع'}
-                          </button>
-                          <input 
-                            id="parent-receipt-upload"
-                            type="file" 
-                            className="hidden" 
-                            accept="image/*"
-                            onChange={handleFileUploadReceipt}
-                          />
                        </div>
-                    </div>
 
-                    <button 
-                      type="submit"
-                      disabled={uploadingReceipt || !receiptFile || !selectedChildForReceipt}
-                      className="w-full py-4 rounded-2xl bg-blue-brand text-white font-black text-sm shadow-xl shadow-blue-900/10 hover:bg-blue-dark transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                       {uploadingReceipt ? <Loader2 size={18} className="animate-spin" /> : <Receipt size={18} />}
-                       تأكيد الدفع للمراجعة
-                    </button>
-                 </form>
+                       <form onSubmit={handleUploadReceipt} className="space-y-4">
+                          <div className="space-y-2">
+                             <label className="text-[0.65rem] font-black text-gray-400 uppercase pr-2">منظوري المراد دفع اشتراكه</label>
+                             <select 
+                               value={selectedChildForReceipt}
+                               onChange={(e) => setSelectedChildForReceipt(e.target.value)}
+                               className="w-full rounded-2xl border-none bg-white px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-blue-light transition-all"
+                             >
+                                <option value="">-- اختر الابن --</option>
+                                {children.map(c => (
+                                  <option key={c.childId} value={c.childId}>{c.childData.displayName}</option>
+                                ))}
+                             </select>
+                          </div>
+
+                          <div className="relative group">
+                             <div className="flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed border-gray-200 hover:border-blue-light/50 transition-all cursor-pointer bg-white">
+                                <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-brand">
+                                   <ImageIcon size={20} />
+                                </div>
+                                <input 
+                                  type="text" 
+                                  placeholder="رابط صورة الوصل" 
+                                  value={receiptFile}
+                                  onChange={(e) => setReceiptFile(e.target.value)}
+                                  className="flex-1 bg-transparent border-none outline-none text-xs font-bold text-blue-dark"
+                                />
+                                <button 
+                                  type="button" 
+                                  onClick={() => document.getElementById('parent-receipt-upload')?.click()}
+                                  className="text-xs bg-blue-50 px-3 py-2 rounded-xl text-blue-brand hover:bg-blue-100 transition-all font-bold"
+                                >
+                                  {uploadingReceipt ? <Loader2 size={12} className="animate-spin" /> : 'رفع'}
+                                </button>
+                                <input 
+                                  id="parent-receipt-upload"
+                                  type="file" 
+                                  className="hidden" 
+                                  accept="image/*"
+                                  onChange={handleFileUploadReceipt}
+                                />
+                             </div>
+                          </div>
+
+                          <button 
+                            type="submit"
+                            disabled={uploadingReceipt || !receiptFile || !selectedChildForReceipt || !selectedMethod}
+                            className="w-full py-4 rounded-2xl bg-blue-brand text-white font-black text-sm shadow-xl shadow-blue-900/10 hover:bg-blue-dark transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                          >
+                             {uploadingReceipt ? <Loader2 size={18} className="animate-spin" /> : <Receipt size={18} />}
+                             تأكيد الدفع للمراجعة
+                          </button>
+                       </form>
+                    </div>
+                 )}
               </div>
            </div>
         </div>

@@ -35,6 +35,9 @@ import { addDoc, serverTimestamp } from 'firebase/firestore';
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
 
+import { SUBSCRIPTION_PLANS, PAYMENT_METHODS } from '@/src/constants';
+import { useSearchParams } from 'react-router-dom';
+
 interface Props {
   activeTab: string;
   userData: any;
@@ -42,6 +45,7 @@ interface Props {
 }
 
 export default function StudentOverview({ activeTab, userData, user }: Props) {
+  const [searchParams] = useSearchParams();
   const [recentVideos, setRecentVideos] = useState<any[]>([]);
   const [groupInfo, setGroupInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -49,11 +53,21 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
   const [receiptFile, setReceiptFile] = useState<string>('');
   const [walletData, setWalletData] = useState<any>(null);
   const [myReceipts, setMyReceipts] = useState<any[]>([]);
+  const [selectedPlanForSub, setSelectedPlanForSub] = useState<any>(null);
+  const [selectedMethod, setSelectedMethod] = useState<string>('');
+
+  useEffect(() => {
+    const planId = searchParams.get('planId');
+    if (planId) {
+      const plan = SUBSCRIPTION_PLANS.find(p => p.id === planId);
+      if (plan) setSelectedPlanForSub(plan);
+    }
+  }, [searchParams]);
 
   const handleUploadReceipt = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!receiptFile) {
-      alert('يرجى وضع رابط صورة الوصل أو رفعها أولاً');
+    if (!receiptFile || !selectedPlanForSub) {
+      alert('يرجى اختيار العرض ورفع صورة الوصل');
       return;
     }
 
@@ -64,16 +78,19 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
         userName: userData.displayName || 'مستخدم',
         userEmail: user.email,
         receiptURL: receiptFile,
-        planName: userData.pendingPlan?.name || 'اشتراك عام',
-        planId: userData.pendingPlan?.id || 'general',
-        price: userData.pendingPlan?.price || '—',
+        planName: selectedPlanForSub.name,
+        planId: selectedPlanForSub.id,
+        price: selectedPlanForSub.price,
+        paymentMethod: selectedMethod,
         status: 'pending',
         level: userData.level || 'غير محدد',
         createdAt: serverTimestamp()
       });
       
-      toast.success('تم إرسال الوصل بنجاح! سيتم تفعيل حسابك بعد المراجعة (عادة أقل من 24 ساعة).');
+      toast.success('تم إرسال الوصل بنجاح! سيتم تفعيل حسابك بعد المراجعة.');
       setReceiptFile('');
+      setSelectedPlanForSub(null);
+      setSelectedMethod('');
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'receipts');
     } finally {
@@ -631,57 +648,117 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
                </div>
             </div>
 
-            {/* Receipt Upload Form */}
-            <div className="lg:col-span-2 bg-white rounded-3xl border border-gray-100 p-8 shadow-inner bg-gray-50/20">
-               <h4 className="text-lg font-black text-blue-dark mb-2 flex items-center gap-2">
-                  <Upload className="text-blue-light" size={20} /> تفعيل الاشتراك عبر وصل خلاص
-               </h4>
-               <p className="text-xs text-gray-500 mb-6">بعد القيام بعملية الدفع (D17, البريد, أو تحويل بنكي)، يرجى رفع صورة الوصل هنا.</p>
-               
-               <form onSubmit={handleUploadReceipt} className="space-y-4">
-                  <div className="relative group">
-                     <div className="flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed border-gray-200 hover:border-blue-light/50 transition-all cursor-pointer bg-white">
-                        <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-brand">
-                           <ImageIcon size={20} />
-                        </div>
-                        <input 
-                          type="text" 
-                          placeholder="ضع رابط صورة الوصل هنا (أو استعمل Cloudinary)" 
-                          value={receiptFile}
-                          onChange={(e) => setReceiptFile(e.target.value)}
-                          className="flex-1 bg-transparent border-none outline-none text-xs font-bold text-blue-dark"
-                        />
-                        <button 
-                          type="button" 
-                          onClick={() => document.getElementById('receipt-upload')?.click()}
-                          className="text-xs bg-blue-50 px-3 py-2 rounded-xl text-blue-brand hover:bg-blue-100 transition-all font-bold flex items-center gap-1"
-                        >
-                          {uploadingReceipt ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                          رفع صورة الوصل
-                        </button>
-                        <input 
-                          id="receipt-upload"
-                          type="file" 
-                          className="hidden" 
-                           accept="image/*"
-                          onChange={handleFileUploadReceipt}
-                        />
-                     </div>
+            {/* Subscription Form */}
+            <div className="lg:col-span-2 space-y-8">
+               {/* Plan Selection */}
+               <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm">
+                  <h4 className="text-lg font-black text-blue-dark mb-6 flex items-center gap-2">
+                    <Rocket className="text-blue-light" size={20} /> اختر العرض المناسب
+                  </h4>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {SUBSCRIPTION_PLANS.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => setSelectedPlanForSub(p)}
+                        className={cn(
+                          "p-4 rounded-2xl border-2 text-right transition-all flex items-center justify-between group",
+                          selectedPlanForSub?.id === p.id ? "border-blue-brand bg-blue-50/50" : "border-gray-50 hover:border-gray-200"
+                        )}
+                      >
+                         <div className="flex items-center gap-3">
+                            <div className={cn(
+                              "h-10 w-10 rounded-xl flex items-center justify-center",
+                              selectedPlanForSub?.id === p.id ? "bg-blue-brand text-white" : "bg-gray-50 text-gray-400"
+                            )}>
+                               <p.icon size={20} />
+                            </div>
+                            <div>
+                               <p className="text-xs font-black text-blue-dark">{p.name}</p>
+                               <p className="text-[0.65rem] text-gray-500 font-bold">{p.price} د.ت • {p.period}</p>
+                            </div>
+                         </div>
+                         {selectedPlanForSub?.id === p.id && <CheckCircle2 size={18} className="text-blue-brand" />}
+                      </button>
+                    ))}
                   </div>
+               </div>
 
-                  <button 
-                    type="submit"
-                    disabled={uploadingReceipt || !receiptFile}
-                    className="w-full py-4 rounded-2xl bg-blue-brand text-white font-black text-sm shadow-xl shadow-blue-900/10 hover:bg-blue-dark transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                     {uploadingReceipt ? <Loader2 size={18} className="animate-spin" /> : <Receipt size={18} />}
-                     إرسال الوصل للمراجعة
-                  </button>
-               </form>
+               {/* Payment Method & Upload */}
+               {selectedPlanForSub && (
+                 <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm animate-in fade-in slide-in-from-top-4">
+                    <h4 className="text-lg font-black text-blue-dark mb-4 flex items-center gap-2">
+                       <CreditCard className="text-blue-light" size={20} /> طريقة الدفع وتفعيل الاشتراك
+                    </h4>
+                    
+                    <div className="grid gap-4 mb-8">
+                       {PAYMENT_METHODS.map(m => (
+                         <button
+                           key={m.id}
+                           onClick={() => setSelectedMethod(m.id)}
+                           className={cn(
+                             "p-4 rounded-2xl border-2 text-right transition-all group relative overflow-hidden",
+                             selectedMethod === m.id ? "border-blue-brand bg-blue-50/30" : "border-gray-50"
+                           )}
+                         >
+                            <div className="relative z-10 flex items-center justify-between">
+                               <div>
+                                  <p className="text-xs font-black text-blue-dark">{m.name}</p>
+                                  <p className="text-[0.65rem] text-blue-light/70 font-bold mt-0.5">{m.details}</p>
+                               </div>
+                               {selectedMethod === m.id && <CheckCircle2 size={20} className="text-blue-brand" />}
+                            </div>
+                         </button>
+                       ))}
+                    </div>
 
-               <div className="mt-8 p-4 rounded-xl bg-blue-50/50 border border-blue-100/50">
+                    <p className="text-xs text-gray-500 mb-4">بعد الدفع، يرجى رفع صورة الوصل هنا لتفعيل حسابك:</p>
+                    
+                    <form onSubmit={handleUploadReceipt} className="space-y-4">
+                       <div className="relative group">
+                          <div className="flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed border-gray-200 hover:border-blue-light/50 transition-all cursor-pointer bg-white">
+                             <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-brand">
+                                <ImageIcon size={20} />
+                             </div>
+                             <input 
+                               type="text" 
+                               placeholder="رابط صورة الوصل" 
+                               value={receiptFile}
+                               onChange={(e) => setReceiptFile(e.target.value)}
+                               className="flex-1 bg-transparent border-none outline-none text-xs font-bold text-blue-dark"
+                             />
+                             <button 
+                               type="button" 
+                               onClick={() => document.getElementById('receipt-upload')?.click()}
+                               className="text-xs bg-blue-50 px-3 py-2 rounded-xl text-blue-brand hover:bg-blue-100 transition-all font-bold flex items-center gap-1"
+                             >
+                               {uploadingReceipt ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                               رفع الصورة
+                             </button>
+                             <input 
+                               id="receipt-upload"
+                               type="file" 
+                               className="hidden" 
+                                accept="image/*"
+                               onChange={handleFileUploadReceipt}
+                             />
+                          </div>
+                       </div>
+
+                       <button 
+                         type="submit"
+                         disabled={uploadingReceipt || !receiptFile || !selectedMethod}
+                         className="w-full py-4 rounded-2xl bg-blue-brand text-white font-black text-sm shadow-xl shadow-blue-900/10 hover:bg-blue-dark transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                       >
+                          {uploadingReceipt ? <Loader2 size={18} className="animate-spin" /> : <Receipt size={18} />}
+                          إرسال الوصل للمراجعة
+                       </button>
+                    </form>
+                 </div>
+               )}
+
+               <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-100/50">
                   <p className="text-[0.65rem] text-blue-dark/70 leading-relaxed font-bold">
-                     💡 ملاحظة: تفعيل الحساب يتم يدوياً من قبل الإدارة بعد التثبت من صحة الوصل. ستصلك رسالة تأكيد فور التفعيل.
+                     💡 ملاحظة: تفعيل الحساب يتم يدوياً بعد التثبت من صحة الوصل. ستصلك رسالة تأكيد فور التفعيل.
                   </p>
                </div>
             </div>

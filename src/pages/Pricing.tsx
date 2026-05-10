@@ -9,6 +9,8 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 
+import { SUBSCRIPTION_PLANS } from '../constants';
+
 export default function PricingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [user, setUser] = useState<any>(null);
@@ -35,8 +37,8 @@ export default function PricingPage() {
       navigate('/auth#register');
       return;
     }
-    setSelectedPlan(plan);
-    setShowSubModal(true);
+    // Redirect logged-in user to dashboard wallet with plan selected
+    navigate(`/dashboard?tab=wallet&planId=${plan.id}`);
   };
 
   const handleUploadReceipt = async (e: React.FormEvent) => {
@@ -71,66 +73,7 @@ export default function PricingPage() {
     }
   };
 
-  const plans = [
-    { 
-      id: 'recordings_yearly',
-      name: 'عرض التسجيلات السنوي',
-      price: '50',
-      period: 'سنة كاملة',
-      type: 'recordings'
-    },
-    { 
-      id: 'trimester1', 
-      name: 'الثلاثي الأول', 
-      period: 'سبتمبر ← ديسمبر', 
-      dates: '1 سبتمبر — 22 ديسمبر 2025',
-      price: '100', 
-      sessions: '~24 حصة مباشرة',
-      featured: true,
-      icon: Rocket,
-      color: 'blue'
-    },
-    { 
-      id: 'trimester2', 
-      name: 'الثلاثي الثاني', 
-      period: 'ديسمبر ← مارس', 
-      dates: '23 ديسمبر 2025 — 22 مارس 2026',
-      price: '90', 
-      sessions: '~22 حصة مباشرة',
-      featured: false,
-      icon: Calendar,
-      color: 'blue'
-    },
-    { 
-      id: 'trimester3', 
-      name: 'الثلاثي الثالث', 
-      period: 'مارس ← جوان', 
-      dates: '23 مارس — 10 جوان 2026',
-      price: '90', 
-      sessions: '~22 حصة مباشرة',
-      featured: false,
-      icon: Calendar,
-      color: 'blue'
-    },
-    { 
-      id: 'august', 
-      name: 'مراجعة أوت', 
-      period: '🌞 مراجعة الصيف', 
-      dates: '1 أوت — 31 أوت 2026',
-      price: '50', 
-      sessions: '~8 حصص مكثّفة',
-      featured: false,
-      icon: Sun,
-      color: 'purple'
-    },
-    {
-      id: 'monthly',
-      name: 'الاشتراك الشهري',
-      price: '40',
-      period: '30 يوم',
-      type: 'live'
-    }
-  ];
+  const plans = SUBSCRIPTION_PLANS;
 
   const faqs = [
     { q: 'كيف أدفع وأُرسل وصل الخلاص؟', a: 'بعد إنشاء حسابك، قم بالدفع عبر التحويل البنكي أو البريد التونسي أو تطبيق D17 أو Carte eDinar، ثم ارفع صورة الوصل من لوحة التحكم. سيتم تفعيل حسابك خلال 24 ساعة.' },

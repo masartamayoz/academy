@@ -92,9 +92,11 @@ export default function Auth() {
       case 'auth/invalid-email':
         return 'صيغة البريد غير صحيحة';
       case 'auth/network-request-failed':
-        return 'فشل الاتصال بالخادم — يرجى التحقق من إعدادات النطاق (Domain) في Firebase console وإضافته للقائمة المسموح بها (Authorized Domains).';
+        return 'فشل الاتصال بالخادم — يرجى التأكد من إضافة رابط التطبيق الحالي إلى Authorized Domains في Firebase Console، أو جرب تحديث الصفحة إذا قمت بإضافته مؤخراً.';
       case 'auth/too-many-requests':
         return 'محاولات كثيرة خاطئة — يرجى المحاولة لاحقاً';
+      case 'auth/popup-blocked':
+        return 'تم حظر النافذة المنبثقة — يرجى السماح بالنوافذ المنبثقة للموقع';
       default:
         return `حدث خطأ غير متوقع (${code || 'unknown'}) — حاول مرة أخرى`;
     }
@@ -271,15 +273,32 @@ export default function Auth() {
             <motion.div 
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-6 rounded-2xl bg-red-50 border border-red-100 p-4 text-[0.88rem] font-bold text-red-600 flex items-center justify-between shadow-sm animate-pulse-subtle"
+              className="mb-6 rounded-2xl bg-red-50 border border-red-100 p-4 text-[0.88rem] font-bold text-red-600 shadow-sm animate-pulse-subtle"
             >
-              <div className="flex items-center gap-3">
-                <ShieldAlert size={20} className="shrink-0" />
-                <span className="leading-tight">{error}</span>
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  <ShieldAlert size={20} className="shrink-0 mt-0.5" />
+                  <div className="flex flex-col gap-2">
+                    <span className="leading-tight">{error}</span>
+                    {error.includes('النطاق') && (
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        <button 
+                          onClick={() => window.location.reload()}
+                          className="text-[0.7rem] bg-red-100 hover:bg-red-200 px-3 py-1 rounded-lg transition-colors flex items-center gap-1"
+                        >
+                          <LogIn size={12} /> تحديث الصفحة
+                        </button>
+                        <span className="text-[0.65rem] text-red-400 font-medium opacity-60">
+                          نطاقك الحالي: {window.location.hostname}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <button onClick={() => setError('')} className="p-1 hover:bg-red-100 rounded-lg transition-colors">
+                   <XCircle size={16} />
+                </button>
               </div>
-              <button onClick={() => setError('')} className="p-1 hover:bg-red-100 rounded-lg transition-colors">
-                 <XCircle size={16} />
-              </button>
             </motion.div>
           )}
 
