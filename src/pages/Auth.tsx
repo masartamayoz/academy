@@ -8,7 +8,9 @@ import {
   GoogleAuthProvider, 
   sendPasswordResetEmail, 
   updateProfile,
-  onAuthStateChanged
+  onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { 
@@ -92,9 +94,13 @@ export default function Auth() {
       case 'auth/invalid-email':
         return 'صيغة البريد غير صحيحة';
       case 'auth/network-request-failed':
-        return 'فشل الاتصال بالخادم — تأكد من جودة اتصال الإنترنت لديك أو حاول التحديث.';
+        return `فشل الاتصال بخوادم Firebase (${navigator.onLine ? 'المتصفح متصل بالإنترنت' : 'لا يوجد اتصال'}) — قد يكون السبب حظر النطاق أو استخدام VPN أو إضافة لمتصفحك تمنع الاتصال. حاول استخدام متصفح آخر أو تسجيل الدخول بـ Google.`;
       case 'auth/unauthorized-domain':
-        return 'نطاق التطبيق غير مصرح به في Firebase — يرجى التأكد من إضافة رابط التطبيق الحالي إلى Authorized Domains في Firebase Console.';
+        return `النطاق ${window.location.hostname} غير مصرح به في Firebase — يرجى إضافته إلى Authorized Domains في إعدادات Authentication.`;
+      case 'auth/internal-error':
+        return 'خطأ داخلي في خادم Firebase — حاول مرة أخرى لاحقاً.';
+      case 'auth/operation-not-allowed':
+        return 'طريقة تسجيل الدخول هذه غير مفعلة في إعدادات Firebase Console.';
       case 'auth/too-many-requests':
         return 'محاولات كثيرة خاطئة — يرجى المحاولة لاحقاً';
       case 'auth/popup-blocked':
@@ -110,6 +116,8 @@ export default function Auth() {
     setLoading(true); setError('');
     try {
       console.log('Logging in with:', email);
+      // Ensure persistence is set before sign in
+      await setPersistence(auth, browserLocalPersistence);
       await signInWithEmailAndPassword(auth, email, password);
       localStorage.removeItem('pendingGoogleUser');
       navigate('/dashboard');
@@ -282,7 +290,7 @@ export default function Auth() {
                   <ShieldAlert size={20} className="shrink-0 mt-0.5" />
                   <div className="flex flex-col gap-2">
                     <span className="leading-tight">{error}</span>
-                    {error.includes('النطاق') && (
+                    {(error.includes('النطاق') || error.includes('الاتصال')) && (
                       <div className="flex flex-wrap gap-2 mt-1">
                         <button 
                           onClick={() => window.location.reload()}

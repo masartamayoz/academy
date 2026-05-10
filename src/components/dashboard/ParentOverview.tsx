@@ -40,7 +40,7 @@ interface Props {
 }
 
 export default function ParentOverview({ activeTab, userData, user }: Props) {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [children, setChildren] = useState<any[]>([]);
   const [attendanceData, setAttendanceData] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(false);
@@ -362,8 +362,20 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                   </div>
 
                   <div className="mt-8 flex gap-3">
-                    <button className="flex-1 rounded-2xl bg-white border border-gray-100 py-3 text-[0.8rem] font-black text-gray-600 hover:border-blue-light hover:text-blue-light transition-all">التقرير</button>
-                    <button className="flex-1 rounded-2xl bg-[#0A0D14] py-3 text-[0.8rem] font-black text-white hover:bg-blue-dark transition-all">التفاصيل</button>
+                    <button 
+                      onClick={() => {
+                        const childId = c.childId;
+                        const childName = c.childData?.displayName || c.childData?.firstName || 'التلميذ';
+                        setSelectedChildForReceipt(childId);
+                        toast.info(`تم اختيار ${childName} للاشتراك. سنتوجه للمحفظة.`);
+                        setSearchParams({ tab: 'wallet' });
+                      }}
+                      className="flex-1 rounded-2xl bg-[#0A0D14] py-3 text-[0.8rem] font-black text-white hover:bg-blue-dark transition-all flex items-center justify-center gap-2"
+                    >
+                      <Rocket size={14} />
+                      اشترك الآن
+                    </button>
+                    <button className="flex-1 rounded-2xl bg-white border border-gray-100 py-3 text-[0.8rem] font-black text-gray-600 hover:border-blue-light hover:text-blue-light transition-all">التفاصيل</button>
                   </div>
                   
                   <div className="absolute top-4 left-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -518,7 +530,8 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                  {/* Plan Selection */}
                  <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm">
                     <h4 className="text-lg font-black text-blue-dark mb-6 flex items-center gap-2">
-                      <Rocket className="text-blue-light" size={20} /> اختر العرض المناسب لمنظورك
+                       <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-dark text-white text-xs font-black">2</span>
+                       اختر العرض المناسب للمنظور
                     </h4>
                     <div className="grid gap-4 sm:grid-cols-2">
                        {SUBSCRIPTION_PLANS.map(p => (
@@ -537,9 +550,10 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                                )}>
                                   <p.icon size={20} />
                                </div>
-                               <div>
+                               <div className="flex flex-col">
                                   <p className="text-xs font-black text-blue-dark">{p.name}</p>
                                   <p className="text-[0.65rem] text-gray-500 font-bold">{p.price} د.ت • {p.period}</p>
+                                  {p.description && <p className="text-[0.62rem] text-blue-light/70 mt-1 max-w-[180px] leading-tight text-right">{p.description}</p>}
                                </div>
                             </div>
                             {selectedPlanForSub?.id === p.id && <CheckCircle2 size={18} className="text-blue-brand" />}
@@ -580,16 +594,29 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                        <form onSubmit={handleUploadReceipt} className="space-y-4">
                           <div className="space-y-2">
                              <label className="text-[0.65rem] font-black text-gray-400 uppercase pr-2">منظوري المراد دفع اشتراكه</label>
-                             <select 
-                               value={selectedChildForReceipt}
-                               onChange={(e) => setSelectedChildForReceipt(e.target.value)}
-                               className="w-full rounded-2xl border-none bg-white px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-blue-light transition-all"
-                             >
-                                <option value="">-- اختر الابن --</option>
-                                {children.map(c => (
-                                  <option key={c.childId} value={c.childId}>{c.childData.displayName}</option>
-                                ))}
-                             </select>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                 {children.map(c => (
+                                   <button
+                                     key={c.childId}
+                                     type="button"
+                                     onClick={() => setSelectedChildForReceipt(c.childId)}
+                                     className={cn(
+                                       "p-2.5 rounded-xl border-2 text-[0.7rem] font-black transition-all flex flex-col items-center gap-1.5 relative",
+                                       selectedChildForReceipt === c.childId 
+                                         ? "border-blue-brand bg-blue-50 text-blue-dark shadow-sm" 
+                                         : "border-gray-50 bg-white text-gray-500 hover:border-gray-200"
+                                     )}
+                                   >
+                                     <div className={cn(
+                                       "h-8 w-8 rounded-lg flex items-center justify-center font-black text-sm",
+                                       selectedChildForReceipt === c.childId ? "bg-blue-brand text-white" : "bg-gray-100 text-blue-brand"
+                                     )}>
+                                       {c.childData?.displayName?.charAt(0) || '؟'}
+                                     </div>
+                                     <span className="truncate w-full text-center">{c.childData?.displayName || 'تلميذ'}</span>
+                                   </button>
+                                 ))}
+                              </div>
                           </div>
 
                           <div className="relative group">

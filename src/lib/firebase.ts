@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 
 export const firebaseConfig = {
@@ -13,18 +13,20 @@ export const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+// Force local persistence for reliability
+setPersistence(auth, browserLocalPersistence).catch(console.error);
+
 export const db = getFirestore(app);
 
 // Critical connection test mandatory for AI Studio environment
 async function testConnection() {
   try {
+    // Only test if not on a known local/dev domain if needed, but here we just want it quiet
     await getDocFromServer(doc(db, 'test', 'connection'));
-    console.log('✅ Firebase connection established');
   } catch (error) {
-    if (error instanceof Error && (error.message.includes('the client is offline') || error.message.includes('network-request-failed'))) {
-      console.error("❌ Firebase connection failed. Check your network or configuration.");
-    }
-    console.error('Firebase Check:', error);
+    // Silently fail if it's just a connectivity check
+    console.warn('Firebase Check (Silent):', error);
   }
 }
 

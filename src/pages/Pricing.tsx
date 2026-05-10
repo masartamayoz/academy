@@ -74,9 +74,9 @@ export default function PricingPage() {
             <div className="mx-auto max-w-3xl overflow-hidden rounded-3xl bg-gradient-to-br from-blue-dark to-blue-mid p-10 text-white shadow-2xl flex flex-wrap items-center justify-between gap-8 text-right">
               <div className="flex-1 min-w-[300px]">
                 <h3 className="text-xl font-black text-gold-light mb-2">عرض التسجيلات السنوي</h3>
-                <p className="text-white/70 mb-6 font-Tajawal">مشاهدة جميع الدروس المسجّلة طوال السنة الدراسية لكل المستويات.</p>
+                <p className="text-white/70 mb-6 font-Tajawal">مشاهدة التسجيلات فقط (لا يشمل الحصص المباشرة). مثالي لمن يريد المراجعة بمفرده.</p>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {['جميع دروس السنة', 'فيديو + PDF', 'برنامج رسمي تونسي', 'متاح 24/7'].map(f => (
+                  {['جميع دروس السنة مسجلة', 'تمارين وسلاسل محلولة', 'برنامج رسمي تونسي', 'متاح 24/7'].map(f => (
                     <li key={f} className="flex items-center gap-2 text-sm text-white/90">
                       <Check size={16} className="text-gold-brand" /> {f}
                     </li>
@@ -87,7 +87,7 @@ export default function PricingPage() {
                 <div className="text-5xl font-black text-gold-brand">50</div>
                 <div className="text-white/50 text-sm mt-1">د.ت / سنة</div>
                 <button 
-                  onClick={() => handleSubscribeClick(plans[0])}
+                  onClick={() => handleSubscribeClick(plans.find(p => p.id === 'recordings_yearly'))}
                   className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gold-brand px-8 py-3 text-blue-dark font-black hover:bg-gold-light transition-all"
                 >
                    <PlayCircle size={18} /> اشترك الآن
@@ -106,19 +106,17 @@ export default function PricingPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {plans.slice(1, 5).map((plan) => (
+              {plans.filter(p => !['recordings_yearly', 'monthly'].includes(p.id)).map((plan) => (
                 <div key={plan.id} className={cn(
                   "relative group rounded-2xl border-2 p-7 transition-all hover:-translate-y-1.5 hover:shadow-2xl",
                   plan.featured ? "border-blue-light bg-blue-dark text-white shadow-blue-900/10" : 
                   plan.color === 'purple' ? "border-purple-200 bg-purple-50/30" : "border-gray-200 bg-white"
                 )}>
-                  {plan.featured && (
-                    <div className="absolute -top-3.5 right-6 rounded-full bg-gold-brand px-4 py-1 text-[0.75rem] font-black text-blue-dark">الأكثر طلباً</div>
-                  )}
+                  {plan.featured && <div className="absolute -top-3.5 right-6 rounded-full bg-gold-brand px-4 py-1 text-[0.75rem] font-black text-blue-dark">{plan.id === 'august_review' ? 'عرض خاص' : 'الأكثر طلباً'}</div>}
                   <p className={cn("text-xs font-bold mb-1", plan.featured ? "text-gold-light" : "text-blue-light")}>{plan.period}</p>
                   <h4 className={cn("text-lg font-black mb-1", plan.featured ? "text-white" : "text-blue-dark")}>{plan.name}</h4>
                   <div className="flex items-center gap-1.5 text-[0.75rem] opacity-60 mb-5">
-                    {plan.icon && <plan.icon size={14} />} {plan.dates}
+                    {plan.icon && <plan.icon size={14} />} {plan.dates || plan.description}
                   </div>
                   
                   <div className="mb-6 flex items-baseline gap-1.5">
@@ -126,12 +124,14 @@ export default function PricingPage() {
                     <span className="text-sm font-bold opacity-60">د.ت</span>
                   </div>
 
-                  <p className="text-xs font-bold mb-4 flex items-center gap-1.5 opacity-80">
-                    {plan.icon && <plan.icon size={16} />} {plan.sessions}
-                  </p>
-
+                  {plan.sessions && (
+                    <p className="text-xs font-bold mb-4 flex items-center gap-1.5 opacity-80">
+                      {plan.icon && <plan.icon size={16} />} {plan.sessions}
+                    </p>
+                  )}
+                  
                   <ul className="space-y-2 mb-8 border-t border-gray-100 pt-5">
-                    {['حصتان/أسبوع', 'تسجيلات مجانية', 'تصحيح واجبات'].map(f => (
+                    {(plan.id === 'august_review' ? ['تحضير ذكي', 'تدارك النواقص', 'تفاعل مباشر'] : ['حصتان/أسبوع', 'تسجيلات مجانية', 'تصحيح واجبات']).map(f => (
                        <li key={f} className="flex items-center gap-2 text-xs font-medium opacity-85">
                          <Check size={14} className={plan.featured ? "text-gold-light" : "text-emerald-500"} /> {f}
                        </li>
@@ -164,7 +164,7 @@ export default function PricingPage() {
                     <div className="text-[0.7rem] text-gray-400 mt-1">د.ت / شهر</div>
                   </div>
                   <button 
-                    onClick={() => handleSubscribeClick(plans[5])}
+                    onClick={() => handleSubscribeClick(plans.find(p => p.id === 'monthly'))}
                     className="rounded-xl bg-blue-dark px-6 py-3 text-white font-bold text-sm hover:bg-blue-brand transition-all"
                   >
                     اشترك
@@ -248,10 +248,10 @@ export default function PricingPage() {
               <h2 className="text-3xl font-black mb-4 sm:text-4xl">ابدأ رحلتك نحو <span className="text-gold-brand">التميز</span> اليوم</h2>
               <p className="text-white/60 mb-10 max-w-md mx-auto">انضم لمئات التلاميذ الذين يتعلمون مع أفضل المدرسين في تونس بنظام تفاعلي حديث.</p>
               <button 
-                onClick={() => handleSubscribeClick(plans[0])}
+                onClick={() => handleSubscribeClick(plans.find(p => p.id === 'recordings_yearly'))}
                 className="inline-flex items-center gap-2 rounded-2xl bg-gold-brand px-10 py-5 text-blue-dark font-black text-lg hover:bg-gold-light hover:-translate-y-1 shadow-2xl shadow-gold-brand/20 transition-all"
               >
-                أنشئ حسابك مجاناً
+                اشترك الآن
               </button>
            </div>
         </section>

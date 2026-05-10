@@ -2,12 +2,22 @@ import { Rocket, Sun, PlayCircle, Calendar, Zap } from 'lucide-react';
 
 export const SUBSCRIPTION_PLANS = [
   { 
+    id: 'august_review', 
+    name: 'عرض المراجعة شهر أوت', 
+    period: 'شهر أوت', 
+    price: '50', 
+    description: 'مراجعة شاملة للمكتسبات والتحضير للسنة الجديدة (حصص مباشرة + تسجيلات)',
+    icon: Calendar,
+    color: 'red',
+    featured: true
+  },
+  { 
     id: 'recordings_yearly',
     name: 'عرض التسجيلات السنوي',
     price: '50',
     period: 'سنة كاملة',
     type: 'recordings',
-    description: 'مشاهدة جميع الدروس المسجّلة طوال السنة الدراسية لكل المستويات.',
+    description: 'مشاهدة التسجيلات فقط (لا يشمل الحصص المباشرة)',
     icon: PlayCircle
   },
   { 
