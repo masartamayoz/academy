@@ -42,6 +42,7 @@ interface Props {
 export default function ParentOverview({ activeTab, userData, user }: Props) {
   const [searchParams] = useSearchParams();
   const [children, setChildren] = useState<any[]>([]);
+  const [attendanceData, setAttendanceData] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [childIdInput, setChildIdInput] = useState('');
@@ -55,17 +56,20 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
   const [selectedMethod, setSelectedMethod] = useState<string>('');
 
   useEffect(() => {
-    loadChildren();
-    loadWallet();
+    if (user?.uid) {
+      loadChildren();
+      loadWallet();
+    }
 
     const planId = searchParams.get('planId');
     if (planId) {
       const plan = SUBSCRIPTION_PLANS.find(p => p.id === planId);
       if (plan) setSelectedPlanForSub(plan);
     }
-  }, [searchParams]);
+  }, [searchParams, user?.uid]);
 
   const loadWallet = async () => {
+    if (!user?.uid) return;
     try {
       const snap = await getDoc(doc(db, 'wallets', user.uid));
       if (snap.exists()) setWalletData(snap.data());
@@ -141,24 +145,46 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
   };
 
   const loadChildren = async () => {
+    if (!user?.uid) return;
     setLoading(true);
     try {
       const q = query(collection(db, 'parentChildren'), where('parentId', '==', user.uid));
       const snap = await getDocs(q);
       const list = [];
+      const att: Record<string, any[]> = {};
+
       for (const d of snap.docs) {
-        const link = d.data();
-        const cSnap = await getDoc(doc(db, 'users', link.childId));
-        if (cSnap.exists()) {
-          list.push({ linkId: d.id, ...link, childData: cSnap.data() });
+        try {
+          const link = d.data();
+          const cSnap = await getDoc(doc(db, 'users', link.childId));
+          if (cSnap.exists()) {
+            const childData = cSnap.data();
+            list.push({ linkId: d.id, ...link, childData });
+
+            // Load attendance for this child
+            try {
+              const attQ = query(
+                collection(db, 'attendance'), 
+                where('userId', '==', link.childId),
+                where('timestamp', '>', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)) // Last 30 days
+              );
+              const attSnap = await getDocs(attQ);
+              att[link.childId] = attSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (attErr) {
+              console.warn('Could not load attendance for child:', link.childId, attErr);
+              att[link.childId] = [];
+            }
+          }
+        } catch (childErr) {
+          console.error('Error loading data for specific child link:', d.id, childErr);
         }
       }
       setChildren(list);
+      setAttendanceData(att);
     } catch (err: any) {
-      console.error('Error loading children:', err);
-      // Detailed logging for AI Studio to catch rules issues
+      console.error('Error loading children list:', err);
       if (err.code === 'permission-denied') {
-        console.error('Permission denied on parentChildren or users collection');
+        toast.error('فشل تحميل قائمة الأبناء بسبب مشكلة في الصلاحيات');
       }
     } finally {
       setLoading(false);
@@ -225,6 +251,7 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
         createdAt: serverTimestamp() // Match blueprint
       });
 
+      toast.success('تم ربط الحساب بنجاح');
       setChildIdInput('');
       setShowLinkModal(false);
       loadChildren();
@@ -276,13 +303,23 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                 <p className="text-gray-400 text-sm font-bold">تابع تقدم أبنائك الدراسي في لحظة.</p>
               </div>
             </div>
-            <button 
-              onClick={() => setShowLinkModal(true)}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-blue-dark px-6 py-3 text-sm font-black text-white hover:bg-[#0A0D14] shadow-xl shadow-blue-900/10 transition-all active:scale-95"
-            >
-              <Plus size={18} />
-              ربط تلميذ جديد
-            </button>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => loadChildren()}
+                disabled={loading}
+                className="flex items-center justify-center p-3 rounded-2xl border border-gray-100 text-gray-400 hover:text-blue-dark hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
+                title="تحديث البيانات"
+              >
+                <Clock size={20} className={loading ? "animate-spin" : ""} />
+              </button>
+              <button 
+                onClick={() => setShowLinkModal(true)}
+                className="flex items-center justify-center gap-2 rounded-2xl bg-blue-dark px-6 py-3 text-sm font-black text-white hover:bg-[#0A0D14] shadow-xl shadow-blue-900/10 transition-all active:scale-95"
+              >
+                <Plus size={18} />
+                ربط تلميذ جديد
+              </button>
+            </div>
         </div>
         
         {loading ? (
@@ -296,31 +333,31 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
               <div key={c.linkId} className="group relative rounded-[32px] border border-gray-50 bg-gray-50/30 p-8 transition-all hover:bg-white hover:border-blue-light/10 hover:shadow-2xl hover:shadow-blue-900/5">
                   <div className="flex items-center gap-5 mb-8">
                     <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-white shadow-xl shadow-blue-900/5 border border-gray-100 text-blue-brand font-black text-2xl group-hover:scale-110 transition-transform text-center uppercase">
-                      {c.childData.displayName?.charAt(0)}
+                      {c.childData?.displayName?.charAt(0) || '?'}
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-black text-blue-dark text-lg truncate">{c.childData.displayName}</h4>
+                      <h4 className="font-black text-blue-dark text-lg truncate">{c.childData?.displayName || 'تلميذ مجهول'}</h4>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[0.7rem] bg-gray-100 px-2.5 py-0.5 rounded-full text-gray-500 font-black">{getLevelLabel(c.childData.level)}</span>
+                        <span className="text-[0.7rem] bg-gray-100 px-2.5 py-0.5 rounded-full text-gray-500 font-black">{getLevelLabel(c.childData?.level)}</span>
                         <div className={cn(
                           "h-2 w-2 rounded-full",
-                          c.childData.subscriptionStatus === 'active' ? "bg-emerald-500" : "bg-amber-500"
+                          c.childData?.subscriptionStatus === 'active' ? "bg-emerald-500" : "bg-amber-500"
                         )} />
                         <span className={cn(
                           "text-[0.7rem] font-bold",
-                          c.childData.subscriptionStatus === 'active' ? "text-emerald-500" : "text-amber-500"
-                        )}>{c.childData.subscriptionStatus === 'active' ? 'مشترك' : 'غير مشترك'}</span>
+                          c.childData?.subscriptionStatus === 'active' ? "text-emerald-500" : "text-amber-500"
+                        )}>{c.childData?.subscriptionStatus === 'active' ? 'مشترك' : 'غير مشترك'}</span>
                       </div>
                     </div>
                   </div>
                   
                   <div className="space-y-4 pt-6 border-t border-gray-100/50">
                     <div className="flex items-center justify-between">
-                       <span className="text-xs font-bold text-gray-400">التقدم في الدروس</span>
-                       <span className="text-xs font-black text-blue-dark">0%</span>
+                       <span className="text-xs font-bold text-gray-400">الحضور (آخر 30 يوم)</span>
+                       <span className="text-xs font-black text-blue-dark">{attendanceData[c.childId]?.length || 0} حصص</span>
                     </div>
                     <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                       <div className="h-full bg-blue-brand w-0" />
+                       <div className="h-full bg-blue-brand transition-all duration-1000" style={{ width: `${Math.min((attendanceData[c.childId]?.length || 0) * 10, 100)}%` }} />
                     </div>
                   </div>
 
@@ -598,16 +635,87 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
               </div>
            </div>
         </div>
-      ) : activeTab === 'absences' ? (
-        <div className="rounded-[40px] border border-gray-100 bg-white py-24 text-center shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="h-24 w-24 rounded-[32px] bg-red-50 flex items-center justify-center text-red-500 mx-auto mb-8 shadow-xl shadow-red-900/5">
-             <AlertCircle size={48} />
+      ) : activeTab === 'absences' || activeTab === 'schedule' ? (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="rounded-[40px] border border-gray-100 bg-white p-10 shadow-sm">
+            <div className="flex items-center gap-4 mb-10">
+              <div className={cn(
+                "h-14 w-14 rounded-2xl flex items-center justify-center border shadow-sm",
+                activeTab === 'absences' ? "bg-red-50 text-red-500 border-red-100" : "bg-blue-50 text-blue-500 border-blue-100"
+              )}>
+                 {activeTab === 'absences' ? <AlertCircle size={32} /> : <Calendar size={32} />}
+              </div>
+              <div>
+                <h3 className="text-3xl font-black text-blue-dark">
+                  {activeTab === 'absences' ? 'سجل الحضور والمتابعة' : 'الجداول الأسبوعية للأبناء'}
+                </h3>
+                <p className="text-gray-400 font-bold text-sm">
+                  {activeTab === 'absences' 
+                    ? 'اطلع على سجل حضور أبنائك للحصص المباشرة.'
+                    : 'يمكنك هنا تصفح الجداول الدراسية لكل واحد من أبنائك.'}
+                </p>
+              </div>
+            </div>
+
+            {activeTab === 'absences' ? (
+              <div className="overflow-hidden rounded-3xl border border-gray-100">
+                <table className="w-full text-right">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="px-6 py-4 text-xs font-black text-gray-500 uppercase">التلميذ</th>
+                      <th className="px-6 py-4 text-xs font-black text-gray-500 uppercase">المجموعة</th>
+                      <th className="px-6 py-4 text-xs font-black text-gray-500 uppercase">التاريخ والوقت</th>
+                      <th className="px-6 py-4 text-xs font-black text-gray-500 uppercase">الحالة</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {Object.values(attendanceData).flat().sort((a: any, b: any) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0)).length > 0 ? (
+                      Object.values(attendanceData).flat().sort((a: any, b: any) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0)).map((record: any) => (
+                        <tr key={record.id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="px-6 py-5">
+                            <span className="text-sm font-black text-blue-dark">{record.userName}</span>
+                          </td>
+                          <td className="px-6 py-5">
+                            <span className="text-xs font-bold text-gray-500">{record.groupName}</span>
+                          </td>
+                          <td className="px-6 py-5">
+                            <div className="flex flex-col">
+                              <span className="text-xs font-black text-blue-dark">
+                                {record.timestamp?.toDate().toLocaleDateString('ar-TN')}
+                              </span>
+                              <span className="text-[0.65rem] font-bold text-gray-400">
+                                {record.timestamp?.toDate().toLocaleTimeString('ar-TN', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[0.68rem] font-black">
+                              <CheckCircle2 size={12} />
+                              حاضر
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-20 text-center text-gray-300 italic font-bold">
+                          لا توجد سجلات حضور حالياً
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="py-24 text-center text-gray-100 uppercase font-black tracking-[0.2em] text-sm border-2 border-dashed border-gray-50 rounded-[28px]">
+                قريباً: عرض الجداول المباشرة للأبناء
+              </div>
+            )}
           </div>
-          <h3 className="text-3xl font-black text-blue-dark">سجل المتابعة والغيابات</h3>
-          <p className="text-gray-400 mt-2 max-w-sm mx-auto font-medium">ستصلك تنبيهات فورية في حال تخلف أحد الأبناء عن حصة مباشرة أو حصة دعم.</p>
-          <div className="mt-12 flex items-center justify-center gap-2 text-xs font-black text-gray-300 uppercase tracking-widest">
-             <Clock size={16} /> المتابعة مفعلة تلقائياً
-          </div>
+        </div>
+      ) : activeTab === 'children' ? (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+           {renderChildren()}
         </div>
       ) : null}
 
