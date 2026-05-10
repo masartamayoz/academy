@@ -5,7 +5,8 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
-import { Loader2, Menu, Search, Bell, Wallet, Trophy, User as UserIcon } from 'lucide-react';
+import { Loader2, Menu, Search, Bell, Wallet, Trophy, User as UserIcon, LayoutDashboard, BookOpen } from 'lucide-react';
+import { cn } from '@/src/lib/utils';
 
 interface AppShellProps {
   children: React.ReactNode;
