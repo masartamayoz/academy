@@ -90,21 +90,28 @@ export default function Dashboard() {
     >
       <div className="p-4 sm:p-7 lg:p-10">
         {/* Mobile Horizontal Sub-Navigation */}
-        <div className="lg:hidden mb-6 -mx-4 px-4 overflow-x-auto no-scrollbar flex items-center gap-2 pb-2">
-           {currentTabs.map(tab => (
-             <button
-               key={tab.id}
-               onClick={() => navigate(`/dashboard?tab=${tab.id}`)}
-               className={cn(
-                 "whitespace-nowrap px-5 py-2.5 rounded-2xl text-[0.8rem] font-bold transition-all shrink-0",
-                 activeTab === tab.id 
-                  ? "bg-blue-brand text-white shadow-lg shadow-blue-brand/20" 
-                  : "bg-white text-gray-500 border border-gray-100"
-               )}
-             >
-               {tab.label}
-             </button>
-           ))}
+        <div className="lg:hidden mb-6 -mx-4 relative">
+          <div className="overflow-x-auto scroller-hidden flex items-center gap-2 pb-4 scroll-smooth px-4">
+             <div className="flex items-center gap-2 shrink-0">
+               {currentTabs.map(tab => (
+                 <button
+                   key={tab.id}
+                   onClick={() => navigate(`/dashboard?tab=${tab.id}`)}
+                   className={cn(
+                     "whitespace-nowrap px-5 py-2.5 rounded-2xl text-[0.8rem] font-bold transition-all shrink-0",
+                     activeTab === tab.id 
+                      ? "bg-blue-brand text-white shadow-lg shadow-blue-brand/20 scale-105" 
+                      : "bg-white text-gray-500 border border-gray-100 active:scale-95"
+                   )}
+                 >
+                   {tab.label}
+                 </button>
+               ))}
+             </div>
+          </div>
+          {/* Subtle fade to indicate scroll */}
+          <div className="absolute top-0 right-0 bottom-4 w-8 bg-gradient-to-l from-[#F8FAFC] to-transparent pointer-events-none" />
+          <div className="absolute top-0 left-0 bottom-4 w-8 bg-gradient-to-r from-[#F8FAFC] to-transparent pointer-events-none" />
         </div>
 
         {renderActiveView()}

@@ -39,8 +39,20 @@ export default function Sidebar({ user, userData, isOpen, setIsOpen }: SidebarPr
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const role = userData?.userType || 'student';
   const name = userData?.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : (user?.displayName || user?.email || '...');
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (!mobile) setIsOpen(false);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [setIsOpen]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -105,14 +117,13 @@ export default function Sidebar({ user, userData, isOpen, setIsOpen }: SidebarPr
       {/* Sidebar Content */}
       <motion.aside 
         initial={false}
-        animate={{ 
-          width: isCollapsed ? 88 : 280,
-          x: isOpen ? 0 : '100%'
-        }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        animate={isMobile 
+          ? { x: isOpen ? 0 : '100%', width: 280 } 
+          : { x: 0, width: isCollapsed ? 88 : 280 }
+        }
+        transition={{ type: 'spring', stiffness: 400, damping: 40 }}
         className={cn(
-          "fixed inset-y-0 right-0 z-[110] bg-blue-sidebar text-white lg:static lg:flex lg:flex-col border-l border-white/5 shadow-2xl",
-          "lg:translate-x-0" // Always visible on desktop
+          "fixed inset-y-0 right-0 z-[110] bg-blue-sidebar text-white lg:static lg:flex lg:flex-col border-l border-white/5 shadow-2xl overflow-hidden"
         )}
       >
         {/* Header/Logo */}
@@ -142,7 +153,7 @@ export default function Sidebar({ user, userData, isOpen, setIsOpen }: SidebarPr
         </div>
 
         {/* The middle part needs to be the one that scrolls */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20">
+        <div className="flex-1 overflow-y-auto scroll-smooth scrollbar-visible scrollbar-dark">
           {/* User Card */}
           <div className={cn("p-4 transition-all", isCollapsed ? "px-2" : "p-6")}>
              <div className={cn(
