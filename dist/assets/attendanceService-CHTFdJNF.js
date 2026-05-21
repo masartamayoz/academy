@@ -1,0 +1,1 @@
+import{a as t,c as n,d as s,s as o,h as c,O as i}from"./index-DN3GFeDN.js";const l=async e=>{try{await t(n(s,"attendance"),{...e,timestamp:o()}),console.log("Attendance logged successfully"),e.meetLink&&window.open(e.meetLink,"_blank")}catch(a){c(a,i.CREATE,"attendance")}};export{l as logAttendance};

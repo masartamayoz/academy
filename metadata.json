@@ -1,6 +1,12 @@
 {
   "name": "أكاديمية مسار التميز",
-  "description": "منصة تعليمية تونسية متخصصة في تعليم الرياضيات للمرحلتين الإعدادية والثانوية، تشمل دروساً مسجلة وحصصاً مباشرة ومتابعة شاملة.",
-  "requestFramePermissions": [],
-  "majorCapabilities": []
+  "description": "منصة تعليمية تونسية متخصصة في الرياضيات للمرحلتين الإعدادية والثانوية",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

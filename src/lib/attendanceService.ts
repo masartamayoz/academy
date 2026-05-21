@@ -1,6 +1,5 @@
-import { db } from './firebase';
+import { db, handleFirestoreError, OperationType } from './firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from './firestore-errors';
 
 export interface AttendanceRecord {
   userId: string;
@@ -9,6 +8,7 @@ export interface AttendanceRecord {
   groupId: string;
   groupName: string;
   meetLink: string;
+  sessionId?: string;
 }
 
 export const logAttendance = async (record: AttendanceRecord) => {

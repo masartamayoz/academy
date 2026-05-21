@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { SUBSCRIPTION_PLANS, PAYMENT_METHODS } from '@/src/constants';
 import { useNavigate } from 'react-router-dom';
-import { db, auth } from '@/src/lib/firebase';
+import { db, auth, handleFirestoreError, OperationType } from '@/src/lib/firebase';
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, orderBy, addDoc, deleteDoc, onSnapshot, setDoc } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '@/src/lib/firestore-errors';
 import { User, getAuth, createUserWithEmailAndPassword, signOut, setPersistence, inMemoryPersistence } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { firebaseConfig } from '@/src/lib/firebase';
@@ -52,7 +51,10 @@ import {
   LogOut,
   Globe,
   Activity,
-  HardDrive
+  HardDrive,
+  Zap,
+  Mail,
+  Lock
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
@@ -73,6 +75,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     wallets: [] as any[],
     attendance: [] as any[],
     subscriptions: [] as any[],
+    payoutRequests: [] as any[],
   });
   const [stats, setStats] = useState({
     users: 0,
@@ -102,6 +105,17 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   const addLog = (msg: string) => {
     const time = new Date().toLocaleTimeString('ar-TN');
     setMaintenanceLogs(prev => [`// [${time}] ${msg}`, ...prev]);
+  };
+
+  const formatDate = (date: any, showTime = true) => {
+    if (!date) return '---';
+    try {
+      const d = date.toDate ? date.toDate() : new Date(date);
+      if (isNaN(d.getTime())) return '---';
+      return showTime ? d.toLocaleString('ar-TN') : d.toLocaleDateString('ar-TN');
+    } catch (e) {
+      return '---';
+    }
   };
 
   const [newContent, setNewContent] = useState({
@@ -168,12 +182,15 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     }
   };
 
+  const [activeSubTab, setActiveSubTab] = useState<'logs' | 'scheduled'>('logs');
   const [newSession, setNewSession] = useState({
     teacherId: '',
+    groupId: '',
     level: '',
     dateTime: '',
     meetLink: '',
-    chapter: ''
+    chapter: '',
+    title: ''
   });
 
   const [newUser, setNewUser] = useState({
@@ -195,7 +212,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     teacherId: '',
     whatsappLink: '',
     meetLink: '',
-    schedule: [],
+    schedule: [] as any[],
     description: '',
     isActive: true
   });
@@ -270,6 +287,12 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       setData(prev => ({ ...prev, attendance: att }));
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'attendance'));
 
+    const unsubPayouts = onSnapshot(collection(db, 'payoutRequests'), (snapshot) => {
+      const p: any[] = [];
+      snapshot.forEach(d => p.push({ id: d.id, ...d.data() }));
+      setData(prev => ({ ...prev, payoutRequests: p }));
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'payoutRequests'));
+
     return () => {
       unsubUsers();
       unsubReceipts();
@@ -278,6 +301,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       unsubGroups();
       unsubWallets();
       unsubAttendance();
+      unsubPayouts();
     };
   }, []);
 
@@ -315,7 +339,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       await signOut(secondaryAuth);
       
       toast.success(`تمت إضافة المستخدم بنجاح: ${newUser.firstName} ${newUser.lastName}`);
-      setNewUser({ firstName: '', lastName: '', email: '', password: '', phone: '', userType: 'student', subject: 'الرياضيات', level: '7', address: '' });
+      setNewUser({ firstName: '', lastName: '', email: '', password: '', phone: '', userType: 'student', subject: 'الرياضيات', level: '7', address: '', group: '' });
     } catch (err: any) {
       console.error('Error creating user:', err);
       let errorMsg = 'حدث خطأ أثناء إضافة المستخدم';
@@ -447,11 +471,15 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       });
 
       // 2. Update User profile
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 30);
+      
       await updateDoc(doc(db, 'users', userId), { 
         subscriptionStatus: 'active',
         currentPlan: planName,
         plan: receipt.planId || 'general',
-        lastPaymentDate: serverTimestamp()
+        lastPaymentDate: serverTimestamp(),
+        subscriptionExpiry: expiryDate.toISOString()
       });
 
       // 3. Update/Create Wallet Subscription record
@@ -564,15 +592,188 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     e.preventDefault();
     setLoading(true);
     try {
+      const groupData = data.groups.find(g => g.id === newSession.groupId);
       await addDoc(collection(db, 'teacherSessions'), {
         ...newSession,
+        groupName: groupData?.name || '',
         status: 'scheduled',
         createdAt: serverTimestamp()
       });
-      alert('تم جدولة الحصة بنجاح');
-      setNewSession({ teacherId: '', level: '', dateTime: '', meetLink: '', chapter: '' });
+      toast.success('تم جدولة الحصة بنجاح');
+      setNewSession({ teacherId: '', groupId: '', level: '', dateTime: '', meetLink: '', chapter: '', title: '' });
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'teacherSessions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerateWeeklySessions = async () => {
+    setLoading(true);
+    addLog("بدء توليد حصص الأسبوع آلياً من الجداول...");
+    
+    try {
+      const today = new Date();
+      const daysMap: { [key: string]: number } = {
+        'الأحد': 0, 'الاثنين': 1, 'الثلاثاء': 2, 'الأربعاء': 3, 'الخميس': 4, 'الجمعة': 5, 'السبت': 6
+      };
+
+      let generatedCount = 0;
+      let skippedCount = 0;
+
+      for (const group of data.groups) {
+        if (!group.schedule || group.schedule.length === 0) continue;
+        
+        for (const schedItem of group.schedule) {
+          const targetDayNum = daysMap[schedItem.day];
+          if (targetDayNum === undefined) continue;
+          
+          const currentDayNum = today.getDay();
+          
+          // Calculate diff to next occurrence of this day
+          let diff = targetDayNum - currentDayNum;
+          if (diff < 0) diff += 7; 
+          
+          const targetDate = new Date(today);
+          targetDate.setDate(today.getDate() + diff);
+          
+          const [hours, minutes] = schedItem.startTime.split(':');
+          targetDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+          // Check if already exists for this group on this date (broad date check)
+          const exists = data.teacherSessions.some(s => 
+            s.groupId === group.id && 
+            new Date(s.dateTime).toDateString() === targetDate.toDateString() &&
+            s.dateTime.includes(schedItem.startTime)
+          );
+
+          if (exists) {
+            skippedCount++;
+            continue;
+          }
+
+          await addDoc(collection(db, 'teacherSessions'), {
+            teacherId: group.teacherId || '',
+            groupId: group.id,
+            groupName: group.name,
+            level: group.level,
+            dateTime: targetDate.toISOString(),
+            meetLink: group.meetLink || '',
+            title: `حصة أسبوعية: ${group.name}`,
+            chapter: 'مراجعة وتطبيقات برمجية',
+            status: 'scheduled',
+            createdAt: serverTimestamp()
+          });
+          generatedCount++;
+        }
+      }
+
+      addLog(`اكتمل التوليد: تم إنشاء ${generatedCount} حصة، وتخطي ${skippedCount} حصة موجودة.`);
+      toast.success(`تم إنشاء ${generatedCount} حصة جديدة بنجاح`);
+    } catch (err) {
+      console.error(err);
+      addLog("خطأ أثناء توليد الحصص.");
+      toast.error("فشل في توليد الحصص آلياً");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCompleteSession = async (sessionId: string) => {
+    setLoading(true);
+    try {
+      const session = data.teacherSessions.find(s => s.id === sessionId);
+      if (!session) return;
+
+      // 1. Update session status
+      await updateDoc(doc(db, 'teacherSessions', sessionId), {
+        status: 'completed',
+        completedAt: serverTimestamp()
+      });
+
+      // 2. Add 20 DT to teacher's wallet
+      const teacherId = session.teacherId;
+      const walletRef = doc(db, 'wallets', teacherId);
+      const walletSnap = data.wallets.find(w => w.id === teacherId);
+      
+      const currentBalance = parseFloat(walletSnap?.balance || '0');
+      const earnedTotal = parseFloat(walletSnap?.earnedTotal || '0');
+      
+      await setDoc(walletRef, {
+        balance: (currentBalance + 20).toString(),
+        earnedTotal: (earnedTotal + 20).toString(),
+        lastUpdated: serverTimestamp(),
+        transactions: [
+          ...(walletSnap?.transactions || []),
+          {
+            type: 'earnings',
+            amount: 20,
+            description: `مقابل حصة: ${session.title || session.chapter}`,
+            date: new Date().toISOString()
+          }
+        ]
+      }, { merge: true });
+
+      toast.success('تم إنهاء الحصة وإضافة 20 د لمحفظة المدرس');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, 'teacherSessions');
+      toast.error('حدث خطأ أثناء إنهاء الحصة');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProcessPayout = async (request: any) => {
+    setLoading(true);
+    try {
+      const walletRef = doc(db, 'wallets', request.teacherId);
+      const walletSnap = data.wallets.find(w => w.id === request.teacherId);
+      
+      const currentBalance = parseFloat(walletSnap?.balance || '0');
+      const currentPaid = parseFloat(walletSnap?.paid || '0');
+      const amount = parseFloat(request.amount);
+
+      if (currentBalance < amount) {
+        toast.error('الرصيد غير كافٍ في محفظة المدرس');
+        return;
+      }
+
+      // 1. Update Wallet
+      await updateDoc(walletRef, {
+        balance: (currentBalance - amount).toString(),
+        paid: (currentPaid + amount).toString(),
+        lastUpdated: serverTimestamp(),
+        transactions: [
+          ...(walletSnap?.transactions || []),
+          {
+            type: 'payout',
+            amount: amount,
+            description: `سحب مستحقات (طلب ID: ${request.id})`,
+            date: new Date().toISOString()
+          }
+        ]
+      });
+
+      // 2. Update Request status
+      await updateDoc(doc(db, 'payoutRequests', request.id), {
+        status: 'paid',
+        paidAt: serverTimestamp()
+      });
+
+      // 3. Send Notification Message
+      await addDoc(collection(db, 'messages'), {
+        recipientId: request.teacherId,
+        title: 'تم تحويل مستحقاتك ✅',
+        content: `تمت معالجة طلب سحب الأرباح الخاص بك بنجاح بمبلغ ${amount} د.ت. شكراً لجهودك!`,
+        type: 'success',
+        isRead: false,
+        createdAt: serverTimestamp()
+      });
+
+      toast.success('تمت معالجة الدفع وإرسال إشعار للمدرس');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, 'payoutRequests');
+      toast.error('حدث خطأ أثناء معالجة الدفع');
     } finally {
       setLoading(false);
     }
@@ -629,7 +830,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                     <div className="h-10 w-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center"><ReceiptIcon size={20} /></div>
                     <div>
                        <p className="text-sm font-black text-blue-dark">وصل جديد من {data.users.find(u => u.id === r.userId)?.displayName || 'مستخدم'}</p>
-                       <p className="text-[0.65rem] text-gray-400 font-bold">{new Date(r.createdAt?.toDate()).toLocaleString('ar-TN')}</p>
+                       <p className="text-[0.65rem] text-gray-400 font-bold">{formatDate(r.createdAt)}</p>
                     </div>
                  </div>
                  <button className="px-4 py-2 rounded-xl bg-blue-dark text-white text-xs font-black">معاينة</button>
@@ -1601,6 +1802,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
         subject: editingUser.subject || '',
         group: editingUser.group || '',
         subscriptionStatus: editingUser.subscriptionStatus || 'inactive',
+        subscriptionExpiry: editingUser.subscriptionExpiry || null,
         updatedAt: serverTimestamp()
       });
       toast.success('تم تحديث بيانات المستخدم بنجاح');
@@ -1681,6 +1883,22 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                     <option key={g.id} value={g.name}>{g.name}</option>
                   ))}
                 </select>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-xs font-black text-gray-400 uppercase pr-2">تاريخ انتهاء الاشتراك</label>
+                <input 
+                  type="datetime-local" 
+                  value={(() => {
+                    if (!editingUser.subscriptionExpiry) return '';
+                    try {
+                      const d = new Date(editingUser.subscriptionExpiry);
+                      return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 16);
+                    } catch (e) { return ''; }
+                  })()} 
+                  onChange={e => setEditingUser({...editingUser, subscriptionExpiry: e.target.value})} 
+                  className="w-full rounded-2xl bg-gray-50 border-none px-6 py-3 text-sm font-bold outline-none ring-1 ring-gray-100" 
+                />
+                <p className="text-[0.6rem] text-amber-600 font-bold mt-1 pr-2">سيتم تعطيل الحساب تلقائياً عند حلول هذا التاريخ</p>
               </div>
             </>
           )}
@@ -1982,6 +2200,28 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                           {u.subscriptionStatus === 'active' ? <CheckCircle size={12} strokeWidth={3} /> : <XCircle size={12} strokeWidth={3} />}
                           <span>{u.subscriptionStatus === 'active' ? 'مفعل' : 'موقوف'}</span>
                         </div>
+                        {u.subscriptionExpiry && (
+                           <span className={cn(
+                             "text-[0.55rem] font-black px-2 py-0.5 rounded-md mt-1",
+                             (() => {
+                               if (!u.subscriptionExpiry) return "bg-gray-50 text-gray-400";
+                               try {
+                                 const d = new Date(u.subscriptionExpiry);
+                                 return isNaN(d.getTime()) || d < new Date() ? "bg-red-50 text-red-500" : "bg-blue-50 text-blue-light";
+                               } catch (e) { return "bg-gray-50 text-gray-400"; }
+                             })()
+                           )}>
+                              {(() => {
+                               if (!u.subscriptionExpiry) return 'بدون اشتراك';
+                               try {
+                                 const d = new Date(u.subscriptionExpiry);
+                                 if (isNaN(d.getTime())) return 'بدون اشتراك';
+                                 const label = d < new Date() ? 'منتهي ' : 'ينتهي ';
+                                 return label + d.toLocaleDateString('ar-TN');
+                               } catch (e) { return 'خطأ في التاريخ'; }
+                             })()}
+                           </span>
+                        )}
                         {u.currentPlan && (
                           <span className="text-[0.55rem] font-bold text-blue-light/70 text-center max-w-[80px] break-words">
                             {u.currentPlan}
@@ -1989,8 +2229,16 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                         )}
                      </div>
                      <div className="flex flex-col items-center">
-                        <span className="text-[0.7rem] font-black text-gray-500">{u.createdAt ? new Date(u.createdAt.toDate ? u.createdAt.toDate() : u.createdAt).toLocaleDateString('ar-TN') : '---'}</span>
-                        <span className="text-[0.55rem] font-bold text-gray-300 tracking-tighter uppercase">{u.createdAt ? new Date(u.createdAt.toDate ? u.createdAt.toDate() : u.createdAt).toLocaleTimeString('ar-TN', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                        <span className="text-[0.7rem] font-black text-gray-500">{formatDate(u.createdAt, false)}</span>
+                        <span className="text-[0.55rem] font-bold text-gray-300 tracking-tighter uppercase">
+                          {(() => {
+                            if (!u.createdAt) return '';
+                            try {
+                              const d = u.createdAt.toDate ? u.createdAt.toDate() : new Date(u.createdAt);
+                              return isNaN(d.getTime()) ? '' : d.toLocaleTimeString('ar-TN', { hour: '2-digit', minute: '2-digit' });
+                            } catch (e) { return ''; }
+                          })()}
+                        </span>
                      </div>
                      <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
                         <button 
@@ -2053,7 +2301,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                         </div>
                         <div>
                            <h4 className="text-sm font-black text-blue-dark">{u?.displayName || 'مستخدم مجهول'}</h4>
-                           <p className="text-[0.65rem] text-gray-400 font-bold">{u?.phone || 'بدون هاتف'} • {new Date(r.createdAt?.toDate()).toLocaleString('ar-TN')}</p>
+                           <p className="text-[0.65rem] text-gray-400 font-bold">{u?.phone || 'بدون هاتف'} • {formatDate(r.createdAt)}</p>
                            <div className="mt-2 flex flex-wrap gap-2">
                              <span className="px-2 py-0.5 rounded-lg bg-blue-50 text-blue-dark text-[0.55rem] font-black">{r.planName || r.plan || 'اشتراك'}</span>
                              <span className="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-600 text-[0.55rem] font-black">{r.price || r.amount || '--'} د.ت</span>
@@ -2103,7 +2351,13 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
               <div className="space-y-3 pt-4 border-t border-white/10">
                  <div className="flex justify-between items-center text-[0.65rem]">
                     <span className="text-white/60">هذا الشهر</span>
-                    <span className="font-black text-emerald-400">+{data.receipts.filter(r => r.status === 'approved' && r.createdAt?.toDate() > new Date(Date.now() - 86400000)).reduce((a, b) => a + (parseFloat(b.price) || 0), 0)} د.ت</span>
+                    <span className="font-black text-emerald-400">+{data.receipts.filter(r => {
+                    if (r.status !== 'approved' || !r.createdAt) return false;
+                    try {
+                      const d = r.createdAt.toDate ? r.createdAt.toDate() : new Date(r.createdAt);
+                      return !isNaN(d.getTime()) && d.getTime() > (Date.now() - 86400000);
+                    } catch (e) { return false; }
+                  }).reduce((a, b) => a + (parseFloat(b.price) || 0), 0)} د.ت</span>
                  </div>
                  <div className="flex justify-between items-center text-[0.65rem]">
                     <span className="text-white/60">اشتراكات مفعلة</span>
@@ -2348,88 +2602,269 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
             <CheckCircle size={28} />
           </div>
           <div>
-            <h2 className="text-3xl font-black text-blue-dark">سجلات حضور الميت</h2>
-            <p className="text-gray-400 font-bold text-sm">متابعة دقيقة للالتحاق بالحصص المباشرة ({data.attendance.length})</p>
+            <h2 className="text-3xl font-black text-blue-dark">الحصص والحضور المباشر</h2>
+            <p className="text-gray-400 font-bold text-sm">إدارة جدول الحصص ومتابعة الحضور المباشر</p>
           </div>
         </div>
+
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={handleGenerateWeeklySessions}
+            disabled={loading}
+            className="hidden md:flex items-center gap-2 rounded-2xl bg-gold-brand px-6 py-3 text-xs font-black text-blue-dark shadow-xl shadow-gold-brand/10 transition-all hover:scale-105 active:scale-95"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap size={16} />}
+            توليد حصص الأسبوع آلياً
+          </button>
+        </div>
+
+        <div className="flex bg-gray-100 p-1.5 rounded-2xl">
+          <button 
+            onClick={() => setActiveSubTab('logs')}
+            className={cn(
+              "px-6 py-2.5 rounded-xl text-xs font-black transition-all",
+              activeSubTab === 'logs' ? "bg-white text-blue-dark shadow-sm" : "text-gray-400 hover:text-gray-600"
+            )}
+          >
+            سجلات الحضور
+          </button>
+          <button 
+            onClick={() => setActiveSubTab('scheduled')}
+            className={cn(
+              "px-6 py-2.5 rounded-xl text-xs font-black transition-all",
+              activeSubTab === 'scheduled' ? "bg-white text-blue-dark shadow-sm" : "text-gray-400 hover:text-gray-600"
+            )}
+          >
+            الحصص المجدولة
+          </button>
+        </div>
         
-        <button 
-          onClick={() => setPendingDelete({ id: 'attendance', label: 'كافة سجلات الحضور', type: 'collection' })}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-red-50 text-red-500 font-extrabold text-xs hover:bg-red-500 hover:text-white transition-all"
-        >
-          <Trash2 size={16} /> تصفير كافة السجلات
-        </button>
+        {activeSubTab === 'scheduled' && (
+          <button 
+            onClick={handleGenerateWeeklySessions}
+            disabled={loading}
+            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-black text-xs transition-all border border-indigo-100 shadow-sm"
+          >
+            {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+            <span>توليد حصص الأسبوع آلياً من الجداول</span>
+          </button>
+        )}
       </div>
 
-      <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-x-auto min-h-[400px]">
-        <div className="grid grid-cols-[1.5fr_1fr_1.5fr_1fr_1fr_60px] min-w-[1000px] bg-gray-50/80 p-6 border-b border-gray-100 text-[0.65rem] font-black text-gray-400 uppercase tracking-widest">
-           <div className="text-right pr-4">المستخدم</div>
-           <div className="text-center">الدور</div>
-           <div className="text-center">المجموعة</div>
-           <div className="text-center">الوقت</div>
-           <div className="text-center">التاريخ</div>
-           <div className="text-center">رابط</div>
+      {activeSubTab === 'logs' ? (
+        <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-x-auto min-h-[400px]">
+          <div className="grid grid-cols-[1.5fr_1fr_1.5fr_1fr_1fr_60px] min-w-[1000px] bg-gray-50/80 p-6 border-b border-gray-100 text-[0.65rem] font-black text-gray-400 uppercase tracking-widest">
+             <div className="text-right pr-4">المستخدم</div>
+             <div className="text-center">الدور</div>
+             <div className="text-center">المجموعة</div>
+             <div className="text-center">الوقت</div>
+             <div className="text-center">التاريخ</div>
+             <div className="text-center">رابط</div>
+          </div>
+          <div className="divide-y divide-gray-50">
+            <AnimatePresence mode="popLayout">
+              {data.attendance.length > 0 ? (
+                data.attendance.map(att => (
+                  <motion.div 
+                    layout
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    key={att.id} 
+                    className="grid grid-cols-[1.5fr_1fr_1.5fr_1fr_1fr_60px] p-6 items-center hover:bg-gray-50 transition-all min-w-[1000px]"
+                  >
+                     <div className="flex items-center gap-3 text-right">
+                        <div className="h-10 w-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-black text-xs">
+                           {att.userName?.charAt(0) || 'U'}
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-black text-blue-dark truncate max-w-[180px]">{att.userName}</h4>
+                          <p className="text-[0.6rem] text-gray-400 font-bold">UID: {att.userId?.substring(0, 8)}...</p>
+                        </div>
+                     </div>
+                     <div className="text-center">
+                        <span className={cn(
+                          "px-3 py-1 rounded-full text-[0.6rem] font-black",
+                          att.userType === 'teacher' ? 'bg-indigo-50 text-indigo-600' : 'bg-blue-50 text-blue-dark'
+                        )}>
+                          {att.userType === 'teacher' ? 'مربي' : 'تلميذ'}
+                        </span>
+                     </div>
+                     <div className="text-center">
+                        <p className="text-xs font-black text-blue-dark">{att.groupName}</p>
+                        <p className="text-[0.6rem] text-gray-400 font-bold">ID: {att.groupId?.substring(0, 8)}</p>
+                     </div>
+                     <div className="text-center">
+                        <span className="text-[0.7rem] font-black text-gray-500">
+                          {formatDate(att.timestamp)}
+                        </span>
+                     </div>
+                     <div className="flex justify-center">
+                        <a href={att.meetLink} target="_blank" className="p-2 rounded-lg bg-blue-50 text-blue-brand hover:bg-blue-brand hover:text-white transition-all">
+                          <ExternalLink size={14} />
+                        </a>
+                     </div>
+                  </motion.div>
+                ))
+              ) : (
+                <div className="py-40 text-center flex flex-col items-center justify-center opacity-30 min-w-[1000px]">
+                   <CheckCircle size={80} className="mb-4" />
+                   <p className="text-lg font-black italic">لا يوجد سجل حضور حالياً</p>
+                   <p className="text-xs mt-2">سجلات الحضور ستظهر آلياً عند التحاق المستخدمين بالحصص المباشرة.</p>
+                </div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
-        <div className="divide-y divide-gray-50">
-          <AnimatePresence mode="popLayout">
-            {data.attendance.length > 0 ? (
-              data.attendance.map(att => (
-                <motion.div 
-                  layout
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  key={att.id} 
-                  className="grid grid-cols-[1.5fr_1fr_1.5fr_1fr_1fr_60px] p-6 items-center hover:bg-gray-50 transition-all min-w-[1000px]"
-                >
-                   <div className="flex items-center gap-3 text-right">
-                      <div className="h-10 w-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-black text-xs">
-                         {att.userName?.charAt(0) || 'U'}
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-black text-blue-dark truncate max-w-[180px]">{att.userName}</h4>
-                        <p className="text-[0.6rem] text-gray-400 font-bold">UID: {att.userId?.substring(0, 8)}...</p>
-                      </div>
-                   </div>
-                   <div className="text-center">
+      ) : (
+        <div className="space-y-8">
+           {/* Create Session Form */}
+           <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm">
+              <h3 className="text-xl font-black text-blue-dark mb-6 flex items-center gap-2">
+                 <PlusCircle className="text-blue-light" size={20} /> جدولة حصة مباشرة جديدة
+              </h3>
+              <form onSubmit={handleCreateSession} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                 <div className="space-y-2">
+                    <label className="text-xs font-black text-gray-400 uppercase pr-2">المربي</label>
+                    <select required value={newSession.teacherId} onChange={e => setNewSession({...newSession, teacherId: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-xs font-bold outline-none ring-1 ring-gray-100 italic">
+                       <option value="">اختر المربي</option>
+                       {data.users.filter(u => u.userType === 'teacher').map(t => (
+                         <option key={t.id} value={t.id}>{t.displayName}</option>
+                       ))}
+                    </select>
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-xs font-black text-gray-400 uppercase pr-2">المجموعة الهدف</label>
+                    <select required value={newSession.groupId} onChange={e => {
+                      const g = data.groups.find(g => g.id === e.target.value);
+                      setNewSession({...newSession, groupId: e.target.value, level: g?.level || ''});
+                    }} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-xs font-bold outline-none ring-1 ring-gray-100 italic">
+                       <option value="">اختر المجموعة</option>
+                       {data.groups.map(g => (
+                         <option key={g.id} value={g.id}>{g.name} (السنة {g.level})</option>
+                       ))}
+                    </select>
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-xs font-black text-gray-400 uppercase pr-2">التوقيت</label>
+                    <input required type="datetime-local" value={newSession.dateTime} onChange={e => setNewSession({...newSession, dateTime: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-xs font-black text-gray-400 uppercase pr-2">رابط الميت</label>
+                    <input required type="text" placeholder="https://meet.google.com/..." value={newSession.meetLink} onChange={e => setNewSession({...newSession, meetLink: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
+                 </div>
+                 <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-black text-gray-400 uppercase pr-2">عنوان الحصة / الموضوع</label>
+                    <input required type="text" placeholder="مثال: مراجعة شاملة للثلاثي الأول" value={newSession.title} onChange={e => setNewSession({...newSession, title: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
+                 </div>
+                 <div className="flex items-end md:col-span-2">
+                    <button disabled={loading} type="submit" className="w-full py-4 rounded-2xl bg-blue-dark text-white font-black text-sm shadow-xl flex items-center justify-center gap-2">
+                       {loading ? <Loader2 className="animate-spin" /> : <Save size={18} />} جدولة الحصة الآن
+                    </button>
+                 </div>
+              </form>
+           </div>
+
+           {/* Scheduled Sessions List */}
+           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {data.teacherSessions.length > 0 ? (
+                data.teacherSessions
+                  .sort((a, b) => {
+                    const getTime = (d: any) => {
+                      if (!d) return 0;
+                      try {
+                        const date = new Date(d);
+                        return isNaN(date.getTime()) ? 0 : date.getTime();
+                      } catch (e) { return 0; }
+                    };
+                    return getTime(b.dateTime) - getTime(a.dateTime);
+                  })
+                  .map(s => (
+                  <div key={s.id} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm relative group overflow-hidden">
+                    <div className="mb-4 flex items-center justify-between">
                       <span className={cn(
-                        "px-3 py-1 rounded-full text-[0.6rem] font-black",
-                        att.userType === 'teacher' ? 'bg-indigo-50 text-indigo-600' : 'bg-blue-50 text-blue-dark'
+                        "px-3 py-1 rounded-full text-[0.6rem] font-black uppercase tracking-wider",
+                        s.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-dark'
                       )}>
-                        {att.userType === 'teacher' ? 'مربي' : 'تلميذ'}
+                        {s.status === 'completed' ? 'تمت بنجاح' : 'جاري التنفيذ'}
                       </span>
-                   </div>
-                   <div className="text-center">
-                      <p className="text-xs font-black text-blue-dark">{att.groupName}</p>
-                      <p className="text-[0.6rem] text-gray-400 font-bold">ID: {att.groupId?.substring(0, 8)}</p>
-                   </div>
-                   <div className="text-center">
-                      <span className="text-[0.7rem] font-black text-gray-500">
-                        {att.timestamp ? new Date(att.timestamp.toDate ? att.timestamp.toDate() : att.timestamp).toLocaleTimeString('ar-TN', { hour: '2-digit', minute: '2-digit' }) : '---'}
-                      </span>
-                   </div>
-                   <div className="text-center">
-                      <span className="text-[0.7rem] font-black text-gray-500">
-                        {att.timestamp ? new Date(att.timestamp.toDate ? att.timestamp.toDate() : att.timestamp).toLocaleDateString('ar-TN') : '---'}
-                      </span>
-                   </div>
-                   <div className="flex justify-center">
-                      <a href={att.meetLink} target="_blank" className="p-2 rounded-lg bg-blue-50 text-blue-brand hover:bg-blue-brand hover:text-white transition-all">
-                        <ExternalLink size={14} />
-                      </a>
-                   </div>
-                </motion.div>
-              ))
-            ) : (
-              <div className="py-40 text-center flex flex-col items-center justify-center opacity-30 min-w-[1000px]">
-                 <CheckCircle size={80} className="mb-4" />
-                 <p className="text-lg font-black italic">لا يوجد سجل حضور حالياً</p>
-                 <p className="text-xs mt-2">سجلات الحضور ستظهر آلياً عند التحاق المستخدمين بالحصص المباشرة.</p>
-              </div>
-            )}
-          </AnimatePresence>
+                      <button 
+                        onClick={() => setPendingDelete({ id: s.id, label: s.title || 'حصة', type: 'generic', coll: 'teacherSessions' })}
+                        className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                      >
+                         <Trash2 size={14} />
+                      </button>
+                    </div>
+                    <h4 className="font-black text-blue-dark mb-1 truncate">{s.title || 'حصة بدون عنوان'}</h4>
+                    <p className="text-[0.65rem] font-bold text-gray-400 mb-4">{s.groupName} • {formatDate(s.dateTime)}</p>
+                    
+                    {s.status !== 'completed' && (
+                      <div className="space-y-2">
+                        {(() => {
+                           const sessionTime = s.dateTime?.toDate ? s.dateTime.toDate().getTime() : new Date(s.dateTime).getTime();
+                           const now = Date.now();
+                           const fifteenMinutesInMs = 15 * 60 * 1000;
+                           const canJoin = now >= (sessionTime - fifteenMinutesInMs);
+                           
+                           if (canJoin) {
+                             return (
+                               <a 
+                                 href={s.meetLink} 
+                                 target="_blank" 
+                                 rel="noopener noreferrer"
+                                 onClick={async () => {
+                                   try {
+                                     await addDoc(collection(db, 'attendance'), {
+                                       userId: user.uid,
+                                       userName: userData.displayName || 'Admin',
+                                       userType: 'admin',
+                                       groupId: s.groupId,
+                                       groupName: s.groupName,
+                                       meetLink: s.meetLink,
+                                       timestamp: serverTimestamp()
+                                     });
+                                   } catch (e) { console.error(e); }
+                                 }}
+                                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-dark text-white text-[0.7rem] font-black shadow-lg shadow-blue-500/20 hover:scale-[1.02] transition-all"
+                               >
+                                 <Video size={16} />
+                                 <span>الالتحاق بالحصة المباشرة</span>
+                               </a>
+                             );
+                           } else {
+                             return (
+                               <div className="w-full py-3 rounded-xl bg-gray-50 border border-gray-100 text-gray-400 text-[0.65rem] font-black flex items-center justify-center gap-2">
+                                 <Lock size={14} />
+                                 <span>الرابط سيتفعل قبل 15 دقيقة</span>
+                               </div>
+                             );
+                           }
+                        })()}
+
+                        <button 
+                          onClick={() => handleCompleteSession(s.id)}
+                          disabled={loading}
+                          className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-[0.65rem] font-black shadow-lg shadow-emerald-900/10 hover:bg-emerald-700 transition-all"
+                        >
+                          تأكيد الإتمام (دفع 20 د.ت للمربي)
+                        </button>
+                      </div>
+                    )}
+                    {s.status === 'completed' && (
+                      <div className="flex items-center justify-center gap-2 text-[0.65rem] font-black text-emerald-600 bg-emerald-50 py-2.5 rounded-xl">
+                        <CheckCircle size={14} /> تمت وحصل المربي على مستحقاته
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 py-20 text-center bg-white rounded-[32px] border-2 border-dashed border-gray-50 text-gray-300 font-bold italic">
+                   لا توجد حصص مجدولة لعرضها
+                </div>
+              )}
+           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 
@@ -2445,25 +2880,76 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {/* Payout Requests Section */}
+      <div className="grid gap-6">
+        <h3 className="text-xl font-black text-blue-dark flex items-center gap-2">
+           <Zap size={22} className="text-amber-500" /> طلبات السحب المعلقة ({data.payoutRequests.filter(r => r.status === 'pending').length})
+        </h3>
+        <div className="grid lg:grid-cols-2 gap-6">
+           {data.payoutRequests.filter(r => r.status === 'pending').map(r => (
+             <div key={r.id} className="bg-white p-6 rounded-[32px] border-2 border-amber-100 shadow-md flex items-center justify-between animate-pulse-slow">
+                <div className="flex items-center gap-4">
+                   <div className="h-12 w-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center"><Wallet size={24} /></div>
+                   <div>
+                      <p className="text-xs font-black text-blue-dark">طلب سحب من الأستاذ: {r.teacherName}</p>
+                      <p className="text-[0.6rem] text-gray-400 font-bold">{formatDate(r.createdAt)}</p>
+                   </div>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                   <div className="text-lg font-black text-emerald-600">{r.amount} <span className="text-xs">د.ت</span></div>
+                   <button 
+                     onClick={() => handleProcessPayout(r)}
+                     disabled={loading}
+                     className="px-6 py-2 rounded-xl bg-blue-dark text-white text-[0.65rem] font-black hover:bg-blue-brand transition-all flex items-center gap-2"
+                   >
+                     {loading ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />} تأكيد الدفع
+                   </button>
+                </div>
+             </div>
+           ))}
+           {data.payoutRequests.filter(r => r.status === 'pending').length === 0 && (
+             <div className="lg:col-span-2 py-10 bg-gray-50/50 rounded-[32px] border border-dashed border-gray-200 text-center">
+                <p className="text-sm font-bold text-gray-400 italic">لا توجد طلبات سحب معلقة حالياً</p>
+             </div>
+           )}
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 pt-8">
          {data.users.filter(u => u.userType === 'teacher').map(t => {
-           const wallet = data.wallets.find(w => w.teacherId === t.id) || { balance: 0 };
+           const wallet = data.wallets.find(w => w.id === t.id) || { balance: '0', paid: '0' };
            return (
-             <div key={t.id} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-4 mb-6">
+             <div key={t.id} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm relative overflow-hidden group">
+                <div className="flex items-center gap-4 mb-6 relative z-10">
                    <div className="h-12 w-12 rounded-2xl bg-blue-dark text-white flex items-center justify-center font-black text-lg">
                       {t.displayName?.charAt(0)}
                    </div>
                    <div>
                       <h4 className="text-sm font-black text-blue-dark">{t.displayName}</h4>
-                      <p className="text-[0.6rem] text-gray-400 font-bold uppercase">{t.subject}</p>
+                      <p className="text-[0.6rem] text-gray-400 font-bold uppercase">{t.subject || 'مدرس'}</p>
                    </div>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-2xl mb-4 border border-gray-100">
-                   <p className="text-[0.6rem] font-bold text-gray-400 mb-1">الرصيد المتاح</p>
-                   <div className="text-2xl font-black text-blue-dark">{wallet.balance} <span className="text-xs">د.ت</span></div>
+                <div className="grid grid-cols-2 gap-4 mb-4 relative z-10">
+                   <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                      <p className="text-[0.55rem] font-bold text-gray-400 mb-1">الرصيد المتاح</p>
+                      <div className="text-xl font-black text-blue-dark">{wallet.balance || '0'} <span className="text-[0.6rem]">د.ت</span></div>
+                   </div>
+                   <div className="p-4 bg-emerald-50/30 rounded-2xl border border-emerald-100/50">
+                      <p className="text-[0.55rem] font-bold text-emerald-600 mb-1">إجمالي المدفوع</p>
+                      <div className="text-xl font-black text-emerald-700">{wallet.paid || '0'} <span className="text-[0.6rem]">د.ت</span></div>
+                   </div>
                 </div>
-                <button className="w-full py-3 rounded-xl bg-blue-dark text-white text-[0.65rem] font-black hover:scale-105 transition-all">تحويل الرصيد</button>
+                <button 
+                  onClick={() => {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('tab', 'users');
+                    window.history.pushState({}, '', url);
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }}
+                  className="w-full py-3 rounded-xl bg-gray-100 text-gray-400 text-[0.65rem] font-black hover:bg-blue-dark hover:text-white transition-all"
+                >
+                  عرض الملف الشخصي
+                </button>
              </div>
            );
          })}
@@ -2570,7 +3056,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                 </div>
               )}
 
-              {c.type === 'assignment' && (
+              {(c.type === 'assignment' || c.type === 'synthesis') && (
                 <div className="space-y-2">
                   <label className="text-xs font-black text-gray-400 uppercase pr-2">النموذج</label>
                   <select value={c.modelNumber} onChange={e => setC({...c, modelNumber: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100 italic">
@@ -2579,10 +3065,10 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                 </div>
               )}
 
-              {c.type === 'lesson' && (
+              {(c.type === 'lesson' || c.type === 'assignment' || c.type === 'synthesis') && (
                 <div className="md:col-span-2 space-y-2">
-                  <label className="text-xs font-black text-gray-400 uppercase pr-2">عنوان الدرس *</label>
-                  <input required type="text" value={c.title} onChange={e => setC({...c, title: e.target.value})} placeholder="مثال: الأعداد الحقيقية" className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
+                  <label className="text-xs font-black text-gray-400 uppercase pr-2">العنوان {c.type === 'lesson' ? '*' : '(اختياري)'}</label>
+                  <input required={c.type === 'lesson'} type="text" value={c.title} onChange={e => setC({...c, title: e.target.value})} placeholder={c.type === 'lesson' ? "مثال: الأعداد الحقيقية" : "سيتم توليد عنوان آلي إذا ترك فارغاً"} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
                 </div>
               )}
 
@@ -2895,15 +3381,17 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   };
 
   return (
-    <AnimatePresence mode="wait">
-      {editingUser && renderEditUserModal()}
-      {editingGroup && renderEditGroupModal()}
-      {showAssignStudentsModal && renderAssignStudentsModal()}
-      {renderContentModal()}
-      {pendingDelete && renderDeleteConfirmModal()}
+    <>
+      <AnimatePresence mode="wait">
+        {editingUser && renderEditUserModal()}
+        {editingGroup && renderEditGroupModal()}
+        {showAssignStudentsModal && renderAssignStudentsModal()}
+        {renderContentModal()}
+        {pendingDelete && renderDeleteConfirmModal()}
+      </AnimatePresence>
       <motion.div key={activeTab} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.3 }}>
         {renderActiveTab()}
       </motion.div>
-    </AnimatePresence>
+    </>
   );
 }

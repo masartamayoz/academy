@@ -223,7 +223,7 @@ export default function Courses() {
              </div>
              
              <div className="flex items-center gap-3">
-                {(userData?.userType === 'admin' || userData?.userType === 'teacher') && (
+                {userData?.userType === 'admin' && (
                   <button 
                     onClick={() => navigate('/dashboard?tab=content')} 
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-dark text-white text-[0.8rem] font-black hover:bg-black transition-all shadow-lg shadow-blue-900/10"

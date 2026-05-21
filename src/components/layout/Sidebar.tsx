@@ -32,13 +32,14 @@ interface SidebarProps {
   userData: any;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  isCollapsed: boolean;
+  setIsCollapsed: (collapsed: boolean) => void;
 }
 
-export default function Sidebar({ user, userData, isOpen, setIsOpen }: SidebarProps) {
+export default function Sidebar({ user, userData, isOpen, setIsOpen, isCollapsed, setIsCollapsed }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const role = userData?.userType || 'student';
   const name = userData?.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : (user?.displayName || user?.email || '...');
 
@@ -53,7 +54,6 @@ export default function Sidebar({ user, userData, isOpen, setIsOpen }: SidebarPr
       { id: 'courses', icon: BookOpen, label: 'الدروس التعليمية', href: '/courses' },
       { id: 'sessions', icon: Calendar, label: 'الحصص المباشرة', href: '/dashboard?tab=sessions' },
       { id: 'schedule', icon: Calendar, label: 'الجدول الأسبوعي', href: '/dashboard?tab=schedule' },
-      { id: 'tests', icon: FileText, label: 'الاختبارات', href: '/dashboard?tab=tests' },
       { id: 'wallet', icon: Wallet, label: 'المحفظة', href: '/dashboard?tab=wallet' },
       { id: 'referral', icon: Users, label: 'إحالة الأصدقاء', href: '/dashboard?tab=referral' },
       { id: 'help', icon: Settings, label: 'المساعدة', href: '/dashboard?tab=help' },
@@ -69,8 +69,7 @@ export default function Sidebar({ user, userData, isOpen, setIsOpen }: SidebarPr
     teacher: [
       { id: 'overview', icon: LayoutDashboard, label: 'لوحة التحكم', href: '/dashboard' },
       { id: 'courses', icon: BookOpen, label: 'الدروس والبرامج', href: '/courses' },
-      { id: 'content', icon: Video, label: 'إضافة المحتوى', href: '/dashboard?tab=content' },
-      { id: 'sessions', icon: Calendar, label: 'حصصي التعليمية', href: '/dashboard?tab=sessions' },
+      { id: 'sessions', icon: Calendar, label: 'الحصص المباشرة', href: '/dashboard?tab=sessions' },
       { id: 'schedule', icon: Calendar, label: 'الجدول الأسبوعي', href: '/dashboard?tab=schedule' },
       { id: 'attendance', icon: Users, label: 'تسجيل الحضور', href: '/dashboard?tab=attendance' },
       { id: 'wallet', icon: Wallet, label: 'محفظتي المادية', href: '/dashboard?tab=wallet' },
@@ -90,7 +89,12 @@ export default function Sidebar({ user, userData, isOpen, setIsOpen }: SidebarPr
     ]
   };
 
-  const currentItems = menuItems[role as keyof typeof menuItems] || menuItems.student;
+  const menuItemsList = menuItems[role as keyof typeof menuItems] || menuItems.student;
+  
+  // Filter items for recordings-only subscribers
+  const currentItems = (role === 'student' && (userData?.planId === 'recordings_yearly' || userData?.plan === 'recordings_yearly'))
+    ? menuItemsList.filter(item => !['sessions', 'schedule'].includes(item.id))
+    : menuItemsList;
 
   return (
     <>
@@ -148,7 +152,7 @@ export default function Sidebar({ user, userData, isOpen, setIsOpen }: SidebarPr
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="hidden lg:flex absolute -left-3 top-24 h-6 w-6 items-center justify-center rounded-full bg-gold-brand text-blue-dark shadow-lg z-[120] hover:scale-110 transition-transform"
         >
-          {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          {isCollapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
         </button>
 
         {/* User Card */}

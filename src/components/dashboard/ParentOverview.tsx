@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '@/src/lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '@/src/lib/firebase';
+import { collection, query, where, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc, serverTimestamp, onSnapshot, limit } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { 
   Users, 
@@ -11,27 +11,30 @@ import {
   Bell,
   Trash2,
   AlertCircle,
+  Video,
   Search,
   TrendingUp,
   ArrowRight,
   ShieldCheck,
   CheckCircle2,
   Clock,
+  Lock,
   ExternalLink,
   Plus,
   Receipt,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Rocket,
+  LayoutDashboard,
+  CreditCard
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
-import { handleFirestoreError, OperationType } from '@/src/lib/firestore-errors';
+import CountdownTimer from '../common/CountdownTimer';
 
 import { SUBSCRIPTION_PLANS, PAYMENT_METHODS } from '@/src/constants';
-import { useSearchParams } from 'react-router-dom';
-import { Rocket, CreditCard } from 'lucide-react';
 
 interface Props {
   activeTab: string;
@@ -43,6 +46,9 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [children, setChildren] = useState<any[]>([]);
   const [attendanceData, setAttendanceData] = useState<Record<string, any[]>>({});
+  const [childSchedules, setChildSchedules] = useState<Record<string, any>>({});
+  const [childSessions, setChildSessions] = useState<Record<string, any[]>>({});
+  const [myReceipts, setMyReceipts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [childIdInput, setChildIdInput] = useState('');
@@ -56,27 +62,122 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
   const [selectedMethod, setSelectedMethod] = useState<string>('');
 
   useEffect(() => {
-    if (user?.uid) {
-      loadChildren();
-      loadWallet();
-    }
+    if (!user?.uid) return;
+
+    // 1. Snapshot for parent's wallet
+    const unsubWallet = onSnapshot(doc(db, 'wallets', user.uid), (snap) => {
+      if (snap.exists()) setWalletData(snap.data());
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, `wallets/${user.uid}`);
+    });
+
+    // 2. Snapshot for parentChildren links
+    const unsubChildren = onSnapshot(query(collection(db, 'parentChildren'), where('parentId', '==', user.uid)), async (snap) => {
+      setLoading(true);
+      const list = [];
+      const att: Record<string, any[]> = {};
+      const schedules: Record<string, any> = {};
+      const sessions: Record<string, any[]> = {};
+
+      for (const d of snap.docs) {
+        const link = d.data();
+        const deterministicId = `${user.uid}_${link.childId}`;
+
+        // Migrate old random IDs to deterministic ones for Firestore Rules efficiency
+        if (d.id !== deterministicId) {
+          console.info(`Migrating link ${d.id} to deterministic ID ${deterministicId}`);
+          try {
+            await setDoc(doc(db, 'parentChildren', deterministicId), {
+              ...link,
+              updatedAt: serverTimestamp()
+            });
+            await deleteDoc(doc(db, 'parentChildren', d.id));
+            continue; // The snapshot will trigger again
+          } catch (err) {
+            console.error('Migration failed:', err);
+          }
+        }
+
+        try {
+          const cSnap = await getDoc(doc(db, 'users', link.childId));
+          if (cSnap.exists()) {
+            const childData = cSnap.data();
+            list.push({ linkId: d.id, ...link, childData });
+
+            const isChildSub = childData.subscriptionStatus === 'active';
+
+            if (isChildSub) {
+              // Fetch attendance
+              try {
+                const attQ = query(
+                  collection(db, 'attendance'), 
+                  where('userId', '==', link.childId),
+                  limit(50)
+                );
+                const attSnap = await getDocs(attQ);
+                att[link.childId] = attSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+              } catch (err) {
+                console.warn(`Failed to fetch attendance for ${link.childId}:`, err);
+              }
+
+              // Fetch group/schedule
+              if (childData.group) {
+                try {
+                  const gQuery = query(collection(db, 'groups'), where('name', '==', childData.group));
+                  const gSnap = await getDocs(gQuery);
+                  if (!gSnap.empty) {
+                    const gInfo = { id: gSnap.docs[0].id, ...gSnap.docs[0].data() };
+                    schedules[link.childId] = gInfo;
+
+                    const sQuery = query(
+                      collection(db, 'teacherSessions'),
+                      where('groupId', '==', gInfo.id),
+                      where('status', 'in', ['scheduled', 'completed'])
+                    );
+                    const sSnap = await getDocs(sQuery);
+                    sessions[link.childId] = sSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                  }
+                } catch (err) {
+                  console.warn(`Failed to fetch schedule for ${link.childId}:`, err);
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error(`Error syncing data for child ${link.childId}:`, err);
+        }
+      }
+      
+      setChildren(list);
+      setAttendanceData(att);
+      setChildSchedules(schedules);
+      setChildSessions(sessions);
+      setLoading(false);
+    }, (err) => {
+      handleFirestoreError(err, OperationType.LIST, 'parentChildren');
+    });
+
+    // 3. Snapshot for parent's uploaded receipts
+    const unsubReceipts = onSnapshot(query(collection(db, 'receipts'), where('parentId', '==', user.uid)), (snap) => {
+      setMyReceipts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
+    }, (err) => {
+      handleFirestoreError(err, OperationType.LIST, 'receipts');
+    });
 
     const planId = searchParams.get('planId');
     if (planId) {
       const plan = SUBSCRIPTION_PLANS.find(p => p.id === planId);
       if (plan) setSelectedPlanForSub(plan);
     }
+
+    return () => {
+      unsubWallet();
+      unsubChildren();
+      unsubReceipts();
+    };
   }, [searchParams, user?.uid]);
 
-  const loadWallet = async () => {
-    if (!user?.uid) return;
-    try {
-      const snap = await getDoc(doc(db, 'wallets', user.uid));
-      if (snap.exists()) setWalletData(snap.data());
-    } catch (err) {
-      console.error('Error loading wallet:', err);
-    }
-  };
+  // Removed old loadWallet and loadChildren logic as it's now handled in the useEffect above
 
   const handleFileUploadReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -144,52 +245,6 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
     }
   };
 
-  const loadChildren = async () => {
-    if (!user?.uid) return;
-    setLoading(true);
-    try {
-      const q = query(collection(db, 'parentChildren'), where('parentId', '==', user.uid));
-      const snap = await getDocs(q);
-      const list = [];
-      const att: Record<string, any[]> = {};
-
-      for (const d of snap.docs) {
-        try {
-          const link = d.data();
-          const cSnap = await getDoc(doc(db, 'users', link.childId));
-          if (cSnap.exists()) {
-            const childData = cSnap.data();
-            list.push({ linkId: d.id, ...link, childData });
-
-            // Load attendance for this child
-            try {
-              const attQ = query(
-                collection(db, 'attendance'), 
-                where('userId', '==', link.childId),
-                where('timestamp', '>', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)) // Last 30 days
-              );
-              const attSnap = await getDocs(attQ);
-              att[link.childId] = attSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            } catch (attErr) {
-              console.warn('Could not load attendance for child:', link.childId, attErr);
-              att[link.childId] = [];
-            }
-          }
-        } catch (childErr) {
-          console.error('Error loading data for specific child link:', d.id, childErr);
-        }
-      }
-      setChildren(list);
-      setAttendanceData(att);
-    } catch (err: any) {
-      console.error('Error loading children list:', err);
-      if (err.code === 'permission-denied') {
-        toast.error('فشل تحميل قائمة الأبناء بسبب مشكلة في الصلاحيات');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleLinkChild = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -244,8 +299,9 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
         return;
       }
 
-      // 3. Create link
-      await addDoc(collection(db, 'parentChildren'), {
+      // 3. Create link with deterministic ID for efficiency in rules
+      const linkId = `${user.uid}_${studentId}`;
+      await setDoc(doc(db, 'parentChildren', linkId), {
         parentId: user.uid,
         childId: studentId,
         createdAt: serverTimestamp() // Match blueprint
@@ -254,7 +310,7 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
       toast.success('تم ربط الحساب بنجاح');
       setChildIdInput('');
       setShowLinkModal(false);
-      loadChildren();
+      // loadChildren(); - no longer needed with onSnapshot
     } catch (err: any) {
       console.error('Linking Error:', err);
       if (err.code === 'permission-denied') {
@@ -271,7 +327,7 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
     if (!confirm('هل أنت متأكد من إلغاء متابعة هذا التلميذ؟')) return;
     try {
       await deleteDoc(doc(db, 'parentChildren', linkId));
-      loadChildren();
+      // loadChildren(); - no longer needed with onSnapshot
     } catch (err) {
       console.error(err);
     }
@@ -305,7 +361,7 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
             </div>
             <div className="flex gap-4">
               <button 
-                onClick={() => loadChildren()}
+                onClick={() => {}} 
                 disabled={loading}
                 className="flex items-center justify-center p-3 rounded-2xl border border-gray-100 text-gray-400 hover:text-blue-dark hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
                 title="تحديث البيانات"
@@ -350,6 +406,13 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                       </div>
                     </div>
                   </div>
+                  
+                  {c.childData?.subscriptionStatus === 'active' && c.childData?.subscriptionExpiry && (
+                    <div className="mt-4 p-5 rounded-[22px] bg-white border border-gray-100 shadow-sm relative overflow-hidden group/timer">
+                      <div className="absolute right-0 top-0 h-full w-1.5 bg-gold-brand/30" />
+                      <CountdownTimer expiryDate={c.childData.subscriptionExpiry} />
+                    </div>
+                  )}
                   
                   <div className="space-y-4 pt-6 border-t border-gray-100/50">
                     <div className="flex items-center justify-between">
@@ -734,8 +797,139 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                 </table>
               </div>
             ) : (
-              <div className="py-24 text-center text-gray-100 uppercase font-black tracking-[0.2em] text-sm border-2 border-dashed border-gray-50 rounded-[28px]">
-                قريباً: عرض الجداول المباشرة للأبناء
+              <div className="space-y-12">
+                {children.map(child => {
+                  const scheduleMap = childSchedules[child.childId];
+                  const childSessionsList = childSessions[child.childId] || [];
+                  
+                  return (
+                    <div key={child.childId} className="space-y-6">
+                      <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-blue-dark flex items-center justify-center text-white text-[0.65rem] font-black">
+                            {child.childData?.displayName?.charAt(0) || '؟'}
+                          </div>
+                          <h4 className="font-extrabold text-blue-dark">جدول التلميذ: {child.childData?.displayName}</h4>
+                        </div>
+                        {child.childData?.subscriptionStatus !== 'active' && (
+                          <span className="flex items-center gap-1 text-[0.65rem] font-black text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-100">
+                             مقفل - اشتراك غير نشط
+                          </span>
+                        )}
+                      </div>
+
+                      {child.childData?.subscriptionStatus !== 'active' ? (
+                        <div className="p-12 text-center bg-gray-50/50 rounded-[32px] border-2 border-dashed border-gray-100">
+                          <div className="h-14 w-14 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 mx-auto mb-4">
+                            <Lock size={24} />
+                          </div>
+                          <p className="text-sm font-black text-blue-dark">محتوى مقفل 🔒</p>
+                          <p className="text-[0.7rem] text-gray-400 font-bold mt-1 max-w-xs mx-auto leading-relaxed">
+                            يتطلب الوصول إلى جدول الحصص المباشرة وسجل الحضور تفعيل اشتراك التلميذ أولاً.
+                          </p>
+                          <button 
+                            onClick={() => {
+                              setSelectedChildForReceipt(child.childId);
+                              setSearchParams({ tab: 'wallet' });
+                            }}
+                            className="mt-6 text-xs font-black text-blue-brand hover:underline flex items-center gap-1 mx-auto"
+                          >
+                            تفعيل الاشتراك الآن
+                            <ArrowRight size={14} className="ltr:rotate-0 rtl:rotate-180" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="grid gap-6 md:grid-cols-2">
+                          {/* Weekly Schedule */}
+                          <div className="space-y-4">
+                            <p className="text-[0.65rem] font-black text-gray-400 uppercase tracking-[0.1em] px-2 flex items-center gap-2">
+                              <Clock size={12} /> الجدول الأسبوعي الأساسي
+                            </p>
+                            {scheduleMap?.schedule && scheduleMap.schedule.length > 0 ? (
+                              <div className="grid gap-3">
+                                {scheduleMap.schedule.map((s: any, idx: number) => (
+                                  <div key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-100/50">
+                                    <span className="text-[0.7rem] font-black text-blue-dark bg-white px-3 py-1 rounded-lg border border-gray-100 shadow-sm">{s.day}</span>
+                                    <div className="flex items-center gap-2">
+                                       <span className="text-[0.7rem] font-bold text-gray-500">{s.startTime}</span>
+                                       <span className="text-gray-300">←</span>
+                                       <span className="text-[0.7rem] font-bold text-gray-500">{s.endTime}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="p-8 text-center bg-gray-50/50 rounded-2xl border border-dashed border-gray-200 text-xs text-gray-400 italic">
+                                 لا يوجد جدول أسبوعي محدد لهذه المجموعة
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Recent/Upcoming Live Sessions */}
+                          <div className="space-y-4">
+                            <p className="text-[0.65rem] font-black text-gray-400 uppercase tracking-[0.1em] px-2 flex items-center gap-2">
+                              <Video size={12} /> الحصص المباشرة والروابط
+                            </p>
+                            <div className="space-y-3">
+                              {childSessionsList.length > 0 ? (
+                                childSessionsList
+                                  .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime())
+                                  .slice(0, 3) // Only last 3/upcoming for the parent view
+                                  .map((s: any) => (
+                                  <div key={s.id} className="p-4 rounded-2xl bg-white border border-gray-100 shadow-sm relative overflow-hidden group">
+                                    <div className="flex items-center justify-between mb-2">
+                                       <span className={cn(
+                                         "text-[0.6rem] font-black px-2 py-0.5 rounded-full uppercase",
+                                         s.status === 'completed' ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-brand"
+                                       )}>
+                                         {s.status === 'completed' ? 'مكتملة' : 'قادمة'}
+                                       </span>
+                                       <span className="text-[0.6rem] text-gray-400 font-bold">
+                                         {new Date(s.dateTime).toLocaleDateString('ar-TN')}
+                                       </span>
+                                    </div>
+                                    <h5 className="text-xs font-black text-blue-dark truncate">{s.title || 'حصة مباشرة'}</h5>
+                                    <div className="mt-4 flex items-center justify-between">
+                                       <span className="text-[0.65rem] font-bold text-gray-400">{new Date(s.dateTime).toLocaleTimeString('ar-TN', { hour: '2-digit', minute: '2-digit' })}</span>
+                                       {s.status === 'scheduled' && s.meetLink && (() => {
+                                         const sessionTime = new Date(s.dateTime).getTime();
+                                         const now = Date.now();
+                                         const fifteenMinutesInMs = 15 * 60 * 1000;
+                                         const canJoin = now >= (sessionTime - fifteenMinutesInMs);
+                                         
+                                         if (!canJoin) {
+                                           return (
+                                             <span className="text-[0.55rem] font-bold text-amber-600 flex items-center gap-1">
+                                               <Lock size={10} /> الرابط يفتح قريباً
+                                             </span>
+                                           );
+                                         }
+                                         
+                                         return (
+                                           <a 
+                                             href={s.meetLink} 
+                                             target="_blank" 
+                                             className="text-[0.65rem] font-black text-blue-light hover:underline flex items-center gap-1"
+                                           >
+                                             <ExternalLink size={10} /> رابط الحصة
+                                           </a>
+                                         );
+                                       })()}
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="p-8 text-center bg-gray-50/50 rounded-2xl border border-dashed border-gray-200 text-xs text-gray-400 italic">
+                                  لا توجد حصص مباشرة مسجلة حالياً
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { auth, db } from '@/src/lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import { Loader2, Menu, Search, Bell, Wallet, Trophy, User as UserIcon, LayoutDashboard, BookOpen } from 'lucide-react';
@@ -20,6 +20,7 @@ export default function AppShell({ children, title, description }: AppShellProps
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
@@ -31,7 +32,19 @@ export default function AppShell({ children, title, description }: AppShellProps
       try {
         const snap = await getDoc(doc(db, 'users', authUser.uid));
         if (snap.exists()) {
-          setUserData(snap.data());
+          const data = snap.data();
+          // Check for subscription expiry
+          if (data.userType === 'student' && data.subscriptionExpiry && data.subscriptionStatus === 'active') {
+             const expiry = new Date(data.subscriptionExpiry);
+             if (expiry < new Date()) {
+                data.subscriptionStatus = 'inactive';
+                // Trigger a firestore update as well to keep it consistent
+                await updateDoc(doc(db, 'users', authUser.uid), {
+                   subscriptionStatus: 'inactive'
+                });
+             }
+          }
+          setUserData(data);
         } else {
           navigate('/auth#register');
         }
@@ -62,6 +75,8 @@ export default function AppShell({ children, title, description }: AppShellProps
         userData={userData} 
         isOpen={sidebarOpen} 
         setIsOpen={setSidebarOpen} 
+        isCollapsed={isCollapsed}
+        setIsCollapsed={setIsCollapsed}
       />
       
       <div className="flex flex-1 flex-col overflow-hidden">

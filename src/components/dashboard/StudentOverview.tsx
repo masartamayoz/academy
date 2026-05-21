@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { db } from '@/src/lib/firebase';
-import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '@/src/lib/firebase';
+import { collection, query, where, limit, onSnapshot, addDoc, serverTimestamp, doc } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { 
   PlayCircle, 
@@ -24,17 +24,18 @@ import {
   TrendingUp,
   Award,
   Zap,
+  Plus,
   Receipt,
   Upload,
   Image as ImageIcon,
   FileText,
   Eye,
-  Rocket
+  Rocket,
+  Play
 } from 'lucide-react';
-import { handleFirestoreError, OperationType } from '@/src/lib/firestore-errors';
-import { addDoc, serverTimestamp } from 'firebase/firestore';
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
+import CountdownTimer from '../common/CountdownTimer';
 
 import { SUBSCRIPTION_PLANS, PAYMENT_METHODS } from '@/src/constants';
 import { useSearchParams } from 'react-router-dom';
@@ -46,7 +47,7 @@ interface Props {
 }
 
 export default function StudentOverview({ activeTab, userData, user }: Props) {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [recentVideos, setRecentVideos] = useState<any[]>([]);
   const [groupInfo, setGroupInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -54,8 +55,29 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
   const [receiptFile, setReceiptFile] = useState<string>('');
   const [walletData, setWalletData] = useState<any>(null);
   const [myReceipts, setMyReceipts] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<any[]>([]);
   const [selectedPlanForSub, setSelectedPlanForSub] = useState<any>(null);
   const [selectedMethod, setSelectedMethod] = useState<string>('');
+
+  const formatDate = (date: any, includeTime: boolean = true) => {
+    if (!date) return '---';
+    try {
+      const d = date.toDate ? date.toDate() : new Date(date);
+      if (isNaN(d.getTime())) return '---';
+      if (includeTime) {
+        return d.toLocaleString('ar-TN', {
+          year: 'numeric',
+          month: 'numeric',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+      return d.toLocaleDateString('ar-TN');
+    } catch (e) {
+      return '---';
+    }
+  };
 
   useEffect(() => {
     const planId = searchParams.get('planId');
@@ -139,54 +161,88 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
   };
 
   useEffect(() => {
-    if (activeTab === 'overview' || activeTab === 'sessions' || activeTab === 'schedule') {
-      loadOverviewData();
-    }
-  }, [activeTab, userData]);
+    if (!user?.uid || !userData?.level) return;
 
-  const loadOverviewData = async () => {
     setLoading(true);
-    try {
-      // Fetch videos
+    
+    const isSubscribed = userData.subscriptionStatus === 'active';
+
+    // 1. Snapshot for videos (Recent Lessons) - Only if subscribed or for free videos
+    // Actually the current query doesn't filter by isFree, so it will fail if not subscribed.
+    let unsubVideos = () => {};
+    if (isSubscribed) {
       const vQuery = query(
         collection(db, 'videos'), 
-        where('level', '==', String(userData?.level || '7')),
+        where('level', '==', String(userData.level)),
         limit(20)
       );
-      const vSnap = await getDocs(vQuery);
-      const docs = vSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      docs.sort((a: any, b: any) => {
-        const timeA = a.createdAt?.toMillis?.() || a.createdAt || 0;
-        const timeB = b.createdAt?.toMillis?.() || b.createdAt || 0;
-        return timeB - timeA;
+      unsubVideos = onSnapshot(vQuery, (snap) => {
+        const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        docs.sort((a: any, b: any) => {
+          const timeA = a.createdAt?.toMillis?.() || a.createdAt || 0;
+          const timeB = b.createdAt?.toMillis?.() || b.createdAt || 0;
+          return timeB - timeA;
+        });
+        setRecentVideos(docs.slice(0, 4));
+        setLoading(false);
+      }, (err) => {
+        handleFirestoreError(err, OperationType.LIST, 'videos');
+        setLoading(false);
       });
-      setRecentVideos(docs.slice(0, 4));
-
-      // Fetch group info if assigned
-      if (userData?.group) {
-        const gQuery = query(collection(db, 'groups'), where('name', '==', userData.group));
-        const gSnap = await getDocs(gQuery);
-        if (!gSnap.empty) {
-          setGroupInfo({ id: gSnap.docs[0].id, ...gSnap.docs[0].data() });
-        }
-      }
-
-      // Fetch wallet info
-      const walletSnap = await getDocs(query(collection(db, 'wallets'), where('__name__', '==', user.uid)));
-      if (!walletSnap.empty) {
-        setWalletData(walletSnap.docs[0].data());
-      }
-
-      // Fetch my receipts
-      const rQuery = query(collection(db, 'receipts'), where('userId', '==', user.uid));
-      const rSnap = await getDocs(rQuery);
-      setMyReceipts(rSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
-    } catch (err) {
-      console.error(err);
-    } finally {
+    } else {
+      // Fetch only free videos if not subscribed? 
+      // For now just keep it empty to avoid permission errors
       setLoading(false);
     }
-  };
+
+    // 2. Snapshot for wallet info
+    const unsubWallet = onSnapshot(doc(db, 'wallets', user.uid), (docSnap) => {
+      if (docSnap.exists()) {
+        setWalletData(docSnap.data());
+      }
+    }, (err) => handleFirestoreError(err, OperationType.GET, `wallets/${user.uid}`));
+
+    // 3. Snapshot for my receipts
+    const rQuery = query(collection(db, 'receipts'), where('userId', '==', user.uid));
+    const unsubReceipts = onSnapshot(rQuery, (snap) => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setMyReceipts(list.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'receipts'));
+
+    // 4. Snapshot for group and sessions (if assigned and subscribed)
+    let unsubSessions: () => void = () => {};
+    let unsubGroup: () => void = () => {};
+
+    if (userData.group && isSubscribed) {
+      const gQuery = query(collection(db, 'groups'), where('name', '==', userData.group));
+      unsubGroup = onSnapshot(gQuery, (snap) => {
+        if (!snap.empty) {
+          const gInfo = { id: snap.docs[0].id, ...snap.docs[0].data() };
+          setGroupInfo(gInfo);
+
+          // Sub-snapshot for sessions of this group
+          const sQuery = query(
+            collection(db, 'teacherSessions'),
+            where('groupId', '==', gInfo.id),
+            where('status', 'in', ['scheduled', 'completed'])
+          );
+          unsubSessions = onSnapshot(sQuery, (sSnap) => {
+            setSessions(sSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+          }, (err) => handleFirestoreError(err, OperationType.LIST, 'teacherSessions'));
+        }
+      }, (err) => handleFirestoreError(err, OperationType.LIST, 'groups'));
+    }
+
+    return () => {
+      unsubVideos();
+      unsubWallet();
+      unsubReceipts();
+      unsubGroup();
+      unsubSessions();
+    };
+  }, [user?.uid, userData?.level, userData?.group]);
+
+  // Removed loadOverviewData helper as it is replaced by onSnapshot hooks
 
   const renderOverview = () => {
     const { subscriptionStatus, plan, level, displayName } = userData;
@@ -210,8 +266,11 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
                   <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                   اشتراكك نشط
                 </div>
+                {userData.subscriptionExpiry && (
+                   <CountdownTimer expiryDate={userData.subscriptionExpiry} showTitle={false} />
+                )}
                 <p className="text-white/60 text-xs font-medium">
-                  {userData.currentPlan || (userData.planId?.includes('recording') ? 'المحتوى المسجل' : 'الحصص المباشرة')} 
+                  {userData.currentPlan || ((userData.planId?.includes('recording') || userData.plan?.includes('recording')) ? 'المحتوى المسجل' : 'الحصص المباشرة')} 
                   • {userData.subscriptionStatus === 'active' ? 'نشط' : 'بانتظار التفعيل'}
                 </p>
               </div>
@@ -242,13 +301,15 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
             trend="0 نقاط مجمعة"
             color="amber"
           />
-          <StatCard 
-            icon={<Zap className="text-emerald-500" size={24} />}
-            label="آخر الحصص"
-            value="0"
-            trend="ابتدأ الآن"
-            color="emerald"
-          />
+          {(userData?.planId !== 'recordings_yearly' && userData?.plan !== 'recordings_yearly') && (
+            <StatCard 
+              icon={<Zap className="text-emerald-500" size={24} />}
+              label="آخر الحصص"
+              value="0"
+              trend="ابتدأ الآن"
+              color="emerald"
+            />
+          )}
           <StatCard 
             icon={<Clock className="text-purple-500" size={24} />}
             label="ساعات المشاهدة"
@@ -391,16 +452,16 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
                       <div className="text-lg font-black text-blue-dark">0</div>
                       <div className="text-[0.65rem] font-bold text-gray-400 uppercase">سلسلة تمارين</div>
                     </div>
-                    <div className="h-8 w-px bg-gray-100" />
-                    <div>
-                      <div className="text-lg font-black text-blue-dark">0</div>
-                      <div className="text-[0.65rem] font-bold text-gray-400 uppercase">اختبارات</div>
-                    </div>
-                    <div className="h-8 w-px bg-gray-100" />
-                    <div>
-                      <div className="text-lg font-black text-blue-dark">0</div>
-                      <div className="text-[0.65rem] font-bold text-gray-400 uppercase">حصص مباشرة</div>
-                    </div>
+
+                    {(userData?.planId !== 'recordings_yearly' && userData?.plan !== 'recordings_yearly') && (
+                      <>
+                        <div className="h-8 w-px bg-gray-100" />
+                        <div>
+                          <div className="text-lg font-black text-blue-dark">0</div>
+                          <div className="text-[0.65rem] font-bold text-gray-400 uppercase">حصص مباشرة</div>
+                        </div>
+                      </>
+                    )}
                  </div>
                </div>
             </div>
@@ -461,71 +522,168 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
         </div>
       </div>
     );
-    case 'sessions': return (
-      <div className="rounded-[32px] border border-gray-100 bg-white p-10 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="mb-8 flex items-center justify-between">
+    case 'sessions': 
+      if (userData?.planId === 'recordings_yearly' || userData?.plan === 'recordings_yearly') return renderOverview();
+      
+      const isSubscribed = userData?.subscriptionStatus === 'active';
+      
+      return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+        <div className="flex items-center justify-between">
            <div className="flex items-center gap-3">
-             <div className="h-10 w-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
-               <Video size={22} />
+             <div className="h-12 w-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-100">
+               <Video size={24} />
              </div>
-             <h3 className="text-xl font-black text-blue-dark">الحصص المباشرة</h3>
-           </div>
-           <div className="flex flex-col md:flex-row items-center gap-4">
-              {groupInfo?.whatsappLink && (
-                <a 
-                  href={groupInfo.whatsappLink} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 text-green-600 text-[0.7rem] font-bold border border-green-100 hover:bg-green-100 transition-all"
-                >
-                  <Globe size={14} />
-                  <span>مجموعة واتساب</span>
-                </a>
-              )}
-              <div className="px-4 py-2 rounded-xl bg-blue-50 text-[0.7rem] font-black text-blue-light border border-blue-100">
-                مجموعتي: {userData?.group || 'بانتظار التعيين'}
-              </div>
-           </div>
-        </div>
-        <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed border-gray-50 rounded-[28px] text-gray-300">
-           {groupInfo?.meetLink ? (
-             <div className="flex flex-col items-center gap-6">
-                <div className="h-20 w-20 rounded-full bg-blue-50 flex items-center justify-center text-blue-brand animate-bounce">
-                  <Video size={40} />
-                </div>
-                <div>
-                  <h4 className="text-xl font-black text-blue-dark">حصتك المباشرة الآن!</h4>
-                  <p className="text-sm text-gray-400 mt-2">اضغط على الزر أدناه للالتحاق بالحصة وتسجيل حضورك آلياً.</p>
-                </div>
-                <button 
-                  onClick={() => {
-                    import('@/src/lib/attendanceService').then(({ logAttendance }) => {
-                      logAttendance({
-                        userId: user.uid,
-                        userName: userData.displayName || 'تلميذ',
-                        userType: 'student',
-                        groupId: groupInfo.id,
-                        groupName: groupInfo.name,
-                        meetLink: groupInfo.meetLink
-                      });
-                    });
-                  }}
-                  className="px-10 py-4 rounded-[20px] bg-blue-brand text-white font-black text-sm shadow-xl shadow-blue-900/10 hover:bg-blue-dark hover:-translate-y-1 transition-all active:translate-y-0"
-                >
-                  الالتحاق بالحصة المباشرة
-                </button>
+             <div>
+               <h3 className="text-2xl font-black text-blue-dark">حصص المباشرة</h3>
+               <p className="text-gray-400 font-bold text-xs">قائمة الحصص المجدولة والروابط الرسمية للالتحاق</p>
              </div>
-           ) : (
-             <>
-               <Video size={64} className="mx-auto mb-6 opacity-10" />
-               <p className="text-lg font-black italic">الحصص القادمة ستظهر هنا</p>
-               <p className="text-xs mt-2">تأكد من مراجعة الجدول الأسبوعي باستمرار.</p>
-             </>
+           </div>
+           {groupInfo?.whatsappLink && (
+             <a 
+               href={groupInfo.whatsappLink} 
+               target="_blank" 
+               rel="noopener noreferrer"
+               className="hidden md:flex items-center gap-2 px-6 py-3 rounded-2xl bg-green-50 text-green-600 text-xs font-black border border-green-100 hover:bg-green-100 transition-all shadow-sm"
+             >
+               <Globe size={16} />
+               <span>مجموعة واتساب المرافقة</span>
+             </a>
            )}
         </div>
+
+        {!isSubscribed ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed border-gray-100 rounded-[40px] bg-white px-6">
+            <div className="h-20 w-20 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 mb-6 shadow-xl shadow-amber-500/10">
+              <Lock size={40} />
+            </div>
+            <h3 className="text-2xl font-black text-blue-dark mb-3">هذا القسم مخصص للمشتركين 🔐</h3>
+            <p className="text-gray-400 font-bold text-sm max-w-md mx-auto leading-relaxed">
+              انضم إلى مجتمع مسار التميز! الحصص المباشرة والجدول الأسبوعي والمتابعة الدقيقة متاحة حصرياً للمشتركين النشطين. اشترك الآن لتبدأ رحلة النجاح مع نخبة من الأساتذة.
+            </p>
+            <div className="mt-10 flex flex-wrap justify-center gap-4">
+              <Link to="/pricing" className="bg-blue-brand text-white px-8 py-3.5 rounded-2xl font-black text-sm shadow-xl shadow-blue-900/20 hover:bg-blue-dark transition-all flex items-center gap-2">
+                <Zap size={18} fill="currentColor" />
+                الاشتراك الآن
+              </Link>
+              <button 
+                onClick={() => setSearchParams({ tab: 'wallet' })}
+                className="bg-white border-2 border-gray-100 text-gray-600 px-8 py-3.5 rounded-2xl font-black text-sm hover:border-blue-light hover:text-blue-light transition-all"
+              >
+                رفع وصل الدفع
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {sessions.length > 0 ? (
+              sessions
+                .sort((a, b) => {
+                  const getTime = (d: any) => {
+                    if (!d) return 0;
+                    try {
+                      const date = new Date(d);
+                      return isNaN(date.getTime()) ? 0 : date.getTime();
+                    } catch (e) { return 0; }
+                  };
+                  return getTime(b.dateTime) - getTime(a.dateTime);
+                })
+                .map(s => (
+                <div key={s.id} className="bg-white rounded-[32px] border border-gray-100 p-8 shadow-sm hover:shadow-xl transition-all relative overflow-hidden group">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className={cn(
+                      "px-3 py-1 rounded-full text-[0.6rem] font-black uppercase tracking-wider",
+                      s.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-brand'
+                    )}>
+                      {s.status === 'completed' ? 'تمت' : 'مجدولة'}
+                    </span>
+                    <div className="flex items-center gap-2 text-[0.6rem] font-bold text-gray-400">
+                      <Clock size={12} />
+                      {formatDate(s.dateTime)}
+                    </div>
+                  </div>
+
+                  <h4 className="text-lg font-black text-blue-dark mb-2">{s.title || 'حصة مباشرة'}</h4>
+                  <p className="text-xs font-bold text-gray-400 mb-6 italic">{s.chapter || 'مراجعة وتطبيقات عمليّة'}</p>
+
+                  {s.status === 'scheduled' ? (() => {
+                    const sessionTime = s.dateTime?.toDate ? s.dateTime.toDate().getTime() : new Date(s.dateTime).getTime();
+                    const now = Date.now();
+                    const fifteenMinutesInMs = 15 * 60 * 1000;
+                    const canJoin = now >= (sessionTime - fifteenMinutesInMs);
+                    
+                    if (!canJoin) {
+                      return (
+                        <div className="space-y-3">
+                          <button 
+                            disabled
+                            className="w-full py-4 rounded-2xl bg-gray-100 text-gray-400 font-black text-sm border border-gray-200 cursor-not-allowed flex items-center justify-center gap-2"
+                          >
+                            <Lock size={16} /> يفتح القاعة قريباً
+                          </button>
+                          <p className="text-[0.6rem] text-center text-amber-600 font-bold">
+                            يتم تفعيل الرابط قبل 15 دقيقة من موعد الحصة
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <button 
+                        onClick={() => {
+                          import('@/src/lib/attendanceService').then(({ logAttendance }) => {
+                            logAttendance({
+                              userId: user.uid,
+                              userName: userData.displayName || 'تلميذ',
+                              userType: 'student',
+                              groupId: groupInfo.id,
+                              groupName: groupInfo.name,
+                              meetLink: s.meetLink,
+                              sessionId: s.id
+                            });
+                          });
+                        }}
+                        className="w-full py-4 rounded-2xl bg-blue-brand text-white font-black text-sm shadow-xl shadow-blue-900/10 hover:bg-blue-dark hover:-translate-y-1 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Play size={18} /> الالتحاق بالحصة
+                      </button>
+                    );
+                  })() : (
+                    <div className="w-full py-4 rounded-2xl bg-gray-50 text-gray-400 font-black text-sm text-center flex items-center justify-center gap-2 border border-gray-100">
+                      <CheckCircle2 size={18} /> حصة مكتملة
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="sm:col-span-2 lg:col-span-3 py-24 text-center border-2 border-dashed border-gray-50 rounded-[40px] bg-white">
+                 <Video size={64} className="mx-auto mb-6 opacity-10" />
+                 <p className="text-xl font-black italic text-gray-300">لا توجد حصص مجدولة حالياً</p>
+                 <p className="text-xs mt-2 text-gray-400 font-bold">يرجى متابعة الجدول الأسبوعي ومجموعة الواتساب للتنبيهات.</p>
+                 {groupInfo?.meetLink && (
+                   <div className="mt-8 flex flex-col items-center gap-4">
+                      <p className="text-[0.65rem] font-black text-blue-light uppercase tracking-widest">غرفة الميت الدائمة</p>
+                      <a 
+                        href={groupInfo.meetLink} 
+                        target="_blank"
+                        className="px-8 py-3 rounded-2xl bg-blue-50 text-blue-brand font-black text-xs border border-blue-100 hover:bg-blue-brand hover:text-white transition-all shadow-sm"
+                      >
+                        دخول غرفة الميت العامة
+                      </a>
+                   </div>
+                 )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
-    case 'schedule': return (
+    case 'schedule': 
+      if (userData?.planId === 'recordings_yearly' || userData?.plan === 'recordings_yearly') return renderOverview();
+      
+      const isSubscribedSched = userData?.subscriptionStatus === 'active';
+
+      return (
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -539,47 +697,62 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {groupInfo?.schedule && groupInfo.schedule.length > 0 ? (
-            groupInfo.schedule.map((s: any, idx: number) => (
-              <div key={idx} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-all group">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="px-5 py-2 rounded-xl bg-orange-50 text-orange-600 text-xs font-black">
-                    {s.day}
-                  </div>
-                  <div className="h-10 w-10 rounded-xl bg-gray-50 text-gray-400 flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-dark transition-colors">
-                    <Clock size={18} />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[0.65rem] font-bold text-gray-400 uppercase">توقيت الحصة</p>
-                  <h4 className="text-xl font-black text-blue-dark flex items-center gap-2">
-                    <span>{s.startTime}</span>
-                    <span className="text-gray-300 text-sm">←</span>
-                    <span>{s.endTime}</span>
-                  </h4>
-                </div>
-                <div className="mt-6 pt-6 border-t border-gray-50 flex items-center justify-between">
-                  <span className="text-[0.65rem] font-bold text-green-500 flex items-center gap-1">
-                    <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                    حصة مباشرة
-                  </span>
-                  {groupInfo.meetLink && (
-                    <a href={groupInfo.meetLink} target="_blank" className="text-[0.65rem] font-black text-blue-brand hover:underline">
-                      رابط الميت
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="md:col-span-2 lg:col-span-3 py-24 text-center border-2 border-dashed border-gray-50 rounded-[32px]">
-               <Calendar size={64} className="mx-auto mb-6 opacity-10" />
-               <p className="text-lg font-black italic">لا يوجد حصص مبرمجة حالياً</p>
-               <p className="text-xs mt-2">سيظهر جدول حصصك هنا فور تحديثه من قبل الإدارة.</p>
+        {!isSubscribedSched ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed border-gray-100 rounded-[40px] bg-white px-6">
+            <div className="h-20 w-20 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 mb-6 shadow-xl shadow-amber-500/10">
+              <Lock size={40} />
             </div>
-          )}
-        </div>
+            <h3 className="text-2xl font-black text-blue-dark mb-3">الجدول مخصص للمشتركين 🔐</h3>
+            <p className="text-gray-400 font-bold text-sm max-w-md mx-auto leading-relaxed">
+              انضم إلى مجتمع مسار التميز! الحصص المباشرة والجدول الأسبوعي والمتابعة الدقيقة متاحة حصرياً للمشتركين النشطين. اشترك الآن لتبدأ رحلة النجاح مع نخبة من الأساتذة.
+            </p>
+            <Link to="/pricing" className="mt-10 bg-gold-brand hover:bg-gold-light text-blue-dark px-10 py-4 rounded-2xl font-black text-sm shadow-xl shadow-gold-brand/20 transition-all flex items-center gap-2">
+              <Zap size={18} fill="currentColor" /> الاشتراك الآن
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {groupInfo?.schedule && groupInfo.schedule.length > 0 ? (
+              groupInfo.schedule.map((s: any, idx: number) => (
+                <div key={idx} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="px-5 py-2 rounded-xl bg-orange-50 text-orange-600 text-xs font-black">
+                      {s.day}
+                    </div>
+                    <div className="h-10 w-10 rounded-xl bg-gray-50 text-gray-400 flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-dark transition-colors">
+                      <Clock size={18} />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[0.65rem] font-bold text-gray-400 uppercase">توقيت الحصة</p>
+                    <h4 className="text-xl font-black text-blue-dark flex items-center gap-2">
+                      <span>{s.startTime}</span>
+                      <span className="text-gray-300 text-sm">←</span>
+                      <span>{s.endTime}</span>
+                    </h4>
+                  </div>
+                  <div className="mt-6 pt-6 border-t border-gray-50 flex items-center justify-between">
+                    <span className="text-[0.65rem] font-bold text-green-500 flex items-center gap-1">
+                      <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                      حصة مباشرة
+                    </span>
+                    {groupInfo.meetLink && (
+                      <a href={groupInfo.meetLink} target="_blank" className="text-[0.65rem] font-black text-blue-brand hover:underline">
+                        رابط الميت
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="md:col-span-2 lg:col-span-3 py-24 text-center border-2 border-dashed border-gray-50 rounded-[32px]">
+                 <Calendar size={64} className="mx-auto mb-6 opacity-10" />
+                 <p className="text-lg font-black italic">لا يوجد حصص مبرمجة حالياً</p>
+                 <p className="text-xs mt-2">سيظهر جدول حصصك هنا فور تحديثه من قبل الإدارة.</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
     case 'wallet': return (
@@ -619,7 +792,7 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
                   </div>
                   {(userData.lastPaymentDate || walletData?.activeSubscription?.activatedAt) && (
                     <p className="text-[0.65rem] text-gray-400 mt-2">
-                      آخر تفعيل: {new Date((walletData?.activeSubscription?.activatedAt?.toDate?.() || userData.lastPaymentDate?.toDate?.() || Date.now())).toLocaleDateString('ar-TN')}
+                      آخر تفعيل: {formatDate(walletData?.activeSubscription?.activatedAt || userData.lastPaymentDate, false)}
                     </p>
                   )}
                </div>
@@ -640,7 +813,7 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
                           </div>
                           <div>
                             <p className="text-[0.7rem] font-black text-blue-dark truncate w-24">{r.planName || 'اشتراك'}</p>
-                            <p className="text-[0.55rem] text-gray-400">{new Date(r.createdAt?.toDate()).toLocaleDateString('ar-TN')}</p>
+                            <p className="text-[0.55rem] text-gray-400">{formatDate(r.createdAt, false)}</p>
                           </div>
                         </div>
                         <span className="text-[0.6rem] font-black">{r.price || r.amount || '--'} د.ت</span>
@@ -767,16 +940,6 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
                </div>
             </div>
          </div>
-      </div>
-    );
-    case 'tests': return (
-      <div className="rounded-[32px] border border-gray-100 bg-white p-10 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <h3 className="text-2xl font-black text-blue-dark mb-2">الاختبارات والتقييمات</h3>
-        <p className="text-gray-400 text-[0.9rem] mb-10">اختبر معلوماتك لتمّر إلى المستويات الأعلى وتفوز بنقاط تميز إضافية تضاف لمحفظتك.</p>
-        <div className="py-24 text-center text-gray-100 uppercase font-black tracking-[0.2em] text-sm border-2 border-dashed border-gray-50 rounded-[28px]">
-           <Award size={64} className="mx-auto mb-6 opacity-10" />
-           قريباً في التحديث القادم
-        </div>
       </div>
     );
     case 'referral': return (

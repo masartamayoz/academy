@@ -12,31 +12,52 @@ service cloud.firestore {
     }
     
     function isEmailVerified() {
-      // Allow Google login users as verified by default if they have a verified token
       return isSignedIn() && (
         request.auth.token.email_verified == true || 
         request.auth.token.firebase.sign_in_provider == 'google.com'
       );
     }
 
-    function getUserData() {
-      let path = /databases/$(database)/documents/users/$(request.auth.uid);
-      return exists(path) ? get(path).data : {};
-    }
-
-    function isAdmin() {
+    // Performance-optimized admin check using email
+    function isFastAdmin() {
       return isSignedIn() && (
-        request.auth.token.email == 'masartamayoz@gmail.com' || 
-        getUserData().get('userType', 'student') == 'admin'
+        request.auth.token.email == 'masartamayoz@gmail.com' ||
+        request.auth.token.email == 'centrekhawarizmi2020@gmail.com' ||
+        request.auth.token.email == 'admin@admin.com'
       );
     }
 
+    function isAdmin() {
+      return isFastAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userType', 'student') == 'admin');
+    }
+
     function isTeacher() {
-      return isSignedIn() && (isAdmin() || getUserData().get('userType', 'student') == 'teacher');
+      return isFastAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userType', 'student') == 'teacher');
     }
 
     function isParent() {
-      return isSignedIn() && (isAdmin() || getUserData().get('userType', 'student') == 'parent');
+      return isFastAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userType', 'student') == 'parent');
+    }
+
+    function isParentOf(childId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/parentChildren/$(request.auth.uid + '_' + childId));
+    }
+
+    function isMeSubscribed() {
+      return isFastAdmin() || 
+             (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userType', 'student') == 'admin') || 
+             (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userType', 'student') == 'teacher') || 
+             (isSignedIn() && 
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('subscriptionStatus', 'inactive') == 'active' && 
+              (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('subscriptionExpiry', '') == '' || 
+               request.time < timestamp.date(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('subscriptionExpiry', '2000-01-01T00:00:00Z'))));
+    }
+
+    function isChildSubscribed(childId) {
+      return isParentOf(childId) && 
+             get(/databases/$(database)/documents/users/$(childId)).data.get('subscriptionStatus', 'inactive') == 'active' && 
+             (get(/databases/$(database)/documents/users/$(childId)).data.get('subscriptionExpiry', '') == '' || 
+              request.time < timestamp.date(get(/databases/$(database)/documents/users/$(childId)).data.get('subscriptionExpiry', '2000-01-01T00:00:00Z')));
     }
 
     function isOwner(userId) {
@@ -55,101 +76,103 @@ service cloud.firestore {
       return resource.data;
     }
 
-    // 2. Validation Helpers
-    function isValidUser(data) {
-      return data.email is string &&
-             data.userType in ['student', 'parent', 'teacher', 'admin'];
-    }
+    // 2. Collection Rules
 
-    function isValidVideo(data) {
-      return data.title is string && data.title.size() <= 300 &&
-             data.type in ['lesson', 'exercise', 'assignment', 'synthesis'];
+    // Global Admin Escape Hatch
+    match /{allCollections=**} {
+      allow read, write: if isFastAdmin();
     }
-
-    function isValidReceipt(data) {
-      return data.userId == request.auth.uid &&
-             data.receiptURL is string &&
-             data.status == 'pending';
-    }
-
-    // 3. Collection Rules
 
     // Users Collection
     match /users/{userId} {
       allow read: if isSignedIn() && (
         isOwner(userId) || 
+        isFastAdmin() || 
         isAdmin() || 
-        (isParent() && resource.data.userType == 'student')
+        isParentOf(userId)
       );
       allow list: if isSignedIn() && (
-        isAdmin() || 
-        (isParent() && resource.data.userType == 'student')
+        isFastAdmin() || 
+        isAdmin()
       );
-      allow create: if isSignedIn() && (isOwner(userId) || isAdmin());
-      allow update: if isSignedIn() && (isAdmin() || isOwner(userId));
-      allow delete: if isAdmin();
+      allow create: if isSignedIn() && (isOwner(userId) || isFastAdmin() || isAdmin());
+      allow update: if isSignedIn() && (isFastAdmin() || isAdmin() || isOwner(userId));
+      allow delete: if isFastAdmin() || isAdmin();
     }
 
-    // Videos Collection
-    match /videos/{videoId} {
-      allow read: if isSignedIn() && (
-        isAdmin() || 
-        isTeacher() || 
-        (resource.data.get('level', '') == getUserData().get('level', ''))
-      );
-      allow write: if isAdmin();
+    // Wallets
+    match /wallets/{userId} {
+      allow read, list: if isFastAdmin() || isAdmin() || isOwner(userId) || isParentOf(userId);
+      allow write: if isFastAdmin() || isAdmin();
     }
 
-    // Receipts Collection
-    match /receipts/{receiptId} {
-      allow read: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
-      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+    // Attendance Collection
+    match /attendance/{attendanceId} {
+      allow read, list: if isSignedIn() && (
+        isFastAdmin() || 
+        isAdmin() || 
+        isTeacher() ||
+        (isOwner(resource.data.userId) && isMeSubscribed()) || 
+        (isParentOf(resource.data.userId) && isChildSubscribed(resource.data.userId))
+      );
+      allow create: if isSignedIn() && (isFastAdmin() || isAdmin() || isTeacher() || isMeSubscribed());
+      allow update, delete: if isFastAdmin() || isAdmin();
     }
 
     // Groups Collection
     match /groups/{groupId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if isFastAdmin() || isAdmin();
     }
 
-    // Attendance Collection
-    match /attendance/{attendanceId} {
-      allow read: if isSignedIn() && (
-        isAdmin() || 
-        isOwner(resource.data.userId) || 
-        isParent()
-      );
-      allow list: if isSignedIn() && (
-        isAdmin() || 
-        isOwner(resource.data.userId) || 
-        isParent()
-      );
+    // Videos Collection
+    match /videos/{videoId} {
+      allow read: if isSignedIn();
+      allow write: if isFastAdmin() || isAdmin();
+    }
+
+    // Receipts Collection
+    match /receipts/{receiptId} {
+      allow read: if isFastAdmin() || isAdmin() || (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.parentId == request.auth.uid));
+      allow create: if isSignedIn() && (incoming().userId == request.auth.uid || incoming().parentId == request.auth.uid);
+      allow update, delete: if isFastAdmin() || isAdmin();
+    }
+
+    // Payout Requests
+    match /payoutRequests/{requestId} {
+      allow read, list: if isFastAdmin() || isAdmin() || (isSignedIn() && resource.data.teacherId == request.auth.uid);
       allow create: if isSignedIn();
-      allow update, delete: if isAdmin();
+      allow update, delete: if isFastAdmin() || isAdmin();
+    }
+
+    // Messages Collection
+    match /messages/{messageId} {
+      allow read, list: if isSignedIn() && (isFastAdmin() || isAdmin() || resource.data.recipientId == request.auth.uid);
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (isFastAdmin() || isAdmin() || (resource.data.recipientId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['isRead'])));
+      allow delete: if isFastAdmin() || isAdmin();
     }
 
     // Teacher Sessions
     match /teacherSessions/{sessionId} {
-      allow read: if isSignedIn() && (isAdmin() || isTeacher() || existing().teacherId == request.auth.uid);
-      allow create: if isTeacher() || isAdmin();
-      allow update: if isAdmin() || (isTeacher() && existing().teacherId == request.auth.uid);
-      allow delete: if isAdmin();
+      allow read: if isSignedIn();
+      allow create: if isTeacher() || isFastAdmin() || isAdmin();
+      allow update: if isFastAdmin() || isAdmin() || (isTeacher() && existing().teacherId == request.auth.uid);
+      allow delete: if isFastAdmin() || isAdmin();
     }
 
     // Parent-Child links
     match /parentChildren/{linkId} {
-      allow read: if isSignedIn() && (isAdmin() || resource.data.parentId == request.auth.uid || resource.data.childId == request.auth.uid);
-      allow list: if isSignedIn() && (isAdmin() || resource.data.parentId == request.auth.uid || resource.data.childId == request.auth.uid);
-      allow create: if isSignedIn() && (isAdmin() || (isParent() && request.resource.data.parentId == request.auth.uid));
-      allow delete: if isAdmin() || (isParent() && existing().parentId == request.auth.uid);
+      allow read, list: if isSignedIn() && (isFastAdmin() || isAdmin() || resource.data.parentId == request.auth.uid || resource.data.childId == request.auth.uid);
+      allow create: if isSignedIn() && (isFastAdmin() || isAdmin() || incoming().parentId == request.auth.uid);
+      allow update: if isFastAdmin() || isAdmin() || (isSignedIn() && (existing().parentId == request.auth.uid || resource.data.parentId == request.auth.uid));
+      allow delete: if isFastAdmin() || isAdmin() || (isSignedIn() && (existing().parentId == request.auth.uid || resource.data.parentId == request.auth.uid));
     }
 
-    // Wallets
-    match /wallets/{userId} {
-      allow read: if isAdmin() || isOwner(userId);
-      allow write: if isAdmin();
+    // Transactions Collection (Legacy/Supporting)
+    match /transactions/{transactionId} {
+      allow read: if isFastAdmin() || isAdmin() || (isSignedIn() && (resource.data.parentId == request.auth.uid || resource.data.userId == request.auth.uid));
+      allow write: if isFastAdmin() || isAdmin();
     }
 
     // Connectivity Test

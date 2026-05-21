@@ -100,7 +100,7 @@ export default function Auth() {
       case 'auth/internal-error':
         return 'خطأ داخلي في خادم Firebase — حاول مرة أخرى لاحقاً.';
       case 'auth/operation-not-allowed':
-        return 'طريقة تسجيل الدخول هذه غير مفعلة في إعدادات Firebase Console.';
+        return 'طريقة تسجيل الدخول بالبريد وكلمة المرور غير مفعلة في إعدادات Firebase Console. يرجى تفعيلها من قسم Authentication (الإعدادات > Sign-in method) أو استخدم المتابعة بـ Google حالياً.';
       case 'auth/too-many-requests':
         return 'محاولات كثيرة خاطئة — يرجى المحاولة لاحقاً';
       case 'auth/popup-blocked':

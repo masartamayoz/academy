@@ -1,88 +1,68 @@
 {
   "entities": {
     "User": {
-      "title": "المستخدم",
-      "description": "بيانات المستخدم الأساسية",
+      "title": "User",
+      "description": "User profile data",
       "type": "object",
       "properties": {
-        "email": { "type": "string" },
-        "displayName": { "type": "string" },
         "firstName": { "type": "string" },
         "lastName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
         "userType": { "type": "string", "enum": ["student", "parent", "teacher", "admin"] },
-        "subscriptionStatus": { "type": "string", "enum": ["active", "inactive", "pending", "none"] },
-        "subscriptionStart": { "type": "string", "format": "date-time" },
-        "subscriptionEnd": { "type": "string", "format": "date-time" },
         "level": { "type": "string" },
-        "plan": { "type": "string" },
+        "birthDate": { "type": "string" },
+        "wilaya": { "type": "string" },
+        "moughataa": { "type": "string" },
+        "school": { "type": "string" },
+        "subscriptionStatus": { "type": "string", "enum": ["active", "inactive", "pending"] },
+        "subscriptionExpiry": { "type": "string", "format": "date-time" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["email", "userType"]
     },
     "Video": {
-      "title": "درس تعليمي",
-      "description": "فيديو تعليمي مع بيانات المحتوى",
+      "title": "Video",
+      "description": "Educational video content",
       "type": "object",
       "properties": {
         "title": { "type": "string" },
-        "videoUrls": { "type": "array", "items": { "type": "string" } },
-        "chapter": { "type": "string" },
-        "level": { "type": "string" },
+        "url": { "type": "string" },
         "type": { "type": "string", "enum": ["lesson", "exercise", "assignment", "synthesis"] },
-        "category": { "type": "string" },
-        "trimester": { "type": "string", "enum": ["1", "2", "3"] },
-        "modelNumber": { "type": "string" },
-        "order": { "type": "number" },
-        "isFree": { "type": "boolean" },
-        "topics": { "type": "array", "items": { "type": "string" } },
-        "pdfText": { "type": "string" },
-        "pdfSolution": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "level": { "type": "string" },
+        "chapter": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       }
     },
     "Receipt": {
-      "title": "وصل خلاص",
-      "description": "بيانات وصلات الخلاص المرفوعة من الطلاب",
+      "title": "Receipt",
+      "description": "Subscription payment receipt",
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
-        "userName": { "type": "string" },
-        "userEmail": { "type": "string" },
+        "parentId": { "type": "string" },
         "receiptURL": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
-        "level": { "type": "string" },
-        "plan": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "verified", "rejected"] },
+        "planId": { "type": "string" },
+        "amount": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }
       }
     },
     "Group": {
-      "title": "مجموعة تعليمية",
-      "description": "مجموعات الطلاب والمدرسين",
+      "title": "Group",
+      "description": "Study group/class",
       "type": "object",
       "properties": {
         "name": { "type": "string" },
-        "teacherId": { "type": "string" },
-        "teacherName": { "type": "string" },
         "level": { "type": "string" },
-        "studentCount": { "type": "number" },
+        "teacherId": { "type": "string" },
         "meetLink": { "type": "string" },
-        "schedule": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "day": { "type": "string" },
-              "startTime": { "type": "string" },
-              "endTime": { "type": "string" }
-            }
-          }
-        }
+        "whatsappLink": { "type": "string" }
       }
     },
     "Attendance": {
-      "title": "سجل الحضور",
-      "description": "تسجيل حضور المستخدمين للحصص المباشرة",
+      "title": "Attendance",
+      "description": "Live session attendance log",
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
@@ -91,53 +71,75 @@
         "groupId": { "type": "string" },
         "groupName": { "type": "string" },
         "meetLink": { "type": "string" },
+        "sessionId": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" }
       }
     },
     "TeacherSession": {
-       "title": "حصة أستاذ",
-       "description": "سجل الحصص التي قدمها الأستاذ",
-       "type": "object",
-       "properties": {
-         "teacherId": { "type": "string" },
-         "level": { "type": "string" },
-         "subject": { "type": "string" },
-         "date": { "type": "string", "format": "date-time" },
-         "students": { "type": "number" },
-         "status": { "type": "string", "enum": ["pending", "confirmed", "rejected"] },
-         "createdAt": { "type": "string", "format": "date-time" }
-       }
-    },
-    "ParentChild": {
-       "title": "ربط ولي - تلميذ",
-       "description": "بيانات الربط بين حساب الولي وحساب التلميذ",
-       "type": "object",
-       "properties": {
-         "parentId": { "type": "string" },
-         "childId": { "type": "string" },
-         "createdAt": { "type": "string", "format": "date-time" }
-       }
+      "title": "TeacherSession",
+      "description": "Scheduled live session",
+      "type": "object",
+      "properties": {
+        "teacherId": { "type": "string" },
+        "groupId": { "type": "string" },
+        "groupName": { "type": "string" },
+        "level": { "type": "string" },
+        "dateTime": { "type": "string" },
+        "meetLink": { "type": "string" },
+        "chapter": { "type": "string" },
+        "title": { "type": "string" },
+        "status": { "type": "string", "enum": ["scheduled", "completed", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      }
     },
     "Wallet": {
-       "title": "محفظة مالية",
-       "description": "إدارة الرصيد والأرباح",
-       "type": "object",
-       "properties": {
-         "userId": { "type": "string" },
-         "earned": { "type": "number" },
-         "paid": { "type": "number" },
-         "balance": { "type": "number" }
-       }
+      "title": "Wallet",
+      "description": "User financial record",
+      "type": "object",
+      "properties": {
+        "balance": { "type": "string" },
+        "earnedTotal": { "type": "string" },
+        "paid": { "type": "number" },
+        "transactions": { "type": "array" }
+      }
+    },
+    "PayoutRequest": {
+      "title": "PayoutRequest",
+      "description": "Teacher withdrawal request",
+      "type": "object",
+      "properties": {
+        "teacherId": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "paid", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "paidAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Message": {
+      "title": "Message",
+      "description": "System notification message",
+      "type": "object",
+      "properties": {
+        "recipientId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "success", "warning", "error"] },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "firestore": {
-    "/users/{userId}": { "schema": "User", "description": "بيانات المستخدمين" },
-    "/videos/{videoId}": { "schema": "Video", "description": "مكتبة الدروس" },
-    "/receipts/{receiptId}": { "schema": "Receipt", "description": "وصولات الخلاص" },
-    "/groups/{groupId}": { "schema": "Group", "description": "المجموعات" },
-    "/attendance/{attendanceId}": { "schema": "Attendance", "description": "سجلات الحضور للميت" },
-    "/teacherSessions/{sessionId}": { "schema": "TeacherSession", "description": "حصص الأساتذة" },
-    "/parentChildren/{linkId}": { "schema": "ParentChild", "description": "ربط الأولياء بالأبناء" },
-    "/wallets/{userId}": { "schema": "Wallet", "description": "المحافظ المالية" }
+    "/users/{userId}": { "schema": "User", "description": "Student/Parent/Teacher profiles" },
+    "/videos/{videoId}": { "schema": "Video", "description": "Educational content" },
+    "/receipts/{receiptId}": { "schema": "Receipt", "description": "Payment proofs" },
+    "/groups/{groupId}": { "schema": "Group", "description": "Classroom groups" },
+    "/attendance/{attendanceId}": { "schema": "Attendance", "description": "Attendance logs" },
+    "/teacherSessions/{sessionId}": { "schema": "TeacherSession", "description": "Scheduled classes" },
+    "/wallets/{userId}": { "schema": "Wallet", "description": "Financial records" },
+    "/payoutRequests/{requestId}": { "schema": "PayoutRequest", "description": "Withdrawal requests" },
+    "/messages/{messageId}": { "schema": "Message", "description": "System messages/notifications" }
   }
 }
