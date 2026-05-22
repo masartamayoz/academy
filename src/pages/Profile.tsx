@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { auth, db } from '@/src/lib/firebase';
 import { onAuthStateChanged, updateProfile } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { User, Mail, Smartphone, Save, Loader2, CheckCircle, GraduationCap, Shield } from 'lucide-react';
+import { User, Mail, Smartphone, Save, Loader2, CheckCircle, GraduationCap, Shield, MapPin, Calendar } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import AppShell from '@/src/components/layout/AppShell';
+import { TUNISIAN_GOVERNORATES } from '@/src/constants';
 
 export default function Profile() {
   const [loading, setLoading] = useState(true);
@@ -15,7 +16,10 @@ export default function Profile() {
   const [formData, setFormData] = useState({
     displayName: '',
     phone: '',
-    level: ''
+    level: '',
+    birthDate: '',
+    wilaya: '',
+    subject: ''
   });
 
   useEffect(() => {
@@ -28,7 +32,10 @@ export default function Profile() {
           setFormData({
             displayName: d.displayName || user.displayName || '',
             phone: d.phone || '',
-            level: d.level || ''
+            level: d.level || '',
+            birthDate: d.birthDate || '',
+            wilaya: d.wilaya || '',
+            subject: d.subject || ''
           });
         }
       }
@@ -37,16 +44,45 @@ export default function Profile() {
     return () => unsub();
   }, []);
 
+
+  // Check if level change is allowed for student
+  // Allow if user is admin, or if current month is June (5), July (6), or August (7)
+  const isLevelChangeAllowed = () => {
+    if (userData?.userType === 'admin') return true;
+    const now = new Date();
+    const month = now.getMonth(); // 0 is January, 5 is June, 7 is August
+    return month >= 5 && month <= 7;
+  };
+
+  const levelAllowed = isLevelChangeAllowed();
+
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth.currentUser) return;
     setSaving(true);
     try {
-      await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-        ...formData,
+      const levelChangeRestricted = userData?.userType === 'student' && !levelAllowed;
+      
+      const updateData: any = {
+        displayName: formData.displayName,
+        phone: formData.phone,
+        birthDate: formData.birthDate || '',
+        wilaya: formData.wilaya || '',
+        subject: formData.subject || '',
         updatedAt: new Date()
-      });
+      };
+      
+      if (!levelChangeRestricted) {
+        updateData.level = formData.level;
+      }
+
+      await updateDoc(doc(db, 'users', auth.currentUser.uid), updateData);
       await updateProfile(auth.currentUser, { displayName: formData.displayName });
+      
+      if (!levelChangeRestricted) {
+        setUserData((prev: any) => ({ ...prev, level: formData.level }));
+      }
+
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
@@ -146,6 +182,7 @@ export default function Profile() {
                               <label className="text-[0.7rem] font-bold text-gray-400 uppercase tracking-widest px-1">نوع الحساب</label>
                               <div className="relative">
                                 <select 
+                                  disabled={userData?.userType !== 'admin'}
                                   value={userData?.userType}
                                   onChange={async (e) => {
                                      const newType = e.target.value;
@@ -159,7 +196,10 @@ export default function Profile() {
                                         }
                                      }
                                   }}
-                                  className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-3.5 pr-10 text-[0.92rem] font-bold outline-none focus:border-blue-light focus:bg-white cursor-pointer transition-all shadow-inner appearance-none"
+                                  className={cn(
+                                    "w-full rounded-2xl border border-gray-100 bg-gray-50 p-3.5 pr-10 text-[0.92rem] font-bold outline-none focus:border-blue-light focus:bg-white transition-all shadow-inner appearance-none",
+                                    userData?.userType !== 'admin' ? "cursor-not-allowed text-gray-400" : "cursor-pointer"
+                                  )}
                                 >
                                    <option value="student">تلميذ</option>
                                    <option value="parent">ولي أمر</option>
@@ -168,22 +208,84 @@ export default function Profile() {
                                 </select>
                                 <Shield className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
                               </div>
+                              {userData?.userType !== 'admin' && (
+                                <p className="text-[0.7rem] text-amber-600 font-bold mt-1 font-Tajawal leading-normal">
+                                  ⚠️ لا يمكن تغيير نوع الحساب إلا من قبل مدير النظام.
+                                </p>
+                              )}
                            </div>
                            <div className="space-y-2">
                               <label className="text-[0.7rem] font-bold text-gray-400 uppercase tracking-widest px-1">البريد الإلكتروني</label>
                               <div className="relative">
                                 <input readOnly value={userData?.email} type="email" className="w-full rounded-2xl border border-gray-50 bg-gray-50 p-3.5 pr-10 text-[0.92rem] font-bold text-gray-300 outline-none cursor-not-allowed shadow-inner" />
-                                <Mail className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
-                              </div>
-                           </div>
+                                 <Mail className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                               </div>
+                            </div>
+
+
+
+                            {userData?.userType === 'student' && (
+                               <div className="space-y-2">
+                                  <label className="text-[0.7rem] font-bold text-gray-400 uppercase tracking-widest px-1">تاريخ الميلاد</label>
+                                  <div className="relative">
+                                    <input 
+                                      value={formData.birthDate || ''}
+                                      onChange={e => setFormData({...formData, birthDate: e.target.value})}
+                                      type="date" 
+                                      className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-3.5 pr-10 text-[0.92rem] font-bold outline-none focus:border-blue-light focus:bg-white transition-all shadow-inner" 
+                                    />
+                                    <Calendar className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                                  </div>
+                               </div>
+                            )}
+
+                            {(userData?.userType === 'student' || userData?.userType === 'parent' || userData?.userType === 'teacher') && (
+                               <div className="space-y-2">
+                                  <label className="text-[0.7rem] font-bold text-gray-400 uppercase tracking-widest px-1">الولاية</label>
+                                  <div className="relative">
+                                    <select 
+                                      value={formData.wilaya || ''}
+                                      onChange={e => setFormData({...formData, wilaya: e.target.value})}
+                                      className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-3.5 pr-10 text-[0.92rem] font-bold outline-none focus:border-blue-light focus:bg-white transition-all shadow-inner appearance-none cursor-pointer" 
+                                    >
+                                       <option value="">اختر الولاية</option>
+                                       {TUNISIAN_GOVERNORATES.map(gov => (
+                                          <option key={gov} value={gov}>{gov}</option>
+                                       ))}
+                                    </select>
+                                    <MapPin className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                                  </div>
+                               </div>
+                            )}
+
+                            {userData?.userType === 'teacher' && (
+                               <div className="space-y-2">
+                                  <label className="text-[0.7rem] font-bold text-gray-400 uppercase tracking-widest px-1">المادة</label>
+                                  <div className="relative">
+                                    <input 
+                                      value={formData.subject || ''}
+                                      onChange={e => setFormData({...formData, subject: e.target.value})}
+                                      type="text" 
+                                      className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-3.5 pr-10 text-[0.92rem] font-bold outline-none focus:border-blue-light focus:bg-white transition-all shadow-inner" 
+                                      placeholder="المادة التي تدرسها"
+                                    />
+                                    <GraduationCap className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                                  </div>
+                               </div>
+                            )}
+
                            {userData?.userType === 'student' && (
                               <div className="space-y-2">
                                  <label className="text-[0.7rem] font-bold text-gray-400 uppercase tracking-widest px-1">المستوى الدراسي</label>
                                  <div className="relative">
                                    <select 
+                                    disabled={!levelAllowed}
                                     value={formData.level}
                                     onChange={e => setFormData({...formData, level: e.target.value})}
-                                    className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-3.5 pr-10 text-[0.92rem] font-bold outline-none focus:border-blue-light focus:bg-white cursor-pointer transition-all shadow-inner appearance-none"
+                                    className={cn(
+                                      "w-full rounded-2xl border border-gray-100 bg-gray-50 p-3.5 pr-10 text-[0.92rem] font-bold outline-none focus:border-blue-light focus:bg-white transition-all shadow-inner appearance-none",
+                                      !levelAllowed ? "cursor-not-allowed text-gray-400" : "cursor-pointer"
+                                    )}
                                    >
                                       <option value="7">السنة السابعة أساسي</option>
                                       <option value="8">السنة الثامنة أساسي</option>
@@ -195,6 +297,17 @@ export default function Profile() {
                                    </select>
                                    <GraduationCap className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
                                  </div>
+                                 
+                                 {/* Notification message based on permissions */}
+                                 {!levelAllowed ? (
+                                   <div className="mt-2.5 p-3.5 bg-amber-50 border border-amber-100/60 rounded-xl text-amber-700 text-xs font-semibold leading-relaxed font-Tajawal">
+                                      ⚠️ لا يمكن تغيير المستوى الدراسي حالياً. التغيير متاح فقط للتلاميذ من 01 جوان إلى 31 أوت. يرجى مراجعة إدارة المنصة للتعديل الفوري.
+                                   </div>
+                                 ) : (
+                                   <div className="mt-2.5 p-3.5 bg-emerald-50 border border-emerald-100/65 rounded-xl text-emerald-700 text-xs font-semibold leading-relaxed font-Tajawal">
+                                      🔔 باب تعديل المستوى الدراسي وتحديث الاشتراكات مفتوح حالياً (من 01 جوان إلى 31 أوت). يمكنك تغيير مستواك ومتابعة تقدمك بنجاح.
+                                   </div>
+                                 )}
                               </div>
                            )}
 

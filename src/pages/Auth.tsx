@@ -27,10 +27,13 @@ import {
   Loader2,
   GraduationCap,
   Users2,
-  XCircle
+  XCircle,
+  MapPin,
+  Calendar
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
+import { TUNISIAN_GOVERNORATES } from '@/src/constants';
 
 type AuthMode = 'login' | 'register';
 type UserRole = 'student' | 'parent';
@@ -218,7 +221,7 @@ export default function Auth() {
             </div>
             <div>
               <h1 className="text-xl font-black text-white leading-none">أكاديمية مسار التميز</h1>
-              <span className="mt-1 block text-[0.72rem] font-medium text-gold-light">التعليم الثانوي في تونس</span>
+              <span className="mt-1 block text-[0.72rem] font-medium text-gold-light">التعليم عن بعد في تونس</span>
             </div>
           </Link>
 
@@ -353,26 +356,74 @@ export default function Auth() {
                 </div>
 
                 {role === 'student' && (
-                  <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                        <label className="mb-2.5 block text-[0.83rem] font-bold text-gray-700">المستوى الدراسي</label>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                           {['7', '8', '9'].map(lvl => (
-                             <button key={lvl} type="button" onClick={() => setLevel(lvl)} className={cn("rounded-xl border-1.5 py-2.5 text-[0.85rem] font-bold transition-all", level === lvl ? "border-blue-light bg-blue-light/8 text-blue-light shadow-sm" : "border-gray-200 bg-gray-50 text-gray-500 hover:border-gray-300")}>
-                               السنة {lvl}
-                             </button>
-                           ))}
-                           {[
-                             { id: '1sec', label: '1 ثانوي' },
-                             { id: '2sec', label: '2 ثانوي' },
-                             { id: '3sec', label: '3 ثانوي' },
-                             { id: '4sec', label: 'باكالوريا' }
-                           ].map(lvl => (
-                             <button key={lvl.id} type="button" onClick={() => setLevel(lvl.id)} className={cn("rounded-xl border-1.5 py-2.5 text-[0.8rem] font-bold transition-all", level === lvl.id ? "border-blue-light bg-blue-light/8 text-blue-light shadow-sm" : "border-gray-200 bg-gray-50 text-gray-500 hover:border-gray-300")}>
-                               {lvl.label}
-                             </button>
-                           ))}
+                  <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div>
+                          <label className="mb-2.5 block text-[0.83rem] font-bold text-gray-700">المستوى الدراسي</label>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                             {['7', '8', '9'].map(lvl => (
+                               <button key={lvl} type="button" onClick={() => setLevel(lvl)} className={cn("rounded-xl border-1.5 py-2.5 text-[0.85rem] font-bold transition-all", level === lvl ? "border-blue-light bg-blue-light/8 text-blue-light shadow-sm" : "border-gray-200 bg-gray-50 text-gray-500 hover:border-gray-300")}>
+                                 السنة {lvl}
+                               </button>
+                             ))}
+                             {[
+                               { id: '1sec', label: '1 ثانوي' },
+                               { id: '2sec', label: '2 ثانوي' },
+                               { id: '3sec', label: '3 ثانوي' },
+                               { id: '4sec', label: 'باكالوريا' }
+                             ].map(lvl => (
+                               <button key={lvl.id} type="button" onClick={() => setLevel(lvl.id)} className={cn("rounded-xl border-1.5 py-2.5 text-[0.8rem] font-bold transition-all", level === lvl.id ? "border-blue-light bg-blue-light/8 text-blue-light shadow-sm" : "border-gray-200 bg-gray-50 text-gray-500 hover:border-gray-300")}>
+                                 {lvl.label}
+                               </button>
+                             ))}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="form-group">
+                            <label className="mb-1.5 block text-[0.83rem] font-bold text-gray-700">تاريخ الميلاد</label>
+                            <input 
+                              type="date" 
+                              required
+                              value={birthDate} 
+                              onChange={e => setBirthDate(e.target.value)} 
+                              className="w-full rounded-xl border-1.5 border-gray-200 bg-gray-50 p-2.5 text-[0.9rem] outline-none focus:border-blue-light focus:bg-white focus:ring-4 focus:ring-blue-500/10" 
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="mb-1.5 block text-[0.83rem] font-bold text-gray-700">الولاية</label>
+                            <select 
+                              required
+                              value={wilaya} 
+                              onChange={e => setWilaya(e.target.value)} 
+                              className="w-full rounded-xl border-1.5 border-gray-200 bg-gray-50 p-2.5 text-[0.9rem] outline-none focus:border-blue-light focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+                            >
+                              <option value="">اختر الولاية</option>
+                              {TUNISIAN_GOVERNORATES.map(gov => (
+                                <option key={gov} value={gov}>{gov}</option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
                       </div>
+                )}
+
+                {role === 'parent' && (
+                  <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="form-group">
+                      <label className="mb-1.5 block text-[0.83rem] font-bold text-gray-700">الولاية</label>
+                      <select 
+                        required
+                        value={wilaya} 
+                        onChange={e => setWilaya(e.target.value)} 
+                        className="w-full rounded-xl border-1.5 border-gray-200 bg-gray-50 p-2.5 text-[0.9rem] outline-none focus:border-blue-light focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+                      >
+                        <option value="">اختر الولاية</option>
+                        {TUNISIAN_GOVERNORATES.map(gov => (
+                          <option key={gov} value={gov}>{gov}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 )}
               </>
             )}

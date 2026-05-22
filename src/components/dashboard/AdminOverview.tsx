@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SUBSCRIPTION_PLANS, PAYMENT_METHODS } from '@/src/constants';
+import { SUBSCRIPTION_PLANS, PAYMENT_METHODS, TUNISIAN_GOVERNORATES } from '@/src/constants';
 import { useNavigate } from 'react-router-dom';
 import { db, auth, handleFirestoreError, OperationType } from '@/src/lib/firebase';
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, orderBy, addDoc, deleteDoc, onSnapshot, setDoc } from 'firebase/firestore';
@@ -54,7 +54,8 @@ import {
   HardDrive,
   Zap,
   Mail,
-  Lock
+  Lock,
+  MapPin
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
@@ -203,7 +204,9 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     subject: 'الرياضيات',
     level: '7',
     address: '',
-    group: ''
+    group: '',
+    birthDate: '',
+    wilaya: ''
   });
 
   const [newGroup, setNewGroup] = useState({
@@ -339,7 +342,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       await signOut(secondaryAuth);
       
       toast.success(`تمت إضافة المستخدم بنجاح: ${newUser.firstName} ${newUser.lastName}`);
-      setNewUser({ firstName: '', lastName: '', email: '', password: '', phone: '', userType: 'student', subject: 'الرياضيات', level: '7', address: '', group: '' });
+      setNewUser({ firstName: '', lastName: '', email: '', password: '', phone: '', userType: 'student', subject: 'الرياضيات', level: '7', address: '', group: '', birthDate: '', wilaya: '' });
     } catch (err: any) {
       console.error('Error creating user:', err);
       let errorMsg = 'حدث خطأ أثناء إضافة المستخدم';
@@ -883,25 +886,67 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
           </div>
 
           {newUser.userType === 'student' && (
+            <>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-400 uppercase pr-2">المستوى الدراسي *</label>
+                <select value={newUser.level} onChange={e => setNewUser({...newUser, level: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
+                  <option value="7">السنة السابعة</option>
+                  <option value="8">السنة الثامنة</option>
+                  <option value="9">السنة التاسعة</option>
+                  <option value="1sec">السنة الأولى ثانوي</option>
+                  <option value="2sec">السنة الثانية ثانوي</option>
+                  <option value="3sec">السنة الثالثة ثانوي</option>
+                  <option value="4sec">باكالوريا</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-400 uppercase pr-2">تاريخ الميلاد *</label>
+                <input required type="date" value={newUser.birthDate} onChange={e => setNewUser({...newUser, birthDate: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-400 uppercase pr-2">الولاية *</label>
+                <select required value={newUser.wilaya} onChange={e => setNewUser({...newUser, wilaya: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
+                  <option value="">اختر الولاية</option>
+                  {TUNISIAN_GOVERNORATES.map(gov => (
+                    <option key={gov} value={gov}>{gov}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+
+          {newUser.userType === 'parent' && (
             <div className="space-y-2">
-              <label className="text-xs font-black text-gray-400 uppercase pr-2">المستوى الدراسي *</label>
-              <select value={newUser.level} onChange={e => setNewUser({...newUser, level: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
-                <option value="7">السنة السابعة</option>
-                <option value="8">السنة الثامنة</option>
-                <option value="9">السنة التاسعة</option>
-                <option value="1sec">السنة الأولى ثانوي</option>
-                <option value="2sec">السنة الثانية ثانوي</option>
-                <option value="3sec">السنة الثالثة ثانوي</option>
-                <option value="4sec">باكالوريا</option>
+              <label className="text-xs font-black text-gray-400 uppercase pr-2">الولاية *</label>
+              <select required value={newUser.wilaya} onChange={e => setNewUser({...newUser, wilaya: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
+                <option value="">اختر الولاية</option>
+                {TUNISIAN_GOVERNORATES.map(gov => (
+                  <option key={gov} value={gov}>{gov}</option>
+                ))}
               </select>
             </div>
           )}
 
           {newUser.userType === 'teacher' && (
-            <div className="space-y-2">
-              <label className="text-xs font-black text-gray-400 uppercase pr-2">المادة *</label>
-              <input type="text" value={newUser.subject} onChange={e => setNewUser({...newUser, subject: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
-            </div>
+            <>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-400 uppercase pr-2">المادة *</label>
+                <input type="text" value={newUser.subject} onChange={e => setNewUser({...newUser, subject: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-400 uppercase pr-2">الولاية *</label>
+                <select required value={newUser.wilaya} onChange={e => setNewUser({...newUser, wilaya: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
+                  <option value="">اختر الولاية</option>
+                  {TUNISIAN_GOVERNORATES.map(gov => (
+                    <option key={gov} value={gov}>{gov}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-400 uppercase pr-2">رقم الهاتف *</label>
+                <input required type="tel" value={newUser.phone} onChange={e => setNewUser({...newUser, phone: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
+              </div>
+            </>
           )}
 
           <div className="md:col-span-2 lg:col-span-3 flex justify-end">
@@ -1801,6 +1846,8 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
         level: editingUser.level || '',
         subject: editingUser.subject || '',
         group: editingUser.group || '',
+        birthDate: editingUser.birthDate || '',
+        wilaya: editingUser.wilaya || '',
         subscriptionStatus: editingUser.subscriptionStatus || 'inactive',
         subscriptionExpiry: editingUser.subscriptionExpiry || null,
         updatedAt: serverTimestamp()
@@ -1884,6 +1931,19 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                   ))}
                 </select>
               </div>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-400 uppercase pr-2">تاريخ الميلاد *</label>
+                <input required type="date" value={editingUser.birthDate || ''} onChange={e => setEditingUser({...editingUser, birthDate: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-400 uppercase pr-2">الولاية *</label>
+                <select required value={editingUser.wilaya || ''} onChange={e => setEditingUser({...editingUser, wilaya: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
+                  <option value="">اختر الولاية</option>
+                  {TUNISIAN_GOVERNORATES.map(gov => (
+                    <option key={gov} value={gov}>{gov}</option>
+                  ))}
+                </select>
+              </div>
               <div className="space-y-2 md:col-span-2">
                 <label className="text-xs font-black text-gray-400 uppercase pr-2">تاريخ انتهاء الاشتراك</label>
                 <input 
@@ -1899,6 +1959,36 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                   className="w-full rounded-2xl bg-gray-50 border-none px-6 py-3 text-sm font-bold outline-none ring-1 ring-gray-100" 
                 />
                 <p className="text-[0.6rem] text-amber-600 font-bold mt-1 pr-2">سيتم تعطيل الحساب تلقائياً عند حلول هذا التاريخ</p>
+              </div>
+            </>
+          )}
+
+          {editingUser.userType === 'parent' && (
+            <div className="space-y-2">
+              <label className="text-xs font-black text-gray-400 uppercase pr-2">الولاية *</label>
+              <select required value={editingUser.wilaya || ''} onChange={e => setEditingUser({...editingUser, wilaya: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
+                <option value="">اختر الولاية</option>
+                {TUNISIAN_GOVERNORATES.map(gov => (
+                  <option key={gov} value={gov}>{gov}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {editingUser.userType === 'teacher' && (
+            <>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-400 uppercase pr-2">المادة *</label>
+                <input type="text" value={editingUser.subject || ''} onChange={e => setEditingUser({...editingUser, subject: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-400 uppercase pr-2">الولاية *</label>
+                <select required value={editingUser.wilaya || ''} onChange={e => setEditingUser({...editingUser, wilaya: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
+                  <option value="">اختر الولاية</option>
+                  {TUNISIAN_GOVERNORATES.map(gov => (
+                    <option key={gov} value={gov}>{gov}</option>
+                  ))}
+                </select>
               </div>
             </>
           )}

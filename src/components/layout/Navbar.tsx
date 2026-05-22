@@ -41,7 +41,7 @@ export default function Navbar() {
             </div>
             <div className="logo-text">
               <h1 className="text-[1.2rem] font-black text-white leading-tight">أكاديمية مسار التميز</h1>
-              <span className="text-[0.75rem] font-normal text-gold-light">التعليم الثانوي في تونس</span>
+              <span className="text-[0.75rem] font-normal text-gold-light">التعليم عن بعد في تونس</span>
             </div>
           </Link>
 

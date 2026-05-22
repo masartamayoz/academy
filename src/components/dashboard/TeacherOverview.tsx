@@ -119,9 +119,22 @@ export default function TeacherOverview({ activeTab, userData, user }: Props) {
     });
 
     // 6. Snapshot for messages
-    const mQuery = query(collection(db, 'messages'), where('recipientId', '==', user.uid), orderBy('createdAt', 'desc'), limit(10));
+    const mQuery = query(collection(db, 'messages'), where('recipientId', '==', user.uid));
     const unsubMessages = onSnapshot(mQuery, (snap) => {
-      setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      msgs.sort((a: any, b: any) => {
+        const getMs = (val: any) => {
+          if (!val) return 0;
+          if (typeof val.toMillis === 'function') return val.toMillis();
+          if (val instanceof Date) return val.getTime();
+          if (val.seconds) return val.seconds * 1000;
+          return new Date(val).getTime() || 0;
+        };
+        return getMs(b.createdAt) - getMs(a.createdAt);
+      });
+      setMessages(msgs.slice(0, 10));
+    }, (err) => {
+      handleFirestoreError(err, OperationType.LIST, 'messages');
     });
 
     return () => {
