@@ -233,9 +233,12 @@ export default function Sidebar({ user, userData, isOpen, setIsOpen, isCollapsed
                   <motion.span
                     initial={{ opacity: 0, x: 5 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="whitespace-nowrap"
+                    className="whitespace-nowrap flex items-center gap-2"
                   >
-                    {item.label}
+                    <span>{item.label}</span>
+                    {item.id === 'referral' && (
+                      <span className="bg-gold-light/15 text-gold-light text-[0.55rem] font-bold px-1.5 py-0.5 rounded-lg border border-gold-light/25 select-none shrink-0">قريباً</span>
+                    )}
                   </motion.span>
                 )}
               </Link>

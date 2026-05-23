@@ -1,6 +1,6 @@
 import Navbar from '@/src/components/layout/Navbar';
 import Footer from '@/src/components/layout/Footer';
-import { Target, Users, Video, Calendar, Award, Clock, FileText, ShieldCheck, Smartphone, CheckCircle } from 'lucide-react';
+import { Target, Users, Video, Calendar, Award, Clock, FileText, ShieldCheck, Smartphone, CheckCircle, GraduationCap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function About() {
@@ -105,25 +105,27 @@ export default function About() {
           </div>
         </section>
 
-        {/* Teacher Section */}
+        {/* About the Academy Section */}
         <section className="py-20 bg-blue-dark text-white relative">
           <div className="container mx-auto px-5">
              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
                 <div className="lg:col-span-4 rounded-3xl bg-white/5 border border-white/10 p-8 text-center backdrop-blur-lg">
-                   <div className="mx-auto mb-5 flex h-24 w-24 items-center justify-center rounded-full border-4 border-white/20 bg-gold-brand text-4xl font-black text-blue-dark">ص</div>
-                   <h3 className="text-xl font-bold mb-1">صالح أمين</h3>
-                   <p className="text-gold-light text-sm font-semibold mb-6">مؤسّس ومدرّس الرياضيات</p>
+                   <div className="mx-auto mb-5 flex h-24 w-24 items-center justify-center rounded-3xl border-4 border-white/20 bg-white p-2">
+                      <img src="/logo.png" alt="مسار التميز" className="h-full w-full object-contain" />
+                   </div>
+                   <h3 className="text-xl font-bold mb-1">أكاديمية مسار التميز</h3>
+                   <p className="text-gold-light text-sm font-semibold mb-6">تعليم الرياضيات عن بعد في تونس</p>
                    
                    <div className="space-y-3">
                       {[
-                        { icon: GraduationCap, text: 'أستاذ رياضيات متخصص' },
-                        { icon: Award, text: '+10 سنوات خبرة' },
-                        { icon: Target, text: 'تونس' },
-                        { icon: Users, text: '+500 تلميذ مستفيد' },
+                        { icon: GraduationCap, text: 'منصة تابعة لشبكة مسار التميز التعليمية' },
+                        { icon: Award, text: 'دروس مشروحة وسلاسل تمارين متكاملة' },
+                        { icon: Target, text: 'شرح مبسط يضمن الفهم والتفوق الدراسي' },
+                        { icon: Users, text: 'متابعة بيداغوجية ودعم مستمر للتلاميذ' },
                       ].map((b, i) => (
                         <div key={i} className="flex items-center gap-3 bg-white/5 p-3.5 rounded-xl text-[0.85rem] text-white/80">
-                           <b.icon size={16} className="text-gold-light" />
-                           {b.text}
+                           <b.icon size={16} className="text-gold-light shrink-0" />
+                           <span className="text-right leading-relaxed">{b.text}</span>
                         </div>
                       ))}
                    </div>
@@ -131,19 +133,19 @@ export default function About() {
                 
                 <div className="lg:col-span-8 lg:pt-5">
                    <div className="mb-6 inline-block rounded-full bg-white/10 px-4 py-1.5 text-[0.8rem] font-bold text-gold-light">
-                      كلمة المؤسّس
+                      عن الأكاديمية
                    </div>
-                   <h2 className="text-3xl font-black mb-6 leading-tight">رحلة بدأت بشغف <span className="text-gold-brand">التعليم</span></h2>
+                   <h2 className="text-3xl font-black mb-6 leading-tight">شريككم الموثوق <span className="text-gold-brand">للتميز الدراسي</span></h2>
                    <div className="space-y-6 text-white/75 text-lg leading-relaxed font-Tajawal">
                       <p>
-                        بدأت مسيرتي في التدريس منذ أكثر من عشر سنوات، وفي كل يوم أرى تلاميذ موهوبين يعانون بسبب غياب شرح واضح ومبسّط. كان هذا الدافع الأساسي لتأسيس أكاديمية مسار التميز.
+                        تعد أكاديمية مسار التميز منصة رائدة تابعة لشبكة مسار التميز التعليمية، ومتخصصة بالكامل في تقديم وتطوير محتوى تعليم مادة الرياضيات عن بعد بطرق بيداغوجية حديثة ومبتكرة تلائم تطلعات تلاميذنا وأولياء أمورهم في تونس.
                       </p>
                       <p>
-                        أردت بناء منصة لا تكتفي بنقل المعلومة، بل تبني الفهم الحقيقي الذي يجعل التلميذ قادراً على حل أي مسألة بثقة. لذلك صممنا كل درس بعناية فائقة، وأتحنا الموارد لكل مستوى.
+                        نحن نسعى لتبسيط مفاهيم مادة الرياضيات لبناء أساس علمي متين لديهم. لا نهدف فقط لشرح المحتوى الرسمي والمناهج التونسية، بل لمساعدة التلميذ على اكتساب مهارات التفكير المنطقي والرياضي وحل المسائل بثقة تامة تضمن له التميز والارتقاء بنتائجه المدرسية في كل الامتحانات.
                       </p>
                    </div>
                    <div className="mt-10 border-r-4 border-gold-brand bg-gold-brand/10 p-6 rounded-l-2xl italic text-xl text-white/90">
-                     "هدفي ليس فقط أن ينجح التلميذ في الامتحان — هدفي أن يُحبّ الرياضيات ويفهم جماليّتها."
+                     "الأكاديمية حريصة كل الحرص على توفير محتوى بيداغوجي ذو جودة عالية، مع المتابعة المستمرة لضمان أفضل مسار نحو التفوق الدراسي."
                    </div>
                 </div>
              </div>
@@ -171,5 +173,3 @@ export default function About() {
     </div>
   );
 }
-
-const GraduationCap = ({ size, className }: any) => <FileText size={size} className={className} />;

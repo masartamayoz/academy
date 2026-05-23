@@ -55,13 +55,12 @@ export default function Pricing() {
             <div className="mb-7 flex items-baseline gap-1.5">
               <span className="text-5xl font-black text-gold-brand">100</span>
               <span className="text-lg font-bold text-white/70">د.ت</span>
-              <span className="text-[0.85rem] text-white/50">~24 حصة</span>
             </div>
             <ul className="mb-8.5 space-y-2.5">
               {[
                 'حصتان/أسبوع عبر Meet',
                 'التسجيلات مجاناً',
-                'تصحيح تمارين',
+                'الوثائق مع الاصلاح',
                 'متابعة ولي الأمر',
               ].map((f) => (
                 <li key={f} className="flex items-start gap-2.5 border-b border-white/10 pb-2 text-[0.92rem]">
@@ -84,12 +83,12 @@ export default function Pricing() {
               <span className="text-lg font-bold text-gray-600">د.ت</span>
               <span className="text-[0.85rem] text-gray-400">/ شهر</span>
             </div>
-            <ul className="mb-8.5 space-y-2.5">
+             <ul className="mb-8.5 space-y-2.5 font-Tajawal">
               {[
                 'حصتان/أسبوع',
                 'التسجيلات مجاناً',
                 'مرونة تامة',
-                '~8 حصص',
+                'دعم تفاعلي مستمر',
               ].map((f) => (
                 <li key={f} className="flex items-start gap-2.5 border-b border-gray-100 pb-2 text-[0.92rem]">
                   <Check size={16} className="mt-1 text-emerald-500" />

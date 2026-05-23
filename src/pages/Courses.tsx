@@ -105,7 +105,16 @@ export default function Courses() {
     }
   };
 
-  const isSubscribed = userData?.subscriptionStatus === 'active';
+  const hasAugustReviewAccess = (() => {
+    if (!userData || (userData.planId !== 'august_review' && userData.plan !== 'august_review')) return false;
+    const now = new Date();
+    const year = now.getFullYear();
+    const start = new Date(year, 4, 20); // 20 May (month 4 is May)
+    const end = new Date(year, 7, 31, 23, 59, 59); // 31 August (month 7 is August)
+    return now >= start && now <= end;
+  })();
+
+  const isSubscribed = userData?.subscriptionStatus === 'active' || hasAugustReviewAccess;
   const filtered = allContent.filter(c => 
     c.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
     c.chapter?.toLowerCase().includes(searchTerm.toLowerCase())

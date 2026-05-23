@@ -47,7 +47,7 @@ export const SUBSCRIPTION_PLANS = [
     name: 'الثلاثي الثالث', 
     period: 'مارس ← جوان', 
     dates: '23 مارس — 15 جوان 2026',
-    price: '80', 
+    price: '90', 
     sessions: '~18 حصة مباشرة',
     featured: false,
     icon: Zap,

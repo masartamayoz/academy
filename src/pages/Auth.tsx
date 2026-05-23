@@ -215,9 +215,6 @@ export default function Auth() {
           <Link to="/" className="mb-12 flex items-center justify-center gap-3.5 no-underline">
             <div className="h-14 w-14 rounded-2xl bg-white p-1.5 shadow-lg flex items-center justify-center relative overflow-hidden">
               <img src="/logo.png" alt="Logo" className="h-full w-full object-contain relative z-10" onError={(e) => (e.currentTarget.style.display = 'none')} />
-              <div className="absolute inset-0 flex items-center justify-center text-blue-dark bg-blue-50/10">
-                <GraduationCap size={32} strokeWidth={2.5} />
-              </div>
             </div>
             <div>
               <h1 className="text-xl font-black text-white leading-none">أكاديمية مسار التميز</h1>

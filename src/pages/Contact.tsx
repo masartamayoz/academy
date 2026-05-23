@@ -103,17 +103,17 @@ export default function Contact() {
                  </div>
                  <div>
                     <h4 className="font-bold text-[0.85rem] text-emerald-50 opacity-80 mb-0.5">واتساب — الأسرع</h4>
-                    <p className="text-xl font-black">+216 98 346 706</p>
+                    <p className="text-xl font-black" dir="ltr">+216 98 346 706</p>
                  </div>
               </a>
 
-              <a href="mailto:masartamayoz@gmail.com" className="flex items-center gap-5 p-6 rounded-2xl bg-white border border-gray-200 shadow-sm hover:border-blue-light transition-all hover:shadow-lg">
+              <a href="mailto:academy.masartamayoz@gmail.com" className="flex items-center gap-5 p-6 rounded-2xl bg-white border border-gray-200 shadow-sm hover:border-blue-light transition-all hover:shadow-lg">
                  <div className="w-14 h-14 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center shrink-0">
                     <Mail size={28} />
                  </div>
                  <div>
                     <h4 className="font-bold text-[0.85rem] text-gray-500 mb-0.5">البريد الإلكتروني</h4>
-                    <p className="text-lg font-black text-blue-dark">masartamayoz@gmail.com</p>
+                    <p className="text-lg font-black text-blue-dark">academy.masartamayoz@gmail.com</p>
                  </div>
               </a>
 

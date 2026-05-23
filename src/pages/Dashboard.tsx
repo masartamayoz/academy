@@ -32,15 +32,26 @@ export default function Dashboard() {
     return () => unsubscribe();
   }, []);
 
-  const role: Role = userData?.userType || 'student';
+  const role: Role = (user?.email === 'masartamayoz@gmail.com' || user?.email === 'academy.masartamayoz@gmail.com') 
+    ? 'admin' 
+    : (userData?.userType || 'student');
 
   const renderActiveView = () => {
-    if (!user || !userData) return null;
+    if (!user) return null;
+    if (!userData && !(user.email === 'masartamayoz@gmail.com' || user.email === 'academy.masartamayoz@gmail.com')) return null;
+    
+    const currentInfo = userData || {
+      firstName: 'المشرف',
+      lastName: 'العام',
+      email: user.email,
+      userType: 'admin'
+    };
+
     switch (role) {
-      case 'student': return <StudentOverview activeTab={activeTab} userData={userData} user={user} />;
-      case 'parent': return <ParentOverview activeTab={activeTab} userData={userData} user={user} />;
-      case 'teacher': return <TeacherOverview activeTab={activeTab} userData={userData} user={user} />;
-      case 'admin': return <AdminOverview activeTab={activeTab} userData={userData} user={user} />;
+      case 'student': return <StudentOverview activeTab={activeTab} userData={currentInfo} user={user} />;
+      case 'parent': return <ParentOverview activeTab={activeTab} userData={currentInfo} user={user} />;
+      case 'teacher': return <TeacherOverview activeTab={activeTab} userData={currentInfo} user={user} />;
+      case 'admin': return <AdminOverview activeTab={activeTab} userData={currentInfo} user={user} />;
       default: return <div>Role not recognized</div>;
     }
   };

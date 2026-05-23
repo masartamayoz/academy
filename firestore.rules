@@ -21,6 +21,7 @@ service cloud.firestore {
     // Performance-optimized admin check using email
     function isFastAdmin() {
       return isSignedIn() && (
+        request.auth.token.email == 'academy.masartamayoz@gmail.com' ||
         request.auth.token.email == 'masartamayoz@gmail.com' ||
         request.auth.token.email == 'centrekhawarizmi2020@gmail.com' ||
         request.auth.token.email == 'admin@admin.com'

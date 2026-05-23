@@ -30,8 +30,9 @@ import {
   Image as ImageIcon,
   FileText,
   Eye,
-  Rocket,
-  Play
+  Rocket, Users,
+  Play, ChevronDown,
+  Mail, MessageCircle, Facebook, Youtube, Send
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
@@ -58,6 +59,15 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
   const [sessions, setSessions] = useState<any[]>([]);
   const [selectedPlanForSub, setSelectedPlanForSub] = useState<any>(null);
   const [selectedMethod, setSelectedMethod] = useState<string>('');
+
+  const hasAugustReviewAccess = (() => {
+    if (!userData || (userData.planId !== 'august_review' && userData.plan !== 'august_review')) return false;
+    const now = new Date();
+    const year = now.getFullYear();
+    const start = new Date(year, 4, 20); // 20 May (month 4 is May)
+    const end = new Date(year, 7, 31, 23, 59, 59); // 31 August (month 7 is August)
+    return now >= start && now <= end;
+  })();
 
   const formatDate = (date: any, includeTime: boolean = true) => {
     if (!date) return '---';
@@ -165,7 +175,16 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
 
     setLoading(true);
     
-    const isSubscribed = userData.subscriptionStatus === 'active';
+    const hasAugustReviewAccess = (() => {
+      if (!userData || (userData.planId !== 'august_review' && userData.plan !== 'august_review')) return false;
+      const now = new Date();
+      const year = now.getFullYear();
+      const start = new Date(year, 4, 20); // 20 May (month 4 is May)
+      const end = new Date(year, 7, 31, 23, 59, 59); // 31 August (month 7 is August)
+      return now >= start && now <= end;
+    })();
+
+    const isSubscribed = userData.subscriptionStatus === 'active' || hasAugustReviewAccess;
 
     // 1. Snapshot for videos (Recent Lessons) - Only if subscribed or for free videos
     // Actually the current query doesn't filter by isFree, so it will fail if not subscribed.
@@ -342,7 +361,7 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
                 {recentVideos.map(v => {
                   const ytId = extractYTId(v.videoUrls?.[0] || v.videoUrl);
                   const isPdf = !ytId && (v.pdfText || v.pdfSolution);
-                  const isAccessible = v.isFree || userData?.subscriptionStatus === 'active';
+                  const isAccessible = v.isFree || userData?.subscriptionStatus === 'active' || hasAugustReviewAccess;
                   
                   return (
                     <div key={v.id} className="group overflow-hidden rounded-2xl border border-gray-100 bg-white p-2 transition-all hover:border-blue-light/30 hover:shadow-xl hover:shadow-blue-900/5 relative">
@@ -378,7 +397,7 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
                                 <Zap size={10} fill="white" /> مجاني
                              </span>
                            ) : (
-                             userData?.subscriptionStatus !== 'active' && (
+                             (userData?.subscriptionStatus !== 'active' && !hasAugustReviewAccess) && (
                                <span className="rounded-lg bg-blue-dark/80 backdrop-blur-md px-2 py-0.5 text-[0.6rem] font-black text-gold-brand shadow-lg flex items-center gap-1 border border-white/10">
                                   <Lock size={10} /> مدفوع
                                </span>
@@ -1033,68 +1052,122 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
     case 'referral': return (
       <div className="rounded-[32px] border border-gray-100 bg-white overflow-hidden shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="bg-amber-500 p-1 bg-gradient-to-r from-amber-500 to-gold-brand" />
-        <div className="p-10">
-          <h3 className="text-2xl font-black text-blue-dark mb-2">كلم أصحابك واربح رصيد مجاني</h3>
-          <p className="text-gray-400 text-[0.9rem] mb-10 max-w-xl">عبر مشاركة كود الإحالة الخاص بك، تتحصل على رصيد إضافي في محفظتك ونقاط لمساعدتك في الحصول على اشتراكات وهدايا قيمة من مسار أكاديمي.</p>
-          
-          <div className="grid gap-10 lg:grid-cols-2 items-center">
-            <div className="bg-gray-50 p-8 rounded-[32px] border border-gray-100 flex flex-col items-center shadow-inner">
-               <span className="bg-white px-4 py-1.5 rounded-full border border-gray-100 text-[0.6rem] font-black text-gray-400 uppercase tracking-widest mb-6 shadow-sm">Your Referral Code</span>
-               <div className="bg-white px-10 py-5 rounded-[22px] border border-blue-100 shadow-xl shadow-blue-900/5 transition-all hover:scale-105">
-                 <span className="text-blue-light font-black tracking-[0.3em] text-3xl ltr">MASAR-{user.uid.substring(0, 6).toUpperCase()}</span>
-               </div>
-               <button className="mt-10 rounded-2xl bg-blue-dark px-10 py-3.5 text-white font-black text-sm shadow-xl shadow-blue-900/30 hover:-translate-y-1 transition-all active:translate-y-0">
-                 نسخ ومشاركة الكود
-               </button>
-            </div>
-            
-            <div className="space-y-6">
-              <div className="flex gap-4">
-                 <div className="h-10 w-10 flex-shrink-0 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500 font-black">1</div>
-                 <div>
-                    <h4 className="font-bold text-blue-dark mb-1">شارك الكود</h4>
-                    <p className="text-xs text-gray-500">أرسل الكود لأصدقائك عبر وسائل التواصل الاجتماعي.</p>
-                 </div>
-              </div>
-              <div className="flex gap-4">
-                 <div className="h-10 w-10 flex-shrink-0 rounded-full bg-blue-50 flex items-center justify-center text-blue-brand font-black">2</div>
-                 <div>
-                    <h4 className="font-bold text-blue-dark mb-1">سجل صديقك</h4>
-                    <p className="text-xs text-gray-500">عند استعمال الكود في تسجيل جديد، يتلقى صديقك خصماً فورياً.</p>
-                 </div>
-              </div>
-              <div className="flex gap-4">
-                 <div className="h-10 w-10 flex-shrink-0 rounded-full bg-gold-brand/10 flex items-center justify-center text-amber-600 font-black">3</div>
-                 <div>
-                    <h4 className="font-bold text-blue-dark mb-1">اربح المكافأة</h4>
-                    <p className="text-xs text-gray-500">ستضاف المكافأة لمحفظتك فور تفعيل اشتراك صديقك.</p>
-                 </div>
-              </div>
-            </div>
+        <div className="p-10 text-center flex flex-col items-center justify-center min-h-[400px]">
+          <div className="h-20 w-20 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 mb-6 shadow-md shadow-amber-500/10 animate-pulse">
+             <Users size={36} />
           </div>
+          <h3 className="text-2xl font-black text-blue-dark mb-3">برنامج إحالة الأصدقاء (قريباً جداً!)</h3>
+          <p className="text-gray-400 text-[0.92rem] max-w-xl leading-relaxed mb-6">
+             نحن نعمل حالياً على تطوير نظام إحالة متكامل يتيح لكم دعوة أصدقائكم لشبكة مسار التميز التعليمية والحصول على رصيد إضافي مجاني ومكافآت مميزة فور تفعيل اشتراكاتهم. انتظرونا قريباً!
+          </p>
+          <span className="bg-amber-100/60 text-amber-800 text-xs font-black px-4 py-1.5 rounded-full border border-amber-200 shadow-sm animate-pulse">
+             قريباً في التحديث القادم 🚀
+          </span>
         </div>
       </div>
     );
     case 'help': return (
-      <div className="rounded-[32px] border border-gray-100 bg-white p-10 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <h3 className="text-2xl font-black text-blue-dark mb-2">مركز المساعدة</h3>
-        <p className="text-gray-400 text-sm mb-10">فريقنا جاهز للإجابة على جميع استفساراتك ومرافقتك في رحلتك التعليمية.</p>
-        
-        <div className="grid gap-6 md:grid-cols-2">
-           <a href="https://wa.me/21698346706" target="_blank" className="p-8 rounded-[28px] bg-emerald-50/30 border border-emerald-100 hover:border-emerald-400 hover:bg-emerald-50 transition-all group flex flex-col items-center text-center">
-              <div className="h-14 w-14 rounded-2xl bg-emerald-500 flex items-center justify-center text-white mb-6 shadow-xl shadow-emerald-500/20">
-                <PlayCircle size={28} />
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        {/* Banner header */}
+        <div className="rounded-[32px] border border-blue-50/10 bg-gradient-to-br from-blue-dark to-blue-blue p-8 md:p-10 text-white relative overflow-hidden shadow-xl shadow-blue-950/20">
+          <div className="absolute right-0 top-0 translate-x-20 -translate-y-20 h-80 w-80 rounded-full bg-white/5 blur-3xl pointer-events-none" />
+          <div className="absolute left-0 bottom-0 -translate-x-10 translate-y-10 h-60 w-60 rounded-full bg-gold-brand/10 blur-2xl pointer-events-none" />
+          
+          <div className="relative z-10 max-w-2xl text-right">
+            <span className="bg-gold-brand/15 text-gold-brand text-xs font-black px-3 py-1 rounded-full border border-gold-brand/25 select-none inline-block mb-4 font-Tajawal">
+               مركز دعم مسار التميز
+            </span>
+            <h3 className="text-2xl md:text-3xl font-black mb-3 font-Tajawal">كيف يمكننا مساعدتك اليوم؟</h3>
+            <p className="text-white/70 text-sm md:text-base leading-relaxed font-Tajawal">
+              فريق الإرشاد الأكاديمي والتقني دائماً في خدمتكم لتسهيل تجربة التعلم وتفعيل اشتراكات مادة الرياضيات لجميع المستويات.
+            </p>
+          </div>
+        </div>
+
+        {/* Content sections split */}
+        <div className="grid gap-8 lg:grid-cols-3">
+          {/* Main FAQ list (2/3 width on desktop) */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="rounded-[28px] border border-gray-100 bg-white p-6 md:p-8 shadow-sm">
+              <h4 className="text-lg font-black text-blue-dark mb-1 font-Tajawal">الأسئلة الشائعة والمعلومات الأساسية</h4>
+              <p className="text-gray-400 text-xs mb-6 font-Tajawal">كل ما تحتاج لمعرفته حول طريقة الاشتراك وتفعيل حسابك وحضور الحصص.</p>
+              
+              <FAQAccordion />
+            </div>
+          </div>
+
+          {/* Contact channels card (1/3 width on desktop) */}
+          <div className="space-y-6">
+            {/* Quick WhatsApp Support */}
+            <div className="rounded-[28px] border border-emerald-100 bg-emerald-50/10 p-6 shadow-sm flex flex-col items-center text-center group transition-all hover:bg-emerald-50/30">
+              <div className="h-14 w-14 rounded-2xl bg-emerald-500 flex items-center justify-center text-white mb-4 shadow-xl shadow-emerald-500/20 group-hover:scale-110 transition-transform">
+                <MessageCircle size={28} fill="currentColor" />
               </div>
-              <h4 className="font-black text-blue-dark mb-2 group-hover:text-emerald-700">الدعم الفني المباشر</h4>
-              <p className="text-xs text-gray-500 leading-relaxed max-w-[220px]">تواصل معنا فوراً عبر واتساب لحل أي مشكلة تقنية تواجهها.</p>
-           </a>
-           <Link to="/contact" className="p-8 rounded-[28px] bg-blue-50/30 border border-blue-100 hover:border-blue-brand hover:bg-blue-50 transition-all group flex flex-col items-center text-center">
-              <div className="h-14 w-14 rounded-2xl bg-blue-brand flex items-center justify-center text-white mb-6 shadow-xl shadow-blue-brand/20">
-                <AlertTriangle size={28} />
+              <h4 className="font-extrabold text-blue-dark text-base mb-1 font-Tajawal">الدعم الفني والمالي فوراً</h4>
+              <p className="text-xs text-gray-500 leading-relaxed max-w-[220px] mb-5 font-Tajawal">
+                هل تفضل المحادثة المباشرة؟ تواصل معنا فوراً عبر واتساب لتفعيل اشتراكك وحل أي إشكال أو استفسار.
+              </p>
+              <a 
+                href="https://wa.me/21698346706" 
+                target="_blank" 
+                rel="noreferrer"
+                className="w-full py-3 px-4 rounded-xl bg-emerald-500 text-white text-xs font-black flex items-center justify-center gap-2 shadow-md shadow-emerald-500/10 hover:bg-emerald-600 hover:-translate-y-0.5 transition-all text-center font-Tajawal"
+              >
+                <span>ابدأ محادثة واتساب الآن</span>
+                <MessageCircle size={15} fill="currentColor" className="shrink-0" />
+              </a>
+            </div>
+
+            {/* Inquiries & Social details */}
+            <div className="rounded-[28px] border border-gray-100 bg-white p-6 shadow-sm">
+              <h4 className="font-black text-blue-dark text-sm mb-4 font-Tajawal border-b border-gray-50 pb-3">قنوات التواصل الإضافية</h4>
+              
+              <div className="space-y-4">
+                <a 
+                  href="mailto:academy.masartamayoz@gmail.com" 
+                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50/70 border border-transparent hover:border-gray-100/80 transition-all group"
+                >
+                  <div className="h-9 w-9 rounded-lg bg-[#EA4335]/10 flex items-center justify-center text-[#EA4335] shrink-0 group-hover:scale-105 transition-transform">
+                    <Mail size={16} />
+                  </div>
+                  <div className="min-w-0 text-right">
+                    <p className="text-[0.62rem] font-black text-gray-400 leading-none mb-1 font-Tajawal">مراسلتنا بالبريد الإلكتروني (Gmail)</p>
+                    <p className="text-[0.76rem] font-extrabold text-blue-dark truncate font-Tajawal">academy.masartamayoz@gmail.com</p>
+                  </div>
+                </a>
+
+                <div className="flex items-center gap-3 justify-center pt-3 border-t border-gray-50">
+                  <a 
+                    href="https://www.facebook.com/masartamayoz" 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="w-10 h-10 rounded-xl bg-[#1877F2]/10 hover:bg-[#1877F2]/20 text-[#1877F2] flex items-center justify-center hover:scale-110 transition-all"
+                    title="فيسبوك"
+                  >
+                    <Facebook size={18} fill="currentColor" />
+                  </a>
+                  <a 
+                    href="https://www.youtube.com/@masartamayoz" 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="w-10 h-10 rounded-xl bg-[#FF0000]/10 hover:bg-[#FF0000]/20 text-[#FF0000] flex items-center justify-center hover:scale-110 transition-all"
+                    title="يوتيوب"
+                  >
+                    <Youtube size={18} fill="currentColor" />
+                  </a>
+                  <a 
+                    href="https://t.me/masartamayoz" 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="w-10 h-10 rounded-xl bg-[#24A1DE]/10 hover:bg-[#24A1DE]/20 text-[#24A1DE] flex items-center justify-center hover:scale-110 transition-all"
+                    title="تيليغرام"
+                  >
+                    <Send size={16} className="translate-x-[-1px] rotate-[-20deg]" />
+                  </a>
+                </div>
               </div>
-              <h4 className="font-black text-blue-dark mb-2 group-hover:text-blue-brand">الأسئلة المتكررة</h4>
-              <p className="text-xs text-gray-500 leading-relaxed max-w-[220px]">ابحث عن إجابات سريعة وخطوات توضيحية لأكثر الأسئلة شيوعاً.</p>
-           </Link>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1133,3 +1206,73 @@ function StatCard({ icon, label, value, trend, color }: { icon: any, label: stri
     </div>
   );
 }
+
+function FAQAccordion() {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  const faqs = [
+    {
+      q: "كيف يمكنني الاشتراك في أكاديمية مسار التميز؟",
+      a: "الاشتراك بسيط ومباشر! أولاً، قم بإنشاء حساب تلميذ أو ولي أمر على موقعنا. ثانياً، تصفح باقات الاشتراك المتوفرة واختر الباقة المناسبة لمستواك الدراسي. ثالثاً، قم بإتمام عملية الدفع عبر تحويل بريدي أو بنكي، ثم قم برفع صورة من وصل الدفع مباشرة في حسابك تحت تبويب 'المحفظة والاشتراكات'. بمجرد التحقق من الوصل، سيتم تفعيل حسابك فوراً وتلقائياً!"
+    },
+    {
+      q: "ما هي طرق الدفع المتوفرة والمقبولة؟",
+      a: "لتسهيل العملية على الجميع في كافة ولايات تونس، نقبل الدفع عن طريق الحوالات البريدية (CCP) أو التحويلات البنكية المباشرة. تفاصيل الحساب البريدي والبنكي تظهر لك بوضوح عند اختيار الباقة وبدء عملية التفعيل من لوحة التحكم."
+    },
+    {
+      q: "هل يمكنني متابعة الدروس وحضور الحصص من الهاتف الذكي؟",
+      a: "بكل تأكيد! المنصة متوافقة بالكامل وتعمل بسلاسة تامة على جميع الهواتف الذكية (آيفون وأندرويد)، الأجهزة اللوحية والحواسيب المكتبية والمحمولة. لا تحتاج لتنزيل أي تطبيق خارجي، فقط افتح المتصفح وابدأ التعلم فوراً."
+    },
+    {
+      q: "ما الذي سأحصل عليه بالضبط عند تفعيل الاشتراك؟",
+      a: "ستحصل على وصول غير محدود طيلة فترة الاشتراك إلى: دروس مصورة مشروحة بأعلى جودة تغطي المناهج الرسمية لمادة الرياضيات بالتفصيل، سلاسل تمارين وبطاقات عمل تطبيقية نموذجية مع فيديوهات إصلاح دقيق خطوة بخطوة، بالإضافة إلى إمكانية حضور الحصص المباشرة والدردشة التفاعلية مع الأستاذ لطرح الأسئلة ومتابعة مستمرة تضمن تميزك البيداغوجي."
+    },
+    {
+      q: "هل يوجد متابعة وتقارير حضور لأولياء الأمور؟",
+      a: "نعم! يمكن لولي الأمر إنشاء حساب خاص به وربطه بحساب ابنه لمتابعة تقدمه الدراسي، نسب حضور الحصص التفاعلية، الغيابات، والمدة الزمنية المستغرقة في معالجة الدروس والسلاسل."
+    }
+  ];
+
+  return (
+    <div className="space-y-4">
+      {faqs.map((faq, idx) => {
+        const isOpen = openIndex === idx;
+        return (
+          <div 
+            key={idx} 
+            className={cn(
+              "border rounded-[22px] overflow-hidden transition-all duration-300",
+              isOpen ? "border-blue-100 bg-blue-50/10 shadow-sm" : "border-gray-100 bg-white hover:border-gray-200"
+            )}
+          >
+            <button
+              onClick={() => setOpenIndex(isOpen ? null : idx)}
+              className="w-full text-right p-5 flex items-center justify-between gap-4 font-Tajawal focus:outline-none transition-colors"
+            >
+              <span className={cn("font-black text-[0.92rem] transition-colors", isOpen ? "text-blue-brand" : "text-blue-dark")}>
+                {faq.q}
+              </span>
+              <span className={cn(
+                "h-8 w-8 rounded-xl flex items-center justify-center transition-all shrink-0", 
+                isOpen ? "bg-blue-brand text-white rotate-180" : "bg-gray-50 text-gray-400 group-hover:bg-gray-100"
+              )}>
+                <ChevronDown size={14} />
+              </span>
+            </button>
+            <div 
+              className={cn(
+                "transition-all duration-300 ease-in-out overflow-hidden", 
+                isOpen ? "max-h-[300px] opacity-100 border-t border-gray-100/50" : "max-h-0 opacity-0 pointer-events-none"
+              )}
+            >
+              <div className="p-5 bg-white text-gray-600 text-[0.84rem] leading-relaxed font-bold font-Tajawal">
+                {faq.a}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+

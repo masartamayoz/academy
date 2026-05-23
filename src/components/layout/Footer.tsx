@@ -8,7 +8,9 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
           <div className="footer-brand">
             <div className="flex items-center gap-3 mb-4">
-              <img src="/logo.png" alt="مسار التميز" className="w-11 h-11" onError={(e) => (e.currentTarget.style.display = 'none')} />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white p-1 shadow-sm shrink-0">
+                <img src="/logo.png" alt="مسار التميز" className="h-full w-full object-contain" onError={(e) => (e.currentTarget.style.display = 'none')} />
+              </div>
               <div className="logo-text text-white">
                 <h1 className="text-[1rem] font-bold">أكاديمية مسار التميز</h1>
               </div>
@@ -50,7 +52,7 @@ export default function Footer() {
               <a href="https://t.me/masartamayoz" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-[0.88rem] hover:text-gold-light transition-colors">
                 <Send size={16} /> تيليغرام
               </a>
-              <a href="mailto:masartamayoz@gmail.com" className="flex items-center gap-2 text-[0.88rem] hover:text-gold-light transition-colors">
+              <a href="mailto:academy.masartamayoz@gmail.com" className="flex items-center gap-2 text-[0.88rem] hover:text-gold-light transition-colors">
                 <Mail size={16} /> البريد الإلكتروني
               </a>
             </div>

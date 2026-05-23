@@ -123,15 +123,9 @@ export default function PricingPage() {
                     <span className={cn("text-4xl font-black", plan.featured ? "text-gold-brand" : "text-blue-dark")}>{plan.price}</span>
                     <span className="text-sm font-bold opacity-60">د.ت</span>
                   </div>
-
-                  {plan.sessions && (
-                    <p className="text-xs font-bold mb-4 flex items-center gap-1.5 opacity-80">
-                      {plan.icon && <plan.icon size={16} />} {plan.sessions}
-                    </p>
-                  )}
                   
                   <ul className="space-y-2 mb-8 border-t border-gray-100 pt-5">
-                    {(plan.id === 'august_review' ? ['تحضير ذكي', 'تدارك النواقص', 'تفاعل مباشر'] : ['حصتان/أسبوع', 'تسجيلات مجانية', 'تصحيح واجبات']).map(f => (
+                    {(plan.id === 'august_review' ? ['تحضير ذكي', 'تدارك النواقص', 'تفاعل مباشر'] : ['حصتان/أسبوع', 'تسجيلات مجانية', 'الوثائق مع الاصلاح']).map(f => (
                        <li key={f} className="flex items-center gap-2 text-xs font-medium opacity-85">
                          <Check size={14} className={plan.featured ? "text-gold-light" : "text-emerald-500"} /> {f}
                        </li>
@@ -191,10 +185,9 @@ export default function PricingPage() {
                 <tbody className="divide-y divide-gray-100">
                   {[
                     { label: 'مشاهدة التسجيلات', v: [true, true, true] },
-                    { label: 'حصص مباشرة عبر Meet', v: [false, '~24 حصة', '~8 حصص'] },
-                    { label: 'تصحيح واجبات', v: [false, true, true] },
+                    { label: 'حصص مباشرة عبر Meet', v: [false, true, true] },
+                    { label: 'الوثائق مع الإصلاح', v: [true, true, true] },
                     { label: 'متابعة ولي الأمر', v: [true, true, true] },
-                    { label: 'سعر الحصة الواحدة', v: ['—', '≈ 4.2 د.ت', '≈ 5 د.ت'] },
                   ].map((row, i) => (
                     <tr key={i} className="hover:bg-gray-50 transition-colors">
                       <td className="p-5 font-bold text-blue-dark">{row.label}</td>
