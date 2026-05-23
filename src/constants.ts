@@ -74,12 +74,31 @@ export const SUBSCRIPTION_PLANS = [
   }
 ];
 
+import d17QrCode from '@/src/assets/images/d17_qr_code_1779523901315.png';
+
 export const PAYMENT_METHODS = [
-  { id: 'bank', name: 'حساب بنكي (Bank)', details: 'BIAT: 08 000 000 000000 000 00' },
-  { id: 'ccp', name: 'حساب بريدي (CCP)', details: 'CCP: 17 000 000 000000 000 00' },
-  { id: 'd17', name: 'محفظة D17', details: 'رقم الهاتف المربوط: 20 000 000' },
-  { id: 'mandat', name: 'حوالة بريدية (Mandat)', details: 'الاسم: أكاديمية مسار التميز' },
-  { id: 'edinar', name: 'بطاقة e-Dinar', details: 'رقم البطاقة: 0000 0000 0000 0000' }
+  { 
+    id: 'bank', 
+    name: 'حساب بنكي (بنك الزيتونة)', 
+    bankName: 'بنك الزيتونة',
+    details: '25036000000041246472',
+    accountNumber: '25036000000041246472'
+  },
+  { 
+    id: 'ccp', 
+    name: 'حساب بريدي (البريد التونسي)', 
+    bankName: 'البريد التونسي (CCP)',
+    details: '17706000000087735033',
+    accountNumber: '17706000000087735033'
+  },
+  { 
+    id: 'd17', 
+    name: 'محفظة D17', 
+    bankName: 'تطبيق D17 البريد التونسي',
+    details: 'رقم الهاتف المربوط: 98346706',
+    phone: '98346706',
+    qrCode: d17QrCode
+  }
 ];
 
 export const TUNISIAN_GOVERNORATES = [

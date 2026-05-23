@@ -239,21 +239,63 @@ export default function Courses() {
                 </div>
                 
                 <div className="lg:hidden">
-                   <select 
-                    value={currentLevel} 
-                    onChange={e => setCurrentLevel(e.target.value)} 
-                    className="rounded-xl border border-gray-100 bg-white px-4 py-2 text-xs font-black text-blue-dark outline-none"
-                   >
-                     <option value="7">السنة السابعة</option>
-                     <option value="8">السنة الثامنة</option>
-                     <option value="9">السنة التاسعة</option>
-                     <option value="1sec">السنة الأولى ثانوي</option>
-                     <option value="2sec">السنة الثانية ثانوي</option>
-                     <option value="3sec">السنة الثالثة ثانوي</option>
-                     <option value="4sec">باكالوريا</option>
-                   </select>
+                   {userData?.userType === 'student' && userData?.level ? (
+                     <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gold-brand/10 border border-gold-brand/20 text-xs font-black text-blue-dark shadow-sm">
+                       <Lock size={12} className="text-gold-brand shrink-0" />
+                       <span>{LEVELS[userData.level] || userData.level}</span>
+                     </div>
+                   ) : (
+                     <select 
+                      value={currentLevel} 
+                      onChange={e => setCurrentLevel(e.target.value)} 
+                      className="rounded-xl border border-gray-100 bg-white px-4 py-2 text-xs font-black text-blue-dark outline-none cursor-pointer focus:border-blue-brand transition-colors shadow-sm"
+                     >
+                       <option value="7">السنة السابعة</option>
+                       <option value="8">السنة الثامنة</option>
+                       <option value="9">السنة التاسعة</option>
+                       <option value="1sec">السنة الأولى ثانوي</option>
+                       <option value="2sec">السنة الثانية ثانوي</option>
+                       <option value="3sec">السنة الثالثة ثانوي</option>
+                       <option value="4sec">باكالوريا</option>
+                     </select>
+                   )}
                 </div>
              </div>
+          </div>
+
+          {/* Mobile content categories scroll bar */}
+          <div className="lg:hidden flex items-center justify-start gap-2 overflow-x-auto px-6 py-3.5 bg-white border-b border-gray-100/80 scrollbar-none shrink-0 border-t border-gray-50" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            <style dangerouslySetInnerHTML={{__html: `
+              .scrollbar-none::-webkit-scrollbar {
+                display: none;
+              }
+            `}} />
+            <div className="flex gap-2 min-w-max">
+              {[
+                { id: 'lesson', label: 'الدروس المشروحة', icon: BookOpen },
+                { id: 'exercise', label: 'سلاسل التمارين', icon: FileText },
+                { id: 'assignment', label: 'فروض المراقبة', icon: FileText },
+                { id: 'synthesis', label: 'الفروض التأليفية', icon: Award }
+              ].map(subItem => {
+                const Icon = subItem.icon;
+                const active = currentType === subItem.id;
+                return (
+                  <button
+                    key={subItem.id}
+                    onClick={() => setCurrentType(subItem.id)}
+                    className={cn(
+                      "flex items-center gap-2 px-4.5 py-2.5 rounded-2xl text-[0.78rem] font-bold transition-all border",
+                      active
+                        ? "bg-blue-dark text-white border-blue-dark shadow-sm"
+                        : "bg-gray-50/50 text-gray-500 border-gray-100 hover:bg-gray-100/50 hover:text-blue-dark"
+                    )}
+                  >
+                    <Icon size={14} className={active ? "text-gold-brand" : "text-gray-400"} />
+                    <span>{subItem.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 md:p-10">

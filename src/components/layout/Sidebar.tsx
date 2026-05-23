@@ -115,7 +115,7 @@ export default function Sidebar({ user, userData, isOpen, setIsOpen, isCollapsed
         }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         className={cn(
-          "fixed inset-y-0 right-0 z-[110] bg-blue-sidebar text-white lg:relative lg:flex lg:flex-col border-l border-white/5 shadow-2xl",
+          "fixed inset-y-0 right-0 z-[110] bg-blue-sidebar text-white flex flex-col h-full lg:relative border-l border-white/5 shadow-2xl",
           !isOpen && "translate-x-full lg:translate-x-0"
         )}
       >

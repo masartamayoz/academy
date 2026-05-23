@@ -633,20 +633,20 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                        </h4>
                        <p className="text-xs text-gray-500 mb-6">يرجى اختيار وسيلة الدفع المناسبة ورفع صورة الوصل.</p>
 
-                       <div className="grid gap-4 mb-8">
+                       <div className="grid gap-4 mb-8 sm:grid-cols-3">
                           {PAYMENT_METHODS.map(m => (
                             <button
                               key={m.id}
                               onClick={() => setSelectedMethod(m.id)}
                               className={cn(
-                                "p-4 rounded-2xl border-2 text-right transition-all group relative overflow-hidden bg-white",
-                                selectedMethod === m.id ? "border-blue-brand bg-blue-50/30" : "border-gray-50"
+                                "p-5 rounded-2xl border text-right transition-all group relative overflow-hidden flex flex-col justify-between h-full min-h-[110px] bg-white",
+                                selectedMethod === m.id ? "border-blue-brand bg-blue-50/10 ring-2 ring-blue-brand/20" : "border-gray-100"
                               )}
                             >
                                <div className="relative z-10 flex items-center justify-between">
                                   <div>
                                      <p className="text-xs font-black text-blue-dark">{m.name}</p>
-                                     <p className="text-[0.65rem] text-blue-light/70 font-bold mt-0.5">{m.details}</p>
+                                     <p className="text-[0.65rem] text-gray-400 font-bold mt-1">{m.bankName}</p>
                                   </div>
                                   {selectedMethod === m.id && <CheckCircle2 size={20} className="text-blue-brand" />}
                                </div>
@@ -654,7 +654,95 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                           ))}
                        </div>
 
-                       <form onSubmit={handleUploadReceipt} className="space-y-4">
+                       {/* Selected Payment Method Detail Card */}
+                        {selectedMethod && (
+                          <div className="mb-8 p-6 rounded-2xl bg-white border border-gray-100 text-right animate-in fade-in slide-in-from-top-2">
+                            {selectedMethod === 'bank' && (
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">{PAYMENT_METHODS[0].bankName}</span>
+                                  <span className="text-[0.68rem] text-gray-400 font-bold">يرجى تحويل المبلغ للحساب التالي:</span>
+                                </div>
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center justify-between gap-4">
+                                  <span className="font-mono text-sm font-black tracking-wider text-blue-dark select-all">{PAYMENT_METHODS[0].accountNumber}</span>
+                                  <button 
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(PAYMENT_METHODS[0].accountNumber || '');
+                                      toast.success('تم نسخ رقم الحساب البنكي بنجاح');
+                                    }}
+                                    className="text-[0.68rem] bg-white border border-gray-200 hover:bg-gray-100 font-black text-blue-dark px-3 py-2 rounded-lg flex items-center gap-1.5 transition-all"
+                                  >
+                                    نسخ الحساب
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {selectedMethod === 'ccp' && (
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-black text-amber-600 bg-amber-50 px-3 py-1 rounded-full">{PAYMENT_METHODS[1].bankName}</span>
+                                  <span className="text-[0.68rem] text-gray-400 font-bold">يرجى تحويل المبلغ للحساب التالي:</span>
+                                </div>
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center justify-between gap-4">
+                                  <span className="font-mono text-sm font-black tracking-wider text-blue-dark select-all">{PAYMENT_METHODS[1].accountNumber}</span>
+                                  <button 
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(PAYMENT_METHODS[1].accountNumber || '');
+                                      toast.success('تم نسخ رقم الحساب البريدي بنجاح');
+                                    }}
+                                    className="text-[0.68rem] bg-white border border-gray-200 hover:bg-gray-100 font-black text-blue-dark px-3 py-2 rounded-lg flex items-center gap-1.5 transition-all"
+                                  >
+                                    نسخ الحساب
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {selectedMethod === 'd17' && (
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-black text-red-600 bg-red-50/50 px-3 py-1 rounded-full">{PAYMENT_METHODS[2].bankName}</span>
+                                  <span className="text-[0.68rem] text-gray-400 font-bold">يمكنك الدفع عبر التطبيق مباشرة:</span>
+                                </div>
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center justify-between gap-4">
+                                  <div className="flex flex-col text-right">
+                                    <span className="text-[0.62rem] text-gray-400 font-bold">رقم الهاتف المربوط</span>
+                                    <span className="font-mono text-sm font-black tracking-widest text-blue-dark select-all">{PAYMENT_METHODS[2].phone}</span>
+                                  </div>
+                                  <button 
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(PAYMENT_METHODS[2].phone || '');
+                                      toast.success('تم نسخ رقم هاتف D17 بنجاح');
+                                    }}
+                                    className="text-[0.68rem] bg-white border border-gray-200 hover:bg-gray-100 font-black text-blue-dark px-3 py-2 rounded-lg flex items-center gap-1.5 transition-all"
+                                  >
+                                    نسخ الرقم
+                                  </button>
+                                </div>
+
+                                {PAYMENT_METHODS[2].qrCode && (
+                                  <div className="flex flex-col items-center justify-center p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-2 mt-2">
+                                    <p className="text-[0.65rem] font-bold text-gray-500">امسح رمز الـ QR Code من تطبيق D17 لإتمام الدفع بسرعة:</p>
+                                    <div className="relative group p-2 border-2 border-gray-100 bg-white rounded-2xl shadow-sm transition-all hover:border-blue-light/50">
+                                      <img 
+                                        src={PAYMENT_METHODS[2].qrCode} 
+                                        alt="D17 QR Code" 
+                                        className="w-48 h-48 object-contain rounded-lg"
+                                      />
+                                      <div className="absolute inset-2 border border-blue-brand/20 rounded-md pointer-events-none group-hover:border-blue-brand/40 transition-all" />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <form onSubmit={handleUploadReceipt} className="space-y-4">
                           <div className="space-y-2">
                              <label className="text-[0.65rem] font-black text-gray-400 uppercase pr-2">منظوري المراد دفع اشتراكه</label>
                               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
