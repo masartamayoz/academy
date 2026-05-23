@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { PAYMENT_METHODS } from '@/src/constants';
 import { toast } from 'sonner';
-import { Check, Clipboard, QrCode } from 'lucide-react';
+import { Check, Clipboard, QrCode, Lock } from 'lucide-react';
 
 export default function PaymentMethods() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -61,18 +61,14 @@ export default function PaymentMethods() {
                   </div>
 
                   {/* Account detail line */}
-                  <div className="bg-white px-4 py-3 rounded-xl border border-gray-200/80 flex items-center justify-between gap-4 flex-1 max-w-md">
-                    <span className="font-mono text-[0.92rem] font-black tracking-wider text-blue-dark select-all ltr">
-                      {m.id === 'd17' ? m.phone : m.accountNumber}
+                  <div className="bg-gray-100/65 px-4 py-3 rounded-xl border border-gray-200/50 flex items-center justify-between gap-4 flex-1 max-w-md">
+                    <span className="font-mono text-[0.85rem] font-black tracking-widest text-gray-400/80 select-none ltr">
+                      {m.id === 'bank' ? '25036••••••••••••••••' : m.id === 'ccp' ? '17706••••••••••••••••' : '98••••••'}
                     </span>
-                    <button 
-                      type="button"
-                      onClick={() => handleCopy(m.id, m.id === 'd17' ? m.phone || '' : m.accountNumber || '')}
-                      className="text-xs bg-gray-50 border border-gray-200 hover:bg-gray-100 font-black text-blue-dark px-3 py-2 rounded-lg flex flex-shrink-0 items-center gap-1.5 transition-all"
-                    >
-                      {copiedId === m.id ? <Check size={14} className="text-emerald-500" /> : <Clipboard size={14} />}
-                      {copiedId === m.id ? 'تم النسخ' : 'نسخ'}
-                    </button>
+                    <div className="text-[0.65rem] font-black text-amber-700 bg-amber-50 border border-amber-200/40 px-3 py-1.5 rounded-lg flex items-center gap-1 shrink-0">
+                      <Lock size={12} className="text-amber-600" />
+                      <span>محمي</span>
+                    </div>
                   </div>
                 </div>
 
@@ -84,20 +80,28 @@ export default function PaymentMethods() {
                         <QrCode size={16} className="text-red-500" /> مسح رمز الـ QR Code
                       </p>
                       <p className="text-xs text-gray-500 leading-relaxed font-bold">
-                        يمكنك فتح تطبيق D17 واستخدام ماسح الـ QR للتحويل مباشرة إلى هذا الهاتف الحساب مع تأكيد المبلغ.
+                        تطبيق D17 يتيح التحويل الآمن مباشرة عبر مسح الرمز. الرمز الكامل متاح داخل حسابك.
                       </p>
                     </div>
-                    <div className="relative p-1.5 border border-gray-100 bg-white rounded-xl shadow-inner flex-shrink-0">
+                    <div className="relative p-1.5 border border-gray-100 bg-white rounded-xl shadow-inner flex-shrink-0 overflow-hidden">
                       <img 
                         src={m.qrCode} 
                         alt="D17 QR Code" 
-                        className="w-32 h-32 object-contain rounded-lg"
+                        className="w-24 h-24 object-contain rounded-lg blur-[5px] select-none pointer-events-none"
                       />
+                      <div className="absolute inset-0 bg-white/80 backdrop-blur-[1px] flex flex-col items-center justify-center p-1 text-center pointer-events-none">
+                        <Lock size={14} className="text-red-500 mb-0.5 animate-pulse" />
+                        <span className="text-[0.58rem] font-black text-blue-dark">يظهر للمسجلين</span>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
             ))}
+            
+            <p className="text-xs font-bold text-gray-400 mt-4 leading-relaxed text-right">
+              * حفاظاً على سرية المعطيات وأمان المعاملات المالية، تظهر تفاصيل الحسابات وأرقام التحويل كاملة وجاهزة للنسخ المباشر داخل لوحة التحكم بعد تسجيل الدخول.
+            </p>
           </div>
 
           {/* Steps Column */}
