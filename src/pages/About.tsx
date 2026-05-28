@@ -2,10 +2,17 @@ import Navbar from '@/src/components/layout/Navbar';
 import Footer from '@/src/components/layout/Footer';
 import { Target, Users, Video, Calendar, Award, Clock, FileText, ShieldCheck, Smartphone, CheckCircle, GraduationCap } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import SEO from '@/src/components/common/SEO';
 
 export default function About() {
   return (
     <div className="flex min-h-screen flex-col" dir="rtl">
+      <SEO 
+        title="من نحن | قصة وأهداف أكاديمية مسار التميز"
+        description="تعرف على رؤية ورسالة أكاديمية مسار التميز، رائد الكفاءة البيداغوجية في تونس مادة الرياضيات. نسعى لتمكين غد أفضل للشباب والطلاب."
+        keywords="أهداف مسار التميز, بيداغوجيا مادة الرياضيات تونس, مدرسين رياضيات تونس"
+        canonical="https://academy.masartamayoz.com/about"
+      />
       <Navbar />
       
       <main className="flex-1 font-Tajawal">

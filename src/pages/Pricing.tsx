@@ -8,6 +8,7 @@ import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
+import SEO from '@/src/components/common/SEO';
 
 import { SUBSCRIPTION_PLANS } from '../constants';
 
@@ -48,6 +49,24 @@ export default function PricingPage() {
 
   return (
     <div className="flex min-h-screen flex-col" dir="rtl">
+      <SEO 
+        title="عروض وباقات الاشتراك | مادة الرياضيات تونس"
+        description="اكتشف تفاصيل عروض اشتراكات أكاديمية مسار التميز لتدريس مادة الرياضيات. تمتع بحصص مباشرة، وثائق مع الإصلاح، وتسجيلات غير محدودة بأسعار استثنائية."
+        keywords="أسعار دروس الرياضيات تونس, عروض مسار التميز, اشتراك رياصيات تونسية, باقات مادة الرياضيات"
+        canonical="https://academy.masartamayoz.com/pricing"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": faqs.map(faq => ({
+            "@type": "Question",
+            "name": faq.q,
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": faq.a
+            }
+          }))
+        }}
+      />
       <Navbar />
       
       <main className="flex-1 bg-gray-50 font-Tajawal">

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Navbar from '@/src/components/layout/Navbar';
 import Footer from '@/src/components/layout/Footer';
+import SEO from '@/src/components/common/SEO';
 import { 
   Mail, 
   Phone, 
@@ -81,6 +82,12 @@ export default function Contact() {
 
   return (
     <div className="flex min-h-screen flex-col" dir="rtl">
+      <SEO 
+        title="اتصل بنا | الدعم الفني والمساعدة بالأكاديمية"
+        description="تواصل مع فريق عمل أكاديمية مسار التميز للرياضيات في تونس للاستفسارات بخصوص عروض الاشتراك، باقات الدورة، أو الدعم التقني."
+        keywords="اتصال مسار التميز, هاتف مسار التميز, واتساب مسار التميز, دعم أكاديمية الرياضيات"
+        canonical="https://academy.masartamayoz.com/contact"
+      />
       <Navbar />
       
       <main className="flex-1 bg-gray-50 font-Tajawal pb-20">

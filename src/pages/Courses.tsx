@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import AppShell from '@/src/components/layout/AppShell';
+import SEO from '@/src/components/common/SEO';
 
 export default function Courses() {
   const navigate = useNavigate();
@@ -130,6 +131,23 @@ export default function Courses() {
       title="مكتبة الدروس" 
       description={`اكتشف المحتوى التعليمي لـ ${LEVELS[currentLevel]}`}
     >
+      <SEO 
+        title={`مكتبة الدروس والتمارين - ${LEVELS[currentLevel] || 'جميع المستويات'}`}
+        description={`تصفح وحمل جميع ملخصات مادة الرياضيات، سلاسل التمارين مع الإصلاح، ونماذج الفروض المدرسية لـ ${LEVELS[currentLevel] || 'جميع المستويات الإعدادية والثانوية'} في تونس.`}
+        keywords={`اصلاح تمارين رياضيات تونس, ${LEVELS[currentLevel] || 'الرياضيات تونس'}, فروض مراقبة رياضيات, فروض تأليفية رياضيات`}
+        canonical={`https://academy.masartamayoz.com/courses?level=${currentLevel}`}
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "Course",
+          "name": `مادة الرياضيات - ${LEVELS[currentLevel] || 'جميع المستويات الدراسيّة'}`,
+          "description": `دروس وشروحات مصورة لتبسيط مادة الرياضيات لبرنامج وزارة التربية التونسية لـ ${LEVELS[currentLevel] || 'تلاميذ الإعدادي والثانوي'}.`,
+          "provider": {
+            "@type": "EducationalOrganization",
+            "name": "أكاديمية مسار التميز",
+            "sameAs": "https://academy.masartamayoz.com"
+          }
+        }}
+      />
       <div className="flex h-full overflow-hidden bg-gray-50/50">
         {/* Content Filtering Sidebar - Modernized */}
         <aside className="w-[300px] border-l border-gray-100 bg-white hidden lg:flex flex-col shadow-sm">

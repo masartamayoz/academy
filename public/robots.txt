@@ -1,0 +1,20 @@
+# https://www.robotstxt.org/robotstxt.html
+# User-agent configuration for Masar Tamayoz (مسار التميز)
+
+User-agent: *
+
+# Allow crawling of public content and pages
+Allow: /$
+Allow: /pricing
+Allow: /courses
+Allow: /about
+Allow: /contact
+
+# Block crawler access to private dashboards, auth pages, and individual settings for security and crawl budget optimization
+Disallow: /auth
+Disallow: /dashboard*
+Disallow: /profile*
+Disallow: /api*
+
+# Sitemaps declaration
+Sitemap: https://academy.masartamayoz.com/sitemap.xml

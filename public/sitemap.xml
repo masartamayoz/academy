@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Home Page (الصفحة الرئيسية) -->
+  <url>
+    <loc>https://academy.masartamayoz.com/</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  
+  <!-- Pricing Page (العروض والأسعار) -->
+  <url>
+    <loc>https://academy.masartamayoz.com/pricing</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- Courses & Levels Page (المستويات والدورات) -->
+  <url>
+    <loc>https://academy.masartamayoz.com/courses</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- About Us Page (من نحن) -->
+  <url>
+    <loc>https://academy.masartamayoz.com/about</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <!-- Contact Page (اتصل بنا) -->
+  <url>
+    <loc>https://academy.masartamayoz.com/contact</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+</urlset>
