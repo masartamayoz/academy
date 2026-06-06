@@ -59,6 +59,45 @@ import {
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
+const getPlanExpiryDate = (planId: string): Date => {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  switch (planId) {
+    case 'august_review':
+      return new Date(currentYear, 7, 31, 23, 59, 59); // 31 August of current year
+    case 'trimester1':
+      return new Date(currentYear, 11, 22, 23, 59, 59); // 22 December of current year
+    case 'trimester2':
+      // If past March 22, set to next year's March 22
+      const t2Date = new Date(currentYear, 2, 22, 23, 59, 59);
+      if (t2Date < now) {
+        return new Date(currentYear + 1, 2, 22, 23, 59, 59);
+      }
+      return t2Date;
+    case 'trimester3':
+      const t3Date = new Date(currentYear, 5, 15, 23, 59, 59);
+      if (t3Date < now) {
+        return new Date(currentYear + 1, 5, 15, 23, 59, 59);
+      }
+      return t3Date;
+    case 'full_year':
+      const yearEnd = new Date(currentYear, 5, 15, 23, 59, 59);
+      if (yearEnd < now) {
+        return new Date(currentYear + 1, 5, 15, 23, 59, 59);
+      }
+      return yearEnd;
+    case 'recordings_yearly':
+      const oneYear = new Date();
+      oneYear.setFullYear(oneYear.getFullYear() + 1);
+      return oneYear;
+    case 'monthly':
+    default:
+      const thirtyDays = new Date();
+      thirtyDays.setDate(thirtyDays.getDate() + 30);
+      return thirtyDays;
+  }
+};
+
 interface Props {
   activeTab: string;
   userData: any;
@@ -1837,7 +1876,16 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     if (!editingUser) return;
     setLoading(true);
     try {
-      await updateDoc(doc(db, 'users', editingUser.id), {
+      const originalUser = data.users.find(u => u.id === editingUser.id);
+      const isActivating = editingUser.subscriptionStatus === 'active' && (!originalUser || originalUser.subscriptionStatus !== 'active');
+
+      const planId = editingUser.plan || 'monthly';
+      const planObj = SUBSCRIPTION_PLANS.find(p => p.id === planId);
+      const planName = planObj ? planObj.name : 'الاشتراك الشهري';
+      const planPrice = planObj ? planObj.price : '40';
+      const paymentMethod = editingUser.paymentMethod || 'direct';
+
+      const updatePayload: any = {
         firstName: editingUser.firstName,
         lastName: editingUser.lastName,
         displayName: `${editingUser.firstName} ${editingUser.lastName}`.trim(),
@@ -1851,8 +1899,45 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
         subscriptionStatus: editingUser.subscriptionStatus || 'inactive',
         subscriptionExpiry: editingUser.subscriptionExpiry || null,
         updatedAt: serverTimestamp()
-      });
-      toast.success('تم تحديث بيانات المستخدم بنجاح');
+      };
+
+      if (editingUser.subscriptionStatus === 'active') {
+        updatePayload.plan = planId;
+        updatePayload.currentPlan = planName;
+        updatePayload.lastPaymentDate = serverTimestamp();
+      }
+
+      await updateDoc(doc(db, 'users', editingUser.id), updatePayload);
+
+      if (editingUser.subscriptionStatus === 'active') {
+        await setDoc(doc(db, 'wallets', editingUser.id), {
+          activeSubscription: {
+            planName,
+            planId,
+            activatedAt: serverTimestamp(),
+            price: planPrice,
+            paymentMethod
+          },
+          lastUpdated: serverTimestamp()
+        }, { merge: true });
+
+        if (isActivating) {
+          await addDoc(collection(db, 'receipts'), {
+            userId: editingUser.id,
+            planId,
+            planName,
+            price: planPrice,
+            status: 'approved',
+            createdAt: serverTimestamp(),
+            approvedAt: serverTimestamp(),
+            paymentMethod,
+            receiptUrl: 'direct_activation',
+            isDirectActivation: true
+          });
+        }
+      }
+
+      toast.success('تم تحديث بيانات المستخدم وتعديل الاشتراك بنجاح');
       setEditingUser(null);
     } catch (err) {
       console.error('Error updating user:', err);
@@ -1893,7 +1978,24 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
           </div>
           <div className="space-y-2">
             <label className="text-xs font-black text-gray-400 uppercase pr-2">حالة الاشتراك</label>
-            <select value={editingUser.subscriptionStatus || 'inactive'} onChange={e => setEditingUser({...editingUser, subscriptionStatus: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
+            <select 
+              value={editingUser.subscriptionStatus || 'inactive'} 
+              onChange={e => {
+                const newStatus = e.target.value;
+                const defaultPlan = editingUser.plan || 'monthly';
+                const selectedPlanObj = SUBSCRIPTION_PLANS.find(p => p.id === defaultPlan);
+                const expiry = getPlanExpiryDate(defaultPlan);
+                setEditingUser({
+                  ...editingUser,
+                  subscriptionStatus: newStatus,
+                  plan: newStatus === 'active' ? defaultPlan : (editingUser.plan || ''),
+                  currentPlan: newStatus === 'active' ? (selectedPlanObj ? selectedPlanObj.name : 'الاشتراك الشهري') : (editingUser.currentPlan || ''),
+                  paymentMethod: newStatus === 'active' ? (editingUser.paymentMethod || 'direct') : (editingUser.paymentMethod || ''),
+                  subscriptionExpiry: newStatus === 'active' ? expiry.toISOString() : null
+                });
+              }} 
+              className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100"
+            >
               <option value="active">نشط (مفعل)</option>
               <option value="inactive">غير نشط</option>
             </select>
@@ -1907,6 +2009,71 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
               <option value="admin">مدير</option>
             </select>
           </div>
+
+          {editingUser.subscriptionStatus === 'active' && (
+            <div className="md:col-span-2 bg-blue-50/20 border border-blue-100/50 rounded-3xl p-6 space-y-4 font-Tajawal animate-in fade-in slide-in-from-top-1 duration-300">
+              <h4 className="text-xs font-black text-blue-dark border-b border-gray-100 pb-2 flex items-center gap-1.5">
+                <ShieldCheck size={14} className="text-emerald-500" /> تفاصيل تفعيل الاشتراك التلقائي
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black text-gray-400 uppercase pr-2">العرض (الخطة) *</label>
+                  <select 
+                    value={editingUser.plan || 'monthly'} 
+                    onChange={e => {
+                      const selectedPlanId = e.target.value;
+                      const selectedPlanObj = SUBSCRIPTION_PLANS.find(p => p.id === selectedPlanId);
+                      const expiry = getPlanExpiryDate(selectedPlanId);
+                      setEditingUser({
+                        ...editingUser,
+                        plan: selectedPlanId,
+                        planId: selectedPlanId,
+                        currentPlan: selectedPlanObj ? selectedPlanObj.name : 'الاشتراك الشهري',
+                        subscriptionExpiry: expiry.toISOString()
+                      });
+                    }} 
+                    className="w-full rounded-2xl bg-white border border-gray-100 px-6 py-3 text-xs font-black outline-none ring-1 ring-gray-50 focus:ring-blue-100"
+                  >
+                    {SUBSCRIPTION_PLANS.map(plan => (
+                      <option key={plan.id} value={plan.id}>{plan.name} ({plan.price} د.ت)</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black text-gray-400 uppercase pr-2">طريقة الدفع *</label>
+                  <select 
+                    value={editingUser.paymentMethod || 'direct'} 
+                    onChange={e => setEditingUser({ ...editingUser, paymentMethod: e.target.value })} 
+                    className="w-full rounded-2xl bg-white border border-gray-100 px-6 py-3 text-xs font-black outline-none ring-1 ring-gray-50 focus:ring-blue-100"
+                  >
+                    <option value="direct">دفع مباشر نقداً (كاش)</option>
+                    {PAYMENT_METHODS.map(method => (
+                      <option key={method.id} value={method.id}>{method.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[11px] font-black text-gray-400 uppercase pr-2">تاريخ انتهاء الاشتراك *</label>
+                  <input 
+                    type="datetime-local" 
+                    value={(() => {
+                      if (!editingUser.subscriptionExpiry) return '';
+                      try {
+                        const d = new Date(editingUser.subscriptionExpiry);
+                        return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 16);
+                      } catch (e) { return ''; }
+                    })()} 
+                    onChange={e => setEditingUser({...editingUser, subscriptionExpiry: e.target.value})} 
+                    className="w-full rounded-2xl bg-white border border-gray-100 px-6 py-3 text-xs font-black outline-none ring-1 ring-gray-50 focus:ring-blue-100" 
+                  />
+                  <p className="text-[10px] text-amber-600 font-bold mt-1 pr-2">سيتم احتساب تاريخ الانتهاء تلقائياً بناءً على العرض المختار، ويمكنك تعديله يدوياً</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {editingUser.userType === 'student' && (
             <>
               <div className="space-y-2">
@@ -1943,22 +2110,6 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                     <option key={gov} value={gov}>{gov}</option>
                   ))}
                 </select>
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-xs font-black text-gray-400 uppercase pr-2">تاريخ انتهاء الاشتراك</label>
-                <input 
-                  type="datetime-local" 
-                  value={(() => {
-                    if (!editingUser.subscriptionExpiry) return '';
-                    try {
-                      const d = new Date(editingUser.subscriptionExpiry);
-                      return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 16);
-                    } catch (e) { return ''; }
-                  })()} 
-                  onChange={e => setEditingUser({...editingUser, subscriptionExpiry: e.target.value})} 
-                  className="w-full rounded-2xl bg-gray-50 border-none px-6 py-3 text-sm font-bold outline-none ring-1 ring-gray-100" 
-                />
-                <p className="text-[0.6rem] text-amber-600 font-bold mt-1 pr-2">سيتم تعطيل الحساب تلقائياً عند حلول هذا التاريخ</p>
               </div>
             </>
           )}
