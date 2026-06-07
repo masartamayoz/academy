@@ -1809,49 +1809,92 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {(editingGroup.schedule || []).map((s: any, idx: number) => (
-                <div key={idx} className="flex flex-wrap items-center gap-2 p-3 rounded-xl bg-gray-50 border border-gray-100">
-                  <select 
-                    value={s.day} 
-                    onChange={e => {
-                      const newSched = [...editingGroup.schedule];
-                      newSched[idx].day = e.target.value;
-                      setEditingGroup({...editingGroup, schedule: newSched});
-                    }}
-                    className="bg-transparent border-none text-[0.7rem] font-bold outline-none"
-                  >
-                    {['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'].map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                  <input 
-                    type="time" 
-                    value={s.startTime} 
-                    onChange={e => {
-                      const newSched = [...editingGroup.schedule];
-                      newSched[idx].startTime = e.target.value;
-                      setEditingGroup({...editingGroup, schedule: newSched});
-                    }}
-                    className="bg-transparent border-none text-[0.7rem] font-bold outline-none" 
-                  />
-                  <span className="text-gray-300">→</span>
-                  <input 
-                    type="time" 
-                    value={s.endTime} 
-                    onChange={e => {
-                      const newSched = [...editingGroup.schedule];
-                      newSched[idx].endTime = e.target.value;
-                      setEditingGroup({...editingGroup, schedule: newSched});
-                    }}
-                    className="bg-transparent border-none text-[0.7rem] font-bold outline-none" 
-                  />
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      const newSched = (editingGroup.schedule || []).filter((_: any, i: number) => i !== idx);
-                      setEditingGroup({...editingGroup, schedule: newSched});
-                    }}
-                    className="mr-auto text-red-400 hover:text-red-500"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                <div key={idx} className="p-4 rounded-3xl bg-white border border-gray-100 shadow-sm space-y-3 relative">
+                  <div className="flex items-center justify-between border-b border-gray-50 pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-black text-blue-dark bg-blue-50 px-2.5 py-1 rounded-lg">الحصة {idx + 1}</span>
+                      <select 
+                        value={s.day} 
+                        onChange={e => {
+                          const newSched = [...editingGroup.schedule];
+                          newSched[idx].day = e.target.value;
+                          setEditingGroup({...editingGroup, schedule: newSched});
+                        }}
+                        className="bg-transparent border-none text-[11px] font-black text-gray-700 outline-none cursor-pointer hover:text-blue-dark"
+                      >
+                        {['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'].map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const newSched = (editingGroup.schedule || []).filter((_: any, i: number) => i !== idx);
+                        setEditingGroup({...editingGroup, schedule: newSched});
+                      }}
+                      className="text-red-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-xl transition-colors"
+                      title="حذف الحصة"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1 bg-gray-50/50 p-2.5 rounded-2xl border border-gray-100/50">
+                      <span className="text-[10px] font-black text-gray-400 block">انطلاق الحصة (24h) *</span>
+                      <div className="flex items-center gap-1.5">
+                        <Clock size={12} className="text-gray-400" />
+                        <input 
+                          type="time" 
+                          value={s.startTime} 
+                          step="60"
+                          onChange={e => {
+                            const newSched = [...editingGroup.schedule];
+                            newSched[idx].startTime = e.target.value;
+                            setEditingGroup({...editingGroup, schedule: newSched});
+                          }}
+                          className="bg-transparent border-none text-[12px] font-bold outline-none text-gray-800 w-full" 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 bg-gray-50/50 p-2.5 rounded-2xl border border-gray-100/50">
+                      <span className="text-[10px] font-black text-gray-400 block">نهاية الحصة (24h) *</span>
+                      <div className="flex items-center gap-1.5">
+                        <Clock size={12} className="text-gray-400" />
+                        <input 
+                          type="time" 
+                          value={s.endTime} 
+                          step="60"
+                          onChange={e => {
+                            const newSched = [...editingGroup.schedule];
+                            newSched[idx].endTime = e.target.value;
+                            setEditingGroup({...editingGroup, schedule: newSched});
+                          }}
+                          className="bg-transparent border-none text-[12px] font-bold outline-none text-gray-800 w-full" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {s.startTime && s.endTime && (
+                    <p className="text-[9px] text-emerald-600 font-bold bg-emerald-50/50 py-1.5 px-3 rounded-xl text-center leading-normal">
+                      {(() => {
+                        const parseTime = (t: string) => {
+                          const parts = t.split(':');
+                          if (parts.length < 2) return '';
+                          const h = parseInt(parts[0], 10);
+                          const m = parts[1];
+                          if (isNaN(h)) return '';
+                          const period = h >= 12 ? 'مساءً' : 'صباحاً';
+                          const displayHour = h % 12 === 0 ? 12 : h % 12;
+                          return `${displayHour}:${m} ${period}`;
+                        };
+                        const startText = parseTime(s.startTime);
+                        const endText = parseTime(s.endTime);
+                        return `بنظام 24 ساعة: من ${s.startTime} إلى ${s.endTime} ${startText && endText ? `(${startText} ← ${endText})` : ''}`;
+                      })()}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
@@ -2699,49 +2742,92 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {(newGroup.schedule || []).map((s: any, idx: number) => (
-                <div key={idx} className="flex flex-wrap items-center gap-2 p-3 rounded-xl bg-gray-50 border border-gray-100">
-                  <select 
-                    value={s.day} 
-                    onChange={e => {
-                      const newSched = [...newGroup.schedule];
-                      newSched[idx].day = e.target.value;
-                      setNewGroup({...newGroup, schedule: newSched});
-                    }}
-                    className="bg-transparent border-none text-[0.7rem] font-bold outline-none"
-                  >
-                    {['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'].map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                  <input 
-                    type="time" 
-                    value={s.startTime} 
-                    onChange={e => {
-                      const newSched = [...newGroup.schedule];
-                      newSched[idx].startTime = e.target.value;
-                      setNewGroup({...newGroup, schedule: newSched});
-                    }}
-                    className="bg-transparent border-none text-[0.7rem] font-bold outline-none" 
-                  />
-                  <span className="text-gray-300">→</span>
-                  <input 
-                    type="time" 
-                    value={s.endTime} 
-                    onChange={e => {
-                      const newSched = [...newGroup.schedule];
-                      newSched[idx].endTime = e.target.value;
-                      setNewGroup({...newGroup, schedule: newSched});
-                    }}
-                    className="bg-transparent border-none text-[0.7rem] font-bold outline-none" 
-                  />
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      const newSched = (newGroup.schedule || []).filter((_: any, i: number) => i !== idx);
-                      setNewGroup({...newGroup, schedule: newSched});
-                    }}
-                    className="mr-auto text-red-400 hover:text-red-500"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                <div key={idx} className="p-4 rounded-3xl bg-white border border-gray-100 shadow-sm space-y-3 relative">
+                  <div className="flex items-center justify-between border-b border-gray-50 pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-black text-blue-dark bg-blue-50 px-2.5 py-1 rounded-lg">الحصة {idx + 1}</span>
+                      <select 
+                        value={s.day} 
+                        onChange={e => {
+                          const newSched = [...newGroup.schedule];
+                          newSched[idx].day = e.target.value;
+                          setNewGroup({...newGroup, schedule: newSched});
+                        }}
+                        className="bg-transparent border-none text-[11px] font-black text-gray-700 outline-none cursor-pointer hover:text-blue-dark"
+                      >
+                        {['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'].map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const newSched = (newGroup.schedule || []).filter((_: any, i: number) => i !== idx);
+                        setNewGroup({...newGroup, schedule: newSched});
+                      }}
+                      className="text-red-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-xl transition-colors"
+                      title="حذف الحصة"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1 bg-gray-50/50 p-2.5 rounded-2xl border border-gray-100/50">
+                      <span className="text-[10px] font-black text-gray-400 block">انطلاق الحصة (24h) *</span>
+                      <div className="flex items-center gap-1.5">
+                        <Clock size={12} className="text-gray-400" />
+                        <input 
+                          type="time" 
+                          value={s.startTime} 
+                          step="60"
+                          onChange={e => {
+                            const newSched = [...newGroup.schedule];
+                            newSched[idx].startTime = e.target.value;
+                            setNewGroup({...newGroup, schedule: newSched});
+                          }}
+                          className="bg-transparent border-none text-[12px] font-bold outline-none text-gray-800 w-full" 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 bg-gray-50/50 p-2.5 rounded-2xl border border-gray-100/50">
+                      <span className="text-[10px] font-black text-gray-400 block">نهاية الحصة (24h) *</span>
+                      <div className="flex items-center gap-1.5">
+                        <Clock size={12} className="text-gray-400" />
+                        <input 
+                          type="time" 
+                          value={s.endTime} 
+                          step="60"
+                          onChange={e => {
+                            const newSched = [...newGroup.schedule];
+                            newSched[idx].endTime = e.target.value;
+                            setNewGroup({...newGroup, schedule: newSched});
+                          }}
+                          className="bg-transparent border-none text-[12px] font-bold outline-none text-gray-800 w-full" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {s.startTime && s.endTime && (
+                    <p className="text-[9px] text-emerald-600 font-bold bg-emerald-50/50 py-1.5 px-3 rounded-xl text-center leading-normal">
+                      {(() => {
+                        const parseTime = (t: string) => {
+                          const parts = t.split(':');
+                          if (parts.length < 2) return '';
+                          const h = parseInt(parts[0], 10);
+                          const m = parts[1];
+                          if (isNaN(h)) return '';
+                          const period = h >= 12 ? 'مساءً' : 'صباحاً';
+                          const displayHour = h % 12 === 0 ? 12 : h % 12;
+                          return `${displayHour}:${m} ${period}`;
+                        };
+                        const startText = parseTime(s.startTime);
+                        const endText = parseTime(s.endTime);
+                        return `بنظام 24 ساعة: من ${s.startTime} إلى ${s.endTime} ${startText && endText ? `(${startText} ← ${endText})` : ''}`;
+                      })()}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
@@ -2989,6 +3075,29 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                  <div className="space-y-2">
                     <label className="text-xs font-black text-gray-400 uppercase pr-2">التوقيت</label>
                     <input required type="datetime-local" value={newSession.dateTime} onChange={e => setNewSession({...newSession, dateTime: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
+                    {newSession.dateTime && (
+                      <p className="text-[10px] text-emerald-600 font-bold bg-emerald-50/50 py-1.5 px-3 rounded-xl pr-2 mt-1 leading-normal">
+                        {(() => {
+                          try {
+                            const d = new Date(newSession.dateTime);
+                            if (isNaN(d.getTime())) return '';
+                            const options: Intl.DateTimeFormatOptions = { 
+                              weekday: 'long', 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric' 
+                            };
+                            const arabicDate = d.toLocaleDateString('ar-TN', options);
+                            const h = d.getHours();
+                            const m = d.getMinutes().toString().padStart(2, '0');
+                            const displayedH = h.toString().padStart(2, '0');
+                            const period = h >= 12 ? 'مساءً' : 'صباحاً';
+                            const displayHour12 = h % 12 === 0 ? 12 : h % 12;
+                            return `مجدولة في: ${arabicDate} على الساعة ${displayedH}:${m} (${displayHour12}:${m} ${period})`;
+                          } catch (e) { return ''; }
+                        })()}
+                      </p>
+                    )}
                  </div>
                  <div className="space-y-2">
                     <label className="text-xs font-black text-gray-400 uppercase pr-2">رابط الميت</label>
@@ -3423,7 +3532,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                     <div key={`${session.groupName}-${idx}`} className="p-4 rounded-2xl bg-white border border-gray-100 shadow-sm hover:border-blue-light/30 transition-all group">
                       <div className="flex items-center gap-2 mb-2">
                         <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[0.6rem] font-black text-blue-light">{session.startTime}</span>
+                        <span className="text-[0.6rem] font-black text-blue-light">{session.startTime} ← {session.endTime}</span>
                       </div>
                       <h4 className="text-xs font-black text-blue-dark truncate" title={session.groupName}>{session.groupName}</h4>
                       <div className="mt-2 flex items-center justify-between">
