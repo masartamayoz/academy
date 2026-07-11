@@ -37,6 +37,7 @@ import {
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
 import CountdownTimer from '../common/CountdownTimer';
+import { useContentAccess } from '@/src/lib/accessControl';
 
 import { SUBSCRIPTION_PLANS, PAYMENT_METHODS } from '@/src/constants';
 import { useSearchParams } from 'react-router-dom';
@@ -67,6 +68,21 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
     const start = new Date(year, 4, 20); // 20 May (month 4 is May)
     const end = new Date(year, 7, 31, 23, 59, 59); // 31 August (month 7 is August)
     return now >= start && now <= end;
+  })();
+
+  const { rules } = useContentAccess(userData);
+  
+  const hasStudentFreeAccess = (() => {
+    if (!userData) return false;
+    const userId = userData.uid || userData.id || user?.uid || '';
+    if (!userId) return false;
+    const now = new Date();
+    return rules.some(rule => 
+      rule.type === 'user_free' &&
+      rule.userIds?.includes(userId) &&
+      rule.isActive &&
+      (now >= new Date(rule.startDate) && now <= new Date(rule.endDate))
+    );
   })();
 
   const formatDate = (date: any, includeTime: boolean = true) => {
@@ -279,18 +295,20 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
               <p className="text-blue-light font-bold text-base sm:text-lg">أهلاً بك في مسار أكاديمي، استعد لرحلة التميز.</p>
             </div>
             
-            {subscriptionStatus === 'active' ? (
+            {(subscriptionStatus === 'active' || hasAugustReviewAccess || hasStudentFreeAccess) ? (
               <div className="flex flex-col items-center md:items-end gap-3 text-white">
                 <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-4 py-1.5 rounded-full text-emerald-400 text-sm font-black">
                   <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                  اشتراكك نشط
+                  {hasStudentFreeAccess ? 'وصول مجاني مفعل' : 'اشتراكك نشط'}
                 </div>
-                {userData.subscriptionExpiry && (
+                {userData.subscriptionExpiry && !hasStudentFreeAccess && (
                    <CountdownTimer expiryDate={userData.subscriptionExpiry} showTitle={false} />
                 )}
                 <p className="text-white/60 text-xs font-medium">
-                  {userData.currentPlan || ((userData.planId?.includes('recording') || userData.plan?.includes('recording')) ? 'المحتوى المسجل' : 'الحصص المباشرة')} 
-                  • {userData.subscriptionStatus === 'active' ? 'نشط' : 'بانتظار التفعيل'}
+                  {hasStudentFreeAccess 
+                    ? 'فترة وصول مجاني مخصصة من الإدارة' 
+                    : (userData.currentPlan || ((userData.planId?.includes('recording') || userData.plan?.includes('recording')) ? 'المحتوى المسجل' : 'الحصص المباشرة'))} 
+                  • نشط
                 </p>
               </div>
             ) : (

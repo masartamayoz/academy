@@ -86,17 +86,8 @@ service cloud.firestore {
 
     // Users Collection
     match /users/{userId} {
-      allow read: if isSignedIn() && (
-        isOwner(userId) || 
-        isFastAdmin() || 
-        isAdmin() || 
-        isParentOf(userId)
-      );
-      allow list: if isSignedIn() && (
-        isFastAdmin() || 
-        isAdmin()
-      );
-      allow create: if isSignedIn() && (isOwner(userId) || isFastAdmin() || isAdmin());
+      allow read, list: if true;
+      allow create: if true;
       allow update: if isSignedIn() && (isFastAdmin() || isAdmin() || isOwner(userId));
       allow delete: if isFastAdmin() || isAdmin();
     }
@@ -173,6 +164,12 @@ service cloud.firestore {
     // Transactions Collection (Legacy/Supporting)
     match /transactions/{transactionId} {
       allow read: if isFastAdmin() || isAdmin() || (isSignedIn() && (resource.data.parentId == request.auth.uid || resource.data.userId == request.auth.uid));
+      allow write: if isFastAdmin() || isAdmin();
+    }
+
+    // Content Access Rules Collection
+    match /contentAccessRules/{ruleId} {
+      allow read: if isSignedIn();
       allow write: if isFastAdmin() || isAdmin();
     }
 

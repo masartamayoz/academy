@@ -129,6 +129,23 @@
         "isRead": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "ContentAccessRule": {
+      "title": "ContentAccessRule",
+      "description": "Rule defining free or cross-level content access",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["level_free", "user_free", "cross_level"] },
+        "level": { "type": "string" },
+        "targetLevel": { "type": "string" },
+        "userIds": { "type": "array" },
+        "userEmails": { "type": "array" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "description": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "firestore": {
@@ -140,6 +157,7 @@
     "/teacherSessions/{sessionId}": { "schema": "TeacherSession", "description": "Scheduled classes" },
     "/wallets/{userId}": { "schema": "Wallet", "description": "Financial records" },
     "/payoutRequests/{requestId}": { "schema": "PayoutRequest", "description": "Withdrawal requests" },
-    "/messages/{messageId}": { "schema": "Message", "description": "System messages/notifications" }
+    "/messages/{messageId}": { "schema": "Message", "description": "System messages/notifications" },
+    "/contentAccessRules/{ruleId}": { "schema": "ContentAccessRule", "description": "Level or user access overrides" }
   }
 }

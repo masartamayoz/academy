@@ -11,6 +11,7 @@ import {
 import { cn } from '@/src/lib/utils';
 import AppShell from '@/src/components/layout/AppShell';
 import SEO from '@/src/components/common/SEO';
+import { useContentAccess } from '@/src/lib/accessControl';
 
 export default function Courses() {
   const navigate = useNavigate();
@@ -23,6 +24,8 @@ export default function Courses() {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewerItem, setViewerOpened] = useState<any | null>(null);
   const [activeRes, setActiveRes] = useState<{type: 'video' | 'pdf', url: string, name: string} | null>(null);
+
+  const { isLevelAccessible, hasAccess } = useContentAccess(userData);
 
   const LEVELS: Record<string, string> = { 
     '7': 'السنة السابعة أساسي', 
@@ -155,8 +158,7 @@ export default function Courses() {
              <label className="text-[0.65rem] font-black uppercase tracking-[0.15em] text-white/40 mb-4 block">المستوى الدراسي (أساسي)</label>
              <div className="flex gap-2 mb-6">
                {['7', '8', '9'].map(lvl => {
-                 const isSameLevel = lvl === String(userData?.level);
-                 const canAccess = userData?.userType === 'admin' || userData?.userType === 'teacher' || isSameLevel;
+                 const canAccess = isLevelAccessible(lvl);
                  
                  return (
                    <button 
@@ -185,8 +187,7 @@ export default function Courses() {
              <label className="text-[0.65rem] font-black uppercase tracking-[0.15em] text-white/40 mb-4 block">المستوى الدراسي (ثانوي)</label>
              <div className="grid grid-cols-2 gap-2">
                {['1sec', '2sec', '3sec', '4sec'].map(lvl => {
-                 const isSameLevel = lvl === String(userData?.level);
-                 const canAccess = userData?.userType === 'admin' || userData?.userType === 'teacher' || isSameLevel;
+                 const canAccess = isLevelAccessible(lvl);
                  
                  return (
                    <button 
@@ -368,7 +369,7 @@ export default function Courses() {
                               {/* Thumbnail Section */}
                               <div 
                                 className="relative w-full md:w-[180px] aspect-[16/10] rounded-[20px] bg-blue-dark cursor-pointer overflow-hidden shrink-0" 
-                                onClick={() => (isSubscribed || item.isFree) && setViewerOpened(item)}
+                                onClick={() => hasAccess(item.level, item.isFree) && setViewerOpened(item)}
                               >
                                 {extractYTId(item.videoUrls?.[0] || item.videoUrl) ? (
                                   <img 
@@ -388,7 +389,7 @@ export default function Courses() {
                                   <span className="absolute top-2 right-2 rounded-lg bg-gold-brand px-2 py-0.5 text-[0.55rem] font-black text-blue-dark shadow-lg">مجاني</span>
                                 )}
 
-                                {(isSubscribed || item.isFree) && (
+                                {hasAccess(item.level, item.isFree) && (
                                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 scale-75 group-hover:scale-100">
                                       <div className="h-10 w-10 rounded-full bg-white text-blue-dark flex items-center justify-center shadow-xl">
                                           <Play fill="currentColor" size={16} className="mr-0.5" />
@@ -396,7 +397,7 @@ export default function Courses() {
                                   </div>
                                 )}
 
-                                {(!isSubscribed && !item.isFree) && (
+                                {!hasAccess(item.level, item.isFree) && (
                                   <div className="absolute inset-0 bg-blue-dark/60 backdrop-blur-[2px] flex items-center justify-center">
                                     <Lock size={18} className="text-gold-brand" />
                                   </div>
@@ -426,15 +427,15 @@ export default function Courses() {
 
                                  <div className="shrink-0 w-full md:w-auto">
                                     <button 
-                                      onClick={() => (isSubscribed || item.isFree) && setViewerOpened(item)} 
+                                      onClick={() => hasAccess(item.level, item.isFree) && setViewerOpened(item)} 
                                       className={cn(
                                         "w-full md:w-[140px] flex items-center justify-center gap-2.5 rounded-[18px] py-3.5 text-[0.8rem] font-black transition-all duration-300",
-                                        isSubscribed || item.isFree 
+                                        hasAccess(item.level, item.isFree) 
                                           ? "bg-blue-dark text-white hover:bg-blue-brand shadow-lg hover:shadow-blue-900/20" 
                                           : "bg-gray-50 text-gray-400 cursor-not-allowed"
                                       )}
                                     >
-                                        {isSubscribed || item.isFree ? (
+                                        {hasAccess(item.level, item.isFree) ? (
                                           <>
                                               <Play size={12} fill="currentColor" />
                                               <span>شاهد الآن</span>

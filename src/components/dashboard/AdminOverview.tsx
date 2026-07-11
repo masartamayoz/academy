@@ -116,6 +116,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     attendance: [] as any[],
     subscriptions: [] as any[],
     payoutRequests: [] as any[],
+    contentAccessRules: [] as any[],
   });
   const [stats, setStats] = useState({
     users: 0,
@@ -141,6 +142,38 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   const [maintenanceActionTab, setMaintenanceActionTab] = useState<'bulk' | 'selective' | 'total'>('bulk');
   const [maintenanceSearch, setMaintenanceSearch] = useState('');
   const [maintenanceFilter, setMaintenanceFilter] = useState('users');
+
+  // Content Access Control Rules State
+  const [ruleType, setRuleType] = useState<'level_free' | 'user_free' | 'cross_level'>('level_free');
+  const [ruleLevel, setRuleLevel] = useState('9');
+  const [ruleTargetLevel, setRuleTargetLevel] = useState('8');
+  const [ruleUserIds, setRuleUserIds] = useState<string[]>([]);
+  const [ruleStartDate, setRuleStartDate] = useState('');
+  const [ruleEndDate, setRuleEndDate] = useState('');
+  const [ruleDescription, setRuleDescription] = useState('');
+  const [isSubmittingRule, setIsSubmittingRule] = useState(false);
+  const [ruleSearchUser, setRuleSearchUser] = useState('');
+  const [showAddRuleForm, setShowAddRuleForm] = useState(false);
+
+  useEffect(() => {
+    if (showAddRuleForm) {
+      const now = new Date();
+      const inAWeek = new Date();
+      inAWeek.setDate(now.getDate() + 7);
+      
+      const toDatetimeLocal = (d: Date) => {
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      };
+      
+      setRuleStartDate(toDatetimeLocal(now));
+      setRuleEndDate(toDatetimeLocal(inAWeek));
+      setRuleUserIds([]);
+      setRuleDescription('');
+      setRuleLevel('9');
+      setRuleTargetLevel('8');
+    }
+  }, [showAddRuleForm]);
 
   const addLog = (msg: string) => {
     const time = new Date().toLocaleTimeString('ar-TN');
@@ -335,6 +368,12 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       setData(prev => ({ ...prev, payoutRequests: p }));
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'payoutRequests'));
 
+    const unsubAccessRules = onSnapshot(collection(db, 'contentAccessRules'), (snapshot) => {
+      const rules: any[] = [];
+      snapshot.forEach(d => rules.push({ id: d.id, ...d.data() }));
+      setData(prev => ({ ...prev, contentAccessRules: rules }));
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'contentAccessRules'));
+
     return () => {
       unsubUsers();
       unsubReceipts();
@@ -344,6 +383,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       unsubWallets();
       unsubAttendance();
       unsubPayouts();
+      unsubAccessRules();
     };
   }, []);
 
@@ -3557,6 +3597,459 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     );
   };
 
+  const handleSaveAccessRule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ruleStartDate || !ruleEndDate) {
+      toast.error('الرجاء تحديد الحيز الزمني كاملاً');
+      return;
+    }
+    if (new Date(ruleStartDate) >= new Date(ruleEndDate)) {
+      toast.error('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
+      return;
+    }
+    if (ruleType === 'user_free' && ruleUserIds.length === 0) {
+      toast.error('الرجاء تحديد تلميذ واحد على الأقل');
+      return;
+    }
+
+    setIsSubmittingRule(true);
+    try {
+      const userEmails = ruleType === 'user_free'
+        ? data.users.filter(u => ruleUserIds.includes(u.id)).map(u => u.email)
+        : [];
+
+      const newRule = {
+        type: ruleType,
+        level: ruleType === 'user_free' ? null : ruleLevel,
+        targetLevel: ruleType === 'cross_level' ? ruleTargetLevel : null,
+        userIds: ruleType === 'user_free' ? ruleUserIds : null,
+        userEmails: ruleType === 'user_free' ? userEmails : null,
+        startDate: ruleStartDate,
+        endDate: ruleEndDate,
+        description: ruleDescription,
+        isActive: true,
+        createdAt: new Date().toISOString()
+      };
+
+      await addDoc(collection(db, 'contentAccessRules'), newRule);
+      toast.success('تمت إضافة قاعدة الوصول بنجاح');
+      setShowAddRuleForm(false);
+    } catch (err) {
+      console.error(err);
+      toast.error('فشل في حفظ قاعدة الوصول');
+    } finally {
+      setIsSubmittingRule(false);
+    }
+  };
+
+  const handleToggleRuleActive = async (ruleId: string, currentStatus: boolean) => {
+    try {
+      await updateDoc(doc(db, 'contentAccessRules', ruleId), {
+        isActive: !currentStatus
+      });
+      toast.success('تم تعديل حالة القاعدة بنجاح');
+    } catch (err) {
+      console.error(err);
+      toast.error('فشل في تعديل حالة القاعدة');
+    }
+  };
+
+  const handleDeleteRule = async (ruleId: string) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذه القاعدة نهائياً؟')) return;
+    try {
+      await deleteDoc(doc(db, 'contentAccessRules', ruleId));
+      toast.success('تم حذف قاعدة الوصول بنجاح');
+    } catch (err) {
+      console.error(err);
+      toast.error('فشل في حذف القاعدة');
+    }
+  };
+
+  const renderContentAccessControl = () => {
+    const LEVELS_MAP: Record<string, string> = {
+      '7': 'السنة السابعة أساسي',
+      '8': 'السنة الثامنة أساسي',
+      '9': 'السنة التاسعة أساسي',
+      '1sec': 'الأولى ثانوي',
+      '2sec': 'الثانية ثانوي',
+      '3sec': 'الثالثة ثانوي',
+      '4sec': 'الرابعة ثانوي (باكالوريا)'
+    };
+
+    const studentUsers = data.users.filter(u => u.userType === 'student' && 
+      (!ruleSearchUser || 
+        `${u.firstName} ${u.lastName}`.toLowerCase().includes(ruleSearchUser.toLowerCase()) || 
+        u.email?.toLowerCase().includes(ruleSearchUser.toLowerCase()) || 
+        u.phone?.includes(ruleSearchUser)
+      )
+    );
+
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-5 duration-700 pb-20">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-gray-100 pb-8">
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-2xl bg-blue-dark text-white flex items-center justify-center shadow-lg shadow-blue-900/20">
+                <Lock size={22} />
+              </div>
+              <h2 className="text-3xl font-black text-blue-dark tracking-tighter italic">التحكم في الوصول للمحتوى</h2>
+            </div>
+            <p className="text-sm font-bold text-gray-400 pr-1 px-1">إدارة فترات الوصول المجاني حسب المستويات والتلاميذ، وصلاحيات المراجعة العابرة للمستويات</p>
+          </div>
+          
+          <button
+            onClick={() => setShowAddRuleForm(!showAddRuleForm)}
+            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-blue-dark hover:bg-blue-brand text-white text-sm font-black transition-all shadow-lg shadow-blue-900/15"
+          >
+            {showAddRuleForm ? <XCircle size={16} /> : <Plus size={16} />}
+            <span>{showAddRuleForm ? 'إلغاء الإضافة' : 'إضافة قاعدة جديدة'}</span>
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {showAddRuleForm && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-white rounded-[32px] border border-gray-100 p-8 shadow-xl max-w-4xl"
+            >
+              <h3 className="text-xl font-black text-blue-dark mb-6 flex items-center gap-2">
+                <PlusCircle className="text-gold-brand" size={20} />
+                <span>إنشاء قاعدة صلاحية جديدة</span>
+              </h3>
+
+              <form onSubmit={handleSaveAccessRule} className="space-y-6">
+                <div>
+                  <label className="text-[0.75rem] font-black text-gray-400 block mb-3">نوع قاعدة الوصول</label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {[
+                      { id: 'level_free', label: 'وصول مجاني لمستوى دراسي', desc: 'فتح محتوى هذا المستوى بالكامل لجميع الزوار والمستخدمين مجاناً' },
+                      { id: 'user_free', label: 'وصول مجاني لتلاميذ معينين', desc: 'منح تلاميذ محددين بالاسم وصولاً كاملاً وحراً لكافة محتويات الأكاديمية' },
+                      { id: 'cross_level', label: 'مراجعة عابرة للمستويات', desc: 'تمكين تلاميذ مستوى معين من تصفح محتوى مستوى آخر للمراجعة' },
+                    ].map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setRuleType(t.id as any)}
+                        className={cn(
+                          "p-4 rounded-2xl border text-right transition-all flex flex-col gap-1.5 h-full",
+                          ruleType === t.id
+                            ? "bg-blue-50 border-blue-200 ring-2 ring-blue-500/10 text-blue-dark"
+                            : "border-gray-100 hover:border-gray-200 text-gray-500 bg-gray-50/30"
+                        )}
+                      >
+                        <span className="font-black text-sm">{t.label}</span>
+                        <span className="text-[0.65rem] text-gray-400 font-bold leading-normal">{t.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {ruleType !== 'user_free' && (
+                    <div>
+                      <label className="text-[0.75rem] font-black text-gray-400 block mb-2">
+                        {ruleType === 'cross_level' ? 'مستوى التلاميذ المصدر (مثال: تاسعة أساسي)' : 'المستوى الدراسي المفتوح للجميع'}
+                      </label>
+                      <select
+                        value={ruleLevel}
+                        onChange={(e) => setRuleLevel(e.target.value)}
+                        className="w-full rounded-2xl border border-gray-100 p-4 text-sm font-black text-blue-dark outline-none bg-gray-50/50 focus:border-blue-brand focus:bg-white transition-all shadow-inner"
+                      >
+                        {Object.entries(LEVELS_MAP).map(([key, name]) => (
+                          <option key={key} value={key}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {ruleType === 'cross_level' && (
+                    <div>
+                      <label className="text-[0.75rem] font-black text-gray-400 block mb-2">مستوى المحتوى المسموح بالوصول إليه (مثال: ثامنة أساسي)</label>
+                      <select
+                        value={ruleTargetLevel}
+                        onChange={(e) => setRuleTargetLevel(e.target.value)}
+                        className="w-full rounded-2xl border border-gray-100 p-4 text-sm font-black text-blue-dark outline-none bg-gray-50/50 focus:border-blue-brand focus:bg-white transition-all shadow-inner"
+                      >
+                        {Object.entries(LEVELS_MAP).map(([key, name]) => (
+                          <option key={key} value={key}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {ruleType === 'user_free' && (
+                  <div className="space-y-4 border-t border-gray-100 pt-6">
+                    <div>
+                      <h4 className="text-sm font-black text-blue-dark mb-1">تحديد التلاميذ المستفيدين</h4>
+                      <p className="text-[0.65rem] font-bold text-gray-400">ابحث عن التلاميذ بالاسم، البريد أو الهاتف وقم بالضغط لإضافتهم للقائمة</p>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={ruleSearchUser}
+                        onChange={(e) => setRuleSearchUser(e.target.value)}
+                        className="w-full rounded-2xl border border-gray-100 p-4 pr-12 text-sm font-bold outline-none focus:border-blue-light focus:bg-white transition-all shadow-inner bg-gray-50/50"
+                        placeholder="ابحث عن تلميذ..."
+                      />
+                      <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    </div>
+
+                    {ruleSearchUser && studentUsers.length > 0 && (
+                      <div className="max-h-[160px] overflow-y-auto border border-gray-100 rounded-2xl p-2 bg-white space-y-1 shadow-sm">
+                        {studentUsers.map(u => {
+                          const isSelected = ruleUserIds.includes(u.id);
+                          return (
+                            <button
+                              key={u.id}
+                              type="button"
+                              onClick={() => {
+                                if (isSelected) {
+                                  setRuleUserIds(prev => prev.filter(id => id !== u.id));
+                                } else {
+                                  setRuleUserIds(prev => [...prev, u.id]);
+                                }
+                              }}
+                              className={cn(
+                                "w-full text-right p-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between",
+                                isSelected ? "bg-blue-50 text-blue-700" : "hover:bg-gray-50 text-gray-600"
+                              )}
+                            >
+                              <div className="flex flex-col">
+                                <span className="font-black text-blue-dark">{u.firstName} {u.lastName}</span>
+                                <span className="text-[0.6rem] text-gray-400">{u.email} {u.phone ? `• ${u.phone}` : ''}</span>
+                              </div>
+                              <span className="text-[0.6rem] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-bold">{LEVELS_MAP[u.level] || u.level || 'غير محدد'}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {ruleUserIds.map(id => {
+                        const s = data.users.find(u => u.id === id);
+                        return (
+                          <div key={id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-100 text-blue-700 font-bold text-xs">
+                            <span>{s ? `${s.firstName} ${s.lastName || ''}`.trim() : 'تلميذ'}</span>
+                            <button
+                              type="button"
+                              onClick={() => setRuleUserIds(prev => prev.filter(item => item !== id))}
+                              className="text-blue-500 hover:text-red-500 hover:bg-white rounded p-0.5 shrink-0"
+                            >
+                              <XCircle size={14} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                      {ruleUserIds.length === 0 && (
+                        <p className="text-[0.7rem] font-bold text-amber-500 bg-amber-50/50 p-2 border border-amber-100 rounded-xl">لم يتم اختيار أي تلميذ بعد</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-gray-100 pt-6">
+                  <div>
+                    <label className="text-[0.75rem] font-black text-gray-400 block mb-2">تاريخ وبداية الحيز الزمني (توقيت تونس)</label>
+                    <input
+                      type="datetime-local"
+                      required
+                      value={ruleStartDate}
+                      onChange={(e) => setRuleStartDate(e.target.value)}
+                      className="w-full rounded-2xl border border-gray-100 p-4 text-sm font-bold text-blue-dark outline-none bg-gray-50/50 focus:border-blue-brand focus:bg-white transition-all shadow-inner"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[0.75rem] font-black text-gray-400 block mb-2">تاريخ ونهاية الحيز الزمني (توقيت تونس)</label>
+                    <input
+                      type="datetime-local"
+                      required
+                      value={ruleEndDate}
+                      onChange={(e) => setRuleEndDate(e.target.value)}
+                      className="w-full rounded-2xl border border-gray-100 p-4 text-sm font-bold text-blue-dark outline-none bg-gray-50/50 focus:border-blue-brand focus:bg-white transition-all shadow-inner"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[0.75rem] font-black text-gray-400 block mb-2">ملاحظات أو سبب تفعيل القاعدة (اختياري)</label>
+                  <textarea
+                    value={ruleDescription}
+                    onChange={(e) => setRuleDescription(e.target.value)}
+                    className="w-full rounded-2xl border border-gray-100 p-4 text-sm font-bold text-blue-dark outline-none bg-gray-50/50 focus:border-blue-brand focus:bg-white transition-all shadow-inner min-h-[80px]"
+                    placeholder="مثال: مراجعة الفترة الصيفية، تعويض تلميذ مميز، إلخ..."
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddRuleForm(false)}
+                    className="px-6 py-3 rounded-2xl bg-gray-50 hover:bg-gray-100 border border-gray-200 text-blue-dark font-black text-xs transition-all"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingRule}
+                    className="px-8 py-3 rounded-2xl bg-gold-brand hover:bg-gold-light text-blue-dark font-black text-xs transition-all disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isSubmittingRule ? (
+                      <>
+                        <Loader2 className="animate-spin" size={14} />
+                        <span>جاري الحفظ...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save size={14} />
+                        <span>تأكيد وحفظ القاعدة</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-lg font-black text-blue-dark">قواعد الوصول النشطة والسابقة</h4>
+            <span className="text-[0.7rem] font-black text-gray-400 bg-gray-50 border border-gray-100 px-3 py-1 rounded-full">
+              {data.contentAccessRules?.length || 0} قاعدة مسجلة
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {(data.contentAccessRules || []).map((rule: any) => {
+              const start = new Date(rule.startDate);
+              const end = new Date(rule.endDate);
+              const now = new Date();
+              const isFuture = now < start;
+              const isPast = now > end;
+              const isCurrent = now >= start && now <= end && rule.isActive;
+
+              return (
+                <div
+                  key={rule.id}
+                  className={cn(
+                    "bg-white border p-6 rounded-[28px] hover:shadow-xl hover:shadow-blue-900/5 transition-all flex flex-col justify-between relative overflow-hidden",
+                    isCurrent ? "border-emerald-100 shadow-sm" : "border-gray-100",
+                    isPast && "opacity-60"
+                  )}
+                >
+                  {isCurrent && (
+                    <div className="absolute top-0 left-0 bg-emerald-500 text-white text-[0.55rem] font-black px-3 py-1 rounded-br-2xl shadow-sm uppercase tracking-wider">
+                      نشط الآن
+                    </div>
+                  )}
+                  {isFuture && (
+                    <div className="absolute top-0 left-0 bg-blue-500 text-white text-[0.55rem] font-black px-3 py-1 rounded-br-2xl shadow-sm uppercase tracking-wider">
+                      مجدول
+                    </div>
+                  )}
+                  {isPast && (
+                    <div className="absolute top-0 left-0 bg-gray-400 text-white text-[0.55rem] font-black px-3 py-1 rounded-br-2xl shadow-sm uppercase tracking-wider">
+                      منتهي
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between gap-4 mt-2">
+                      <div className="space-y-1">
+                        <span className={cn(
+                          "text-[0.62rem] font-black px-2 py-0.5 rounded uppercase tracking-wider",
+                          rule.type === 'level_free' ? "bg-amber-100 text-amber-800" :
+                          rule.type === 'user_free' ? "bg-blue-100 text-blue-800" :
+                          "bg-purple-100 text-purple-800"
+                        )}>
+                          {rule.type === 'level_free' ? 'وصول مجاني لمستوى' :
+                           rule.type === 'user_free' ? 'وصول مجاني لتلاميذ' :
+                           'مراجعة عابرة للمستويات'}
+                        </span>
+                        
+                        <h4 className="font-black text-blue-dark text-[0.95rem] leading-snug pt-1">
+                          {rule.type === 'level_free' && `السماح بالوصول المجاني لـ ${LEVELS_MAP[rule.level] || rule.level}`}
+                          {rule.type === 'user_free' && `وصول استثنائي لعدد ${rule.userIds?.length || 0} من التلاميذ`}
+                          {rule.type === 'cross_level' && `تصفح تلاميذ ${LEVELS_MAP[rule.level] || rule.level} لدروس ${LEVELS_MAP[rule.targetLevel] || rule.targetLevel}`}
+                        </h4>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 pt-1">
+                        <button
+                          onClick={() => handleToggleRuleActive(rule.id, rule.isActive)}
+                          className={cn(
+                            "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                            rule.isActive ? "bg-emerald-500" : "bg-gray-200"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                              rule.isActive ? "-translate-x-5" : "translate-x-0"
+                            )}
+                          />
+                        </button>
+                      </div>
+                    </div>
+
+                    {rule.description && (
+                      <p className="text-xs text-gray-400 font-bold leading-normal bg-gray-50/50 p-3 rounded-2xl border border-gray-50">
+                        {rule.description}
+                      </p>
+                    )}
+
+                    {rule.type === 'user_free' && rule.userEmails && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {rule.userEmails.map((email: string) => (
+                          <span key={email} className="text-[0.62rem] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-bold text-center">{email}</span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-1.5 pt-3 border-t border-gray-50 text-[0.7rem] font-bold text-gray-400">
+                      <div className="flex items-center gap-2">
+                        <Calendar size={12} className="text-gray-300" />
+                        <span>البداية: {formatDate(rule.startDate)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar size={12} className="text-gray-300" />
+                        <span>النهاية: {formatDate(rule.endDate)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-gray-50 flex justify-end">
+                    <button
+                      onClick={() => handleDeleteRule(rule.id)}
+                      className="p-2 text-gray-400 hover:text-red-500 rounded-xl hover:bg-red-50/50 transition-colors"
+                      title="حذف القاعدة"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {(!data.contentAccessRules || data.contentAccessRules.length === 0) && (
+              <div className="col-span-1 md:col-span-2 py-12 flex flex-col items-center justify-center border-2 border-dashed border-gray-100 rounded-[32px] bg-white text-center">
+                <Lock size={36} className="text-gray-200 mb-3" />
+                <p className="font-black text-gray-400">لا توجد قواعد وصول معرّفة حالياً</p>
+                <p className="text-xs text-gray-300 font-bold mt-1">اضغط على زر "إضافة قاعدة جديدة" للبدء بالتحكم في الصلاحيات</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'overview': return renderOverview();
@@ -3567,6 +4060,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       case 'attendance': return renderAttendance();
       case 'wallets': return renderWallets();
       case 'content': return renderContentManager();
+      case 'contentAccess': return renderContentAccessControl();
       case 'schedule': return renderSchedule();
       case 'maintenance': return renderMaintenance();
       default: return renderOverview();
