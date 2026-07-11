@@ -58,25 +58,45 @@ export function useContentAccess(userData: any) {
     // Admins and teachers can browse all levels
     if (role === 'admin' || role === 'teacher') return true;
 
-    // Students can browse their own level
-    if (userData.level === lvl) return true;
-
-    // Check if there is a cross_level rule active from user's level to target lvl
-    const hasCrossLevel = rules.some(rule => 
-      rule.type === 'cross_level' &&
-      rule.level === userData.level &&
-      rule.targetLevel === lvl &&
-      isRuleActive(rule)
-    );
-    if (hasCrossLevel) return true;
-
-    // Check if there is a level_free rule active for this level
+    // Check if this level is free for everyone
     const isLvlFree = rules.some(rule => 
       rule.type === 'level_free' &&
       rule.level === lvl &&
       isRuleActive(rule)
     );
     if (isLvlFree) return true;
+
+    // Check if the user is authorized for their own level (active subscription, August review, or user_free)
+    const hasAugustReviewAccess = (() => {
+      if (!userData || (userData.planId !== 'august_review' && userData.plan !== 'august_review')) return false;
+      const now = new Date();
+      const year = now.getFullYear();
+      const start = new Date(year, 4, 20); // 20 May
+      const end = new Date(year, 7, 31, 23, 59, 59); // 31 August
+      return now >= start && now <= end;
+    })();
+
+    const hasStudentFree = rules.some(rule => 
+      rule.type === 'user_free' &&
+      rule.userIds?.includes(userData.uid || userData.id || '') &&
+      isRuleActive(rule)
+    );
+
+    const isSubscribedOrFreeSelf = userData.subscriptionStatus === 'active' || hasAugustReviewAccess || hasStudentFree;
+
+    // If they are subscribed or free-student, they can browse their own level
+    if (isSubscribedOrFreeSelf && userData.level === lvl) return true;
+
+    // If they are subscribed/free-student, can they browse other levels via cross_level?
+    if (isSubscribedOrFreeSelf) {
+      const hasCrossLevel = rules.some(rule => 
+        rule.type === 'cross_level' &&
+        rule.level === userData.level &&
+        rule.targetLevel === lvl &&
+        isRuleActive(rule)
+      );
+      if (hasCrossLevel) return true;
+    }
 
     return false;
   };
@@ -94,14 +114,6 @@ export function useContentAccess(userData: any) {
     // If item itself is free, anyone can view it
     if (isItemFree) return true;
 
-    // Check if this student is explicitly granted free access under user_free rules
-    const hasStudentFree = rules.some(rule => 
-      rule.type === 'user_free' &&
-      rule.userIds?.includes(userData.uid || userData.id || '') &&
-      isRuleActive(rule)
-    );
-    if (hasStudentFree) return true;
-
     // Check if this level is currently free for everyone
     const isLvlFree = rules.some(rule => 
       rule.type === 'level_free' &&
@@ -110,7 +122,7 @@ export function useContentAccess(userData: any) {
     );
     if (isLvlFree) return true;
 
-    // If they have an active subscription or August review plan access
+    // Check if the user is authorized for their own level (active subscription, August review, or user_free)
     const hasAugustReviewAccess = (() => {
       if (!userData || (userData.planId !== 'august_review' && userData.plan !== 'august_review')) return false;
       const now = new Date();
@@ -120,12 +132,19 @@ export function useContentAccess(userData: any) {
       return now >= start && now <= end;
     })();
 
-    const isSubscribed = userData.subscriptionStatus === 'active' || hasAugustReviewAccess;
-    if (isSubscribed) {
-      // Subscribed users can access their own level
+    const hasStudentFree = rules.some(rule => 
+      rule.type === 'user_free' &&
+      rule.userIds?.includes(userData.uid || userData.id || '') &&
+      isRuleActive(rule)
+    );
+
+    const isSubscribedOrFreeSelf = userData.subscriptionStatus === 'active' || hasAugustReviewAccess || hasStudentFree;
+
+    if (isSubscribedOrFreeSelf) {
+      // Subscribed/free users can access their own level
       if (userData.level === itemLevel) return true;
 
-      // Subscribed users can also access another level if a cross_level rule is active
+      // Subscribed/free users can also access another level if a cross_level rule is active
       const hasCrossLevel = rules.some(rule => 
         rule.type === 'cross_level' &&
         rule.level === userData.level &&

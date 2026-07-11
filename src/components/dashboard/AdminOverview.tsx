@@ -1796,7 +1796,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   };
 
   const renderEditGroupModal = () => (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-blue-dark/50 backdrop-blur-sm">
+    <div key="edit-group-modal" className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-blue-dark/50 backdrop-blur-sm">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -2041,7 +2041,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   };
 
   const renderEditUserModal = () => (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-blue-dark/50 backdrop-blur-sm">
+    <div key="edit-user-modal" className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-blue-dark/50 backdrop-blur-sm">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -2350,6 +2350,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
            <AnimatePresence>
              {selectedUsers.length > 0 && (
                <motion.div 
+                 key="bulk-actions"
                  initial={{ opacity: 0, height: 0 }}
                  animate={{ opacity: 1, height: 'auto' }}
                  exit={{ opacity: 0, height: 0 }}
@@ -3386,7 +3387,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     if (!showAddContentForm && !editingContent) return null;
 
     return (
-      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-blue-dark/50 backdrop-blur-md overflow-y-auto custom-scrollbar py-10">
+      <div key="content-modal" className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-blue-dark/50 backdrop-blur-md overflow-y-auto custom-scrollbar py-10">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -3684,15 +3685,18 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     }
   };
 
-  const handleDeleteRule = async (ruleId: string) => {
-    if (!window.confirm('هل أنت متأكد من حذف هذه القاعدة نهائياً؟')) return;
-    try {
-      await deleteDoc(doc(db, 'contentAccessRules', ruleId));
-      toast.success('تم حذف قاعدة الوصول بنجاح');
-    } catch (err) {
-      console.error(err);
-      toast.error('فشل في حذف القاعدة');
-    }
+  const handleDeleteRule = (rule: any) => {
+    const label = rule.type === 'level_free' 
+      ? `قاعدة وصول مجاني لمستوى` 
+      : rule.type === 'user_free' 
+        ? `وصول استثنائي لتلاميذ` 
+        : `قاعدة مراجعة عابرة للمستويات`;
+    setPendingDelete({
+      id: rule.id,
+      label,
+      type: 'generic',
+      coll: 'contentAccessRules'
+    });
   };
 
   const renderContentAccessControl = () => {
@@ -3739,6 +3743,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
         <AnimatePresence>
           {showAddRuleForm && (
             <motion.div
+              key="add-rule-form"
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -4056,7 +4061,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
 
                   <div className="mt-4 pt-3 border-t border-gray-50 flex justify-end">
                     <button
-                      onClick={() => handleDeleteRule(rule.id)}
+                      onClick={() => handleDeleteRule(rule)}
                       className="p-2 text-gray-400 hover:text-red-500 rounded-xl hover:bg-red-50/50 transition-colors"
                       title="حذف القاعدة"
                     >
@@ -4098,7 +4103,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   };
 
   const renderDeleteConfirmModal = () => (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-red-950/40 backdrop-blur-md">
+    <div key="delete-confirm-modal" className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-red-950/40 backdrop-blur-md">
       <motion.div 
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -4169,7 +4174,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     if (!showAssignStudentsModal) return null;
     
     return (
-      <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-blue-dark/50 backdrop-blur-sm">
+      <div key="assign-students-modal" className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-blue-dark/50 backdrop-blur-sm">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -4262,7 +4267,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     const receiptImg = r.receiptURL || r.receiptUrl;
 
     return (
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-blue-dark/60 backdrop-blur-md">
+      <div key="receipt-preview-modal" className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-blue-dark/60 backdrop-blur-md">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -4421,7 +4426,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   const renderRejectReceiptModal = () => {
     if (!rejectingReceiptId) return null;
     return (
-      <div className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-blue-dark/60 backdrop-blur-md">
+      <div key="reject-receipt-modal" className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-blue-dark/60 backdrop-blur-md">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -4486,7 +4491,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
         {editingUser && renderEditUserModal()}
         {editingGroup && renderEditGroupModal()}
         {showAssignStudentsModal && renderAssignStudentsModal()}
-        {renderContentModal()}
+        {(showAddContentForm || editingContent) && renderContentModal()}
         {pendingDelete && renderDeleteConfirmModal()}
         {viewingReceipt && renderReceiptPreviewModal()}
         {rejectingReceiptId && renderRejectReceiptModal()}
