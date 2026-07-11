@@ -142,6 +142,9 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   const [maintenanceActionTab, setMaintenanceActionTab] = useState<'bulk' | 'selective' | 'total'>('bulk');
   const [maintenanceSearch, setMaintenanceSearch] = useState('');
   const [maintenanceFilter, setMaintenanceFilter] = useState('users');
+  const [viewingReceipt, setViewingReceipt] = useState<any | null>(null);
+  const [rejectingReceiptId, setRejectingReceiptId] = useState<string | null>(null);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState('الوصل غير واضح أو المعلومات غير متطابقة');
 
   // Content Access Control Rules State
   const [ruleType, setRuleType] = useState<'level_free' | 'user_free' | 'cross_level'>('level_free');
@@ -545,6 +548,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
 
       const planName = receipt.planName || receipt.plan || 'اشتراك';
       const planPrice = receipt.price || receipt.amount || '0';
+      const planId = receipt.planId || receipt.plan || 'general';
 
       // 1. Update Receipt status
       await updateDoc(doc(db, 'receipts', receiptId), { 
@@ -553,13 +557,13 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       });
 
       // 2. Update User profile
-      const expiryDate = new Date();
-      expiryDate.setDate(expiryDate.getDate() + 30);
+      const expiryDate = getPlanExpiryDate(planId);
       
       await updateDoc(doc(db, 'users', userId), { 
         subscriptionStatus: 'active',
         currentPlan: planName,
-        plan: receipt.planId || 'general',
+        plan: planId,
+        planId: planId,
         lastPaymentDate: serverTimestamp(),
         subscriptionExpiry: expiryDate.toISOString()
       });
@@ -568,17 +572,17 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       await setDoc(doc(db, 'wallets', userId), {
         activeSubscription: {
           planName,
-          planId: receipt.planId || 'general',
+          planId: planId,
           activatedAt: serverTimestamp(),
           price: planPrice
         },
         lastUpdated: serverTimestamp()
       }, { merge: true });
 
-      alert('تم تفعيل الاشتراك وربطه بالمحفظة بنجاح');
+      toast.success('تم تفعيل الاشتراك وربطه بالمحفظة بنجاح');
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, 'receipts');
-      alert('حدث خطأ أثناء التفعيل');
+      toast.error('حدث خطأ أثناء التفعيل');
     } finally {
       setLoading(false);
     }
@@ -915,7 +919,13 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                        <p className="text-[0.65rem] text-gray-400 font-bold">{formatDate(r.createdAt)}</p>
                     </div>
                  </div>
-                 <button className="px-4 py-2 rounded-xl bg-blue-dark text-white text-xs font-black">معاينة</button>
+                 <button 
+                   onClick={() => setViewingReceipt(r)} 
+                   className="px-4 py-2 rounded-xl bg-blue-dark text-white text-xs font-black hover:bg-blue-brand transition-all flex items-center gap-1.5"
+                 >
+                   <Eye size={12} />
+                   <span>معاينة</span>
+                 </button>
               </div>
             ))}
             {stats.receipts === 0 && <p className="text-center py-10 text-gray-400 italic">لا توجد طلبات معلقة</p>}
@@ -2620,8 +2630,24 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                 return (
                   <div key={r.id} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex items-center justify-between group">
                      <div className="flex items-center gap-5">
-                        <div className="h-14 w-14 rounded-2xl bg-gray-50 flex items-center justify-center overflow-hidden border border-gray-100">
-                           {(r.receiptURL || r.receiptUrl) ? <img src={r.receiptURL || r.receiptUrl} alt="Receipt" className="w-full h-full object-cover" /> : <ReceiptIcon className="text-gray-300" />}
+                        <div 
+                          onClick={() => (r.receiptURL || r.receiptUrl) && setViewingReceipt(r)}
+                          className={cn(
+                            "h-16 w-16 rounded-2xl bg-gray-50 flex items-center justify-center overflow-hidden border border-gray-100 shrink-0 select-none",
+                            (r.receiptURL || r.receiptUrl) ? "cursor-zoom-in hover:opacity-85 hover:border-blue-brand/50 transition-all duration-300 group/thumb relative" : ""
+                          )}
+                          title="اضغط لمعاينة الوصل بالحجم الكامل"
+                        >
+                           {(r.receiptURL || r.receiptUrl) ? (
+                             <>
+                               <img src={r.receiptURL || r.receiptUrl} alt="Receipt" className="w-full h-full object-cover" />
+                               <div className="absolute inset-0 bg-blue-dark/40 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity">
+                                 <Eye size={16} className="text-white" />
+                               </div>
+                             </>
+                           ) : (
+                             <ReceiptIcon className="text-gray-300" size={24} />
+                           )}
                         </div>
                         <div>
                            <h4 className="text-sm font-black text-blue-dark">{u?.displayName || 'مستخدم مجهول'}</h4>
@@ -2642,16 +2668,20 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                      </div>
                      <div className="flex gap-3">
                         <button 
+                          onClick={() => setViewingReceipt(r)}
+                          className="px-4 py-2 rounded-xl bg-blue-50 text-blue-dark text-[0.65rem] font-black hover:bg-blue-dark hover:text-white transition-all flex items-center gap-1.5"
+                        >
+                          <Eye size={12} />
+                          <span>معاينة الوصل</span>
+                        </button>
+                        <button 
                           onClick={() => handleConfirmReceipt(r.id, r.userId)}
                           className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-[0.65rem] font-black hover:bg-emerald-700 transition-all shadow-md shadow-emerald-900/10"
                         >
                           تأكيد وتفعيل
                         </button>
                         <button 
-                          onClick={() => {
-                            const reason = prompt('سبب الرفض (اختياري):', 'الوصل غير واضح أو المعلومات غير متطابقة');
-                            if (reason !== null) handleRejectReceipt(r.id, reason);
-                          }}
+                          onClick={() => setRejectingReceiptId(r.id)}
                           className="px-4 py-2 rounded-xl bg-red-50 text-red-500 text-[0.65rem] font-black hover:bg-red-500 hover:text-white transition-all"
                         >
                           رفض
@@ -4224,6 +4254,232 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     );
   };
 
+  const renderReceiptPreviewModal = () => {
+    if (!viewingReceipt) return null;
+    
+    const r = viewingReceipt;
+    const u = data.users.find(user => user.id === r.userId);
+    const receiptImg = r.receiptURL || r.receiptUrl;
+
+    return (
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-blue-dark/60 backdrop-blur-md">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="bg-white rounded-[40px] w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh] text-right"
+          dir="rtl"
+        >
+          {/* Left panel: The Receipt image preview */}
+          <div className="md:w-1/2 bg-blue-dark/95 p-6 flex flex-col justify-between items-center relative overflow-hidden min-h-[300px] md:min-h-[500px]">
+            <div className="absolute top-4 right-4 z-10">
+              <span className="bg-gold-brand/20 border border-gold-brand/30 text-gold-brand text-xs font-black px-3 py-1 rounded-full">
+                معاينة الوصل
+              </span>
+            </div>
+
+            <div className="flex-1 w-full flex items-center justify-center overflow-auto p-4 my-2">
+              {receiptImg ? (
+                <img 
+                  src={receiptImg} 
+                  alt="Receipt Preview" 
+                  className="max-w-full max-h-[50vh] md:max-h-[65vh] object-contain rounded-2xl shadow-xl border border-white/10 cursor-zoom-in transition-transform hover:scale-[1.02]"
+                  onClick={() => window.open(receiptImg, '_blank')}
+                  title="اضغط لفتح الصورة بالحجم الكامل"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center text-white/40 gap-3">
+                  <ReceiptIcon size={64} />
+                  <p className="font-bold text-sm">لم يتم رفع صورة للوصل</p>
+                </div>
+              )}
+            </div>
+
+            {receiptImg && (
+              <a 
+                href={receiptImg} 
+                target="_blank" 
+                rel="noreferrer" 
+                className="flex items-center gap-2 text-xs font-black text-blue-light hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-xl mt-2"
+              >
+                <ExternalLink size={14} />
+                <span>فتح الوصل في نافذة جديدة بدقة كاملة</span>
+              </a>
+            )}
+          </div>
+
+          {/* Right panel: Information & Actions */}
+          <div className="md:w-1/2 p-8 flex flex-col justify-between overflow-y-auto bg-white">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <div>
+                  <h3 className="text-xl font-black text-blue-dark">تفاصيل طلب الاشتراك</h3>
+                  <p className="text-[0.7rem] text-gray-400 font-bold mt-1">يرجى التأكد من مطابقة بيانات الوصل مع الحساب المذكور</p>
+                </div>
+                <button 
+                  onClick={() => setViewingReceipt(null)} 
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <XCircle size={24} className="text-gray-400" />
+                </button>
+              </div>
+
+              {/* User / Student Info Card */}
+              <div className="bg-gray-50/50 p-5 rounded-[24px] border border-gray-100/50 space-y-4">
+                <h4 className="text-xs font-black text-gray-400 uppercase tracking-wider">بيانات التلميذ صاحب الحساب</h4>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-[0.65rem] text-gray-400 font-black block">الاسم الكامل</span>
+                    <span className="text-sm font-bold text-blue-dark">{u?.displayName || 'مستخدم مجهول'}</span>
+                  </div>
+                  
+                  <div>
+                    <span className="text-[0.65rem] text-gray-400 font-black block">رقم الهاتف</span>
+                    <span className="text-sm font-bold text-blue-dark">{u?.phone || 'بدون هاتف'}</span>
+                  </div>
+
+                  <div className="col-span-2">
+                    <span className="text-[0.65rem] text-gray-400 font-black block">البريد الإلكتروني</span>
+                    <span className="text-sm font-bold text-blue-dark/80 break-all">{u?.email || 'بدون بريد'}</span>
+                  </div>
+
+                  <div>
+                    <span className="text-[0.65rem] text-gray-400 font-black block">المستوى الدراسي</span>
+                    <span className="text-sm font-bold text-blue-brand">
+                      {u?.level ? `السنة ${u.level}` : 'غير محدد'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment / Receipt Details */}
+              <div className="bg-amber-500/5 p-5 rounded-[24px] border border-amber-500/10 space-y-4">
+                <h4 className="text-xs font-black text-amber-700/80 uppercase tracking-wider">تفاصيل الدفع المصرح بها</h4>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-[0.65rem] text-gray-400 font-black block">العرض المطلوب</span>
+                    <span className="text-sm font-bold text-blue-dark">{r.planName || r.plan || 'اشتراك'}</span>
+                  </div>
+                  
+                  <div>
+                    <span className="text-[0.65rem] text-gray-400 font-black block">المبلغ المعلن</span>
+                    <span className="text-sm font-bold text-amber-600">{r.price || r.amount || '--'} د.ت</span>
+                  </div>
+
+                  <div>
+                    <span className="text-[0.65rem] text-gray-400 font-black block">طريقة الدفع</span>
+                    <span className="text-sm font-bold text-blue-dark">
+                      {PAYMENT_METHODS.find(m => m.id === r.paymentMethod)?.name || r.paymentMethod || 'غير محدد'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[0.65rem] text-gray-400 font-black block">تاريخ رفع الطلب</span>
+                    <span className="text-xs font-bold text-gray-500">{formatDate(r.createdAt)}</span>
+                  </div>
+
+                  {r.parentName && (
+                    <div className="col-span-2 pt-2 border-t border-amber-500/10">
+                      <span className="text-[0.65rem] text-gray-400 font-black block">اسم ولي الرفع</span>
+                      <span className="text-xs font-bold text-blue-dark">{r.parentName}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Actions Panel */}
+            <div className="flex gap-4 pt-6 border-t border-gray-100 mt-6">
+              <button 
+                onClick={async () => {
+                  await handleConfirmReceipt(r.id, r.userId);
+                  setViewingReceipt(null);
+                }}
+                disabled={loading}
+                className="flex-1 py-4 rounded-[20px] bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-xl shadow-emerald-900/10 transition-all flex items-center justify-center gap-2"
+              >
+                {loading ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}
+                <span>تأكيد وتفعيل الاشتراك</span>
+              </button>
+              
+              <button 
+                onClick={() => setRejectingReceiptId(r.id)}
+                disabled={loading}
+                className="px-6 py-4 rounded-[20px] bg-red-50 hover:bg-red-500 hover:text-white text-red-500 font-black text-sm transition-all flex items-center justify-center gap-2"
+              >
+                <span>رفض الوصل</span>
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
+  const renderRejectReceiptModal = () => {
+    if (!rejectingReceiptId) return null;
+    return (
+      <div className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-blue-dark/60 backdrop-blur-md">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="bg-white rounded-[40px] w-full max-w-md shadow-2xl p-8 space-y-6 text-right border border-red-100"
+          dir="rtl"
+        >
+          <div className="flex items-center gap-4 border-b border-gray-100 pb-4">
+            <div className="h-12 w-12 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center shrink-0">
+              <XCircle size={24} />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-blue-dark">رفض وصل الاشتراك</h3>
+              <p className="text-xs text-gray-400 font-bold mt-1">يرجى تحديد سبب رفض هذا الاشتراك لتنبيه الطالب</p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-black text-gray-500">سبب الرفض</label>
+            <textarea
+              value={rejectionReasonInput}
+              onChange={(e) => setRejectionReasonInput(e.target.value)}
+              className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-bold text-blue-dark focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 min-h-[100px] resize-none"
+              placeholder="مثال: صورة الوصل غير واضحة، المبلغ غير متطابق..."
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setRejectingReceiptId(null);
+                setRejectionReasonInput('الوصل غير واضح أو المعلومات غير متطابقة');
+              }}
+              className="flex-1 py-3.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-500 font-black text-xs transition-all"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                await handleRejectReceipt(rejectingReceiptId, rejectionReasonInput);
+                setRejectingReceiptId(null);
+                setViewingReceipt(null);
+                setRejectionReasonInput('الوصل غير واضح أو المعلومات غير متطابقة');
+              }}
+              disabled={loading}
+              className="flex-1 py-3.5 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-black text-xs shadow-lg shadow-red-500/20 transition-all flex items-center justify-center gap-2"
+            >
+              {loading ? <Loader2 className="animate-spin" size={16} /> : null}
+              <span>تأكيد الرفض</span>
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
   return (
     <>
       <AnimatePresence mode="wait">
@@ -4232,6 +4488,8 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
         {showAssignStudentsModal && renderAssignStudentsModal()}
         {renderContentModal()}
         {pendingDelete && renderDeleteConfirmModal()}
+        {viewingReceipt && renderReceiptPreviewModal()}
+        {rejectingReceiptId && renderRejectReceiptModal()}
       </AnimatePresence>
       <motion.div key={activeTab} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.3 }}>
         {renderActiveTab()}
