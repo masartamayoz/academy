@@ -147,9 +147,9 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   const [rejectionReasonInput, setRejectionReasonInput] = useState('الوصل غير واضح أو المعلومات غير متطابقة');
 
   // Content Access Control Rules State
-  const [ruleType, setRuleType] = useState<'level_free' | 'user_free' | 'cross_level'>('level_free');
-  const [ruleLevel, setRuleLevel] = useState('9');
-  const [ruleTargetLevel, setRuleTargetLevel] = useState('8');
+  const [ruleType, setRuleType] = useState<'level_free' | 'user_free'>('level_free');
+  const [ruleLevel, setRuleLevel] = useState('all');
+  const [ruleTargetLevel, setRuleTargetLevel] = useState('all');
   const [ruleUserIds, setRuleUserIds] = useState<string[]>([]);
   const [ruleStartDate, setRuleStartDate] = useState('');
   const [ruleEndDate, setRuleEndDate] = useState('');
@@ -173,8 +173,8 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       setRuleEndDate(toDatetimeLocal(inAWeek));
       setRuleUserIds([]);
       setRuleDescription('');
-      setRuleLevel('9');
-      setRuleTargetLevel('8');
+      setRuleLevel('all');
+      setRuleTargetLevel('all');
     }
   }, [showAddRuleForm]);
 
@@ -3652,7 +3652,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       const newRule = {
         type: ruleType,
         level: ruleType === 'user_free' ? null : ruleLevel,
-        targetLevel: ruleType === 'cross_level' ? ruleTargetLevel : null,
+        targetLevel: ruleTargetLevel,
         userIds: ruleType === 'user_free' ? ruleUserIds : null,
         userEmails: ruleType === 'user_free' ? userEmails : null,
         startDate: ruleStartDate,
@@ -3688,9 +3688,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   const handleDeleteRule = (rule: any) => {
     const label = rule.type === 'level_free' 
       ? `قاعدة وصول مجاني لمستوى` 
-      : rule.type === 'user_free' 
-        ? `وصول استثنائي لتلاميذ` 
-        : `قاعدة مراجعة عابرة للمستويات`;
+      : `وصول استثنائي لتلاميذ`;
     setPendingDelete({
       id: rule.id,
       label,
@@ -3757,16 +3755,23 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
               <form onSubmit={handleSaveAccessRule} className="space-y-6">
                 <div>
                   <label className="text-[0.75rem] font-black text-gray-400 block mb-3">نوع قاعدة الوصول</label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {[
-                      { id: 'level_free', label: 'وصول مجاني لمستوى دراسي', desc: 'فتح محتوى هذا المستوى بالكامل لجميع الزوار والمستخدمين مجاناً' },
-                      { id: 'user_free', label: 'وصول مجاني لتلاميذ معينين', desc: 'منح تلاميذ محددين بالاسم وصولاً كاملاً وحراً لكافة محتويات الأكاديمية' },
-                      { id: 'cross_level', label: 'مراجعة عابرة للمستويات', desc: 'تمكين تلاميذ مستوى معين من تصفح محتوى مستوى آخر للمراجعة' },
+                      { id: 'level_free', label: 'وصول مجاني لمستوى دراسي', desc: 'فتح الوصول لمستوى دراسي بالكامل أو مراجعة عابرة للمستويات حسب حيز زمني' },
+                      { id: 'user_free', label: 'وصول مجاني لتلاميذ معينين', desc: 'منح تلاميذ محددين بالاسم صلاحية الوصول لمستويات دراسية معينة' },
                     ].map((t) => (
                       <button
                         key={t.id}
                         type="button"
-                        onClick={() => setRuleType(t.id as any)}
+                        onClick={() => {
+                          setRuleType(t.id as any);
+                          if (t.id === 'level_free') {
+                            setRuleLevel('all');
+                            setRuleTargetLevel('all');
+                          } else {
+                            setRuleTargetLevel('all');
+                          }
+                        }}
                         className={cn(
                           "p-4 rounded-2xl border text-right transition-all flex flex-col gap-1.5 h-full",
                           ruleType === t.id
@@ -3782,16 +3787,17 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {ruleType !== 'user_free' && (
+                  {ruleType === 'level_free' && (
                     <div>
                       <label className="text-[0.75rem] font-black text-gray-400 block mb-2">
-                        {ruleType === 'cross_level' ? 'مستوى التلاميذ المصدر (مثال: تاسعة أساسي)' : 'المستوى الدراسي المفتوح للجميع'}
+                        مستوى التلاميذ المستفيدين (المستوى الدراسي للتلميذ)
                       </label>
                       <select
                         value={ruleLevel}
                         onChange={(e) => setRuleLevel(e.target.value)}
                         className="w-full rounded-2xl border border-gray-100 p-4 text-sm font-black text-blue-dark outline-none bg-gray-50/50 focus:border-blue-brand focus:bg-white transition-all shadow-inner"
                       >
+                        <option value="all">الجميع (كافة الزوار والتلاميذ)</option>
                         {Object.entries(LEVELS_MAP).map(([key, name]) => (
                           <option key={key} value={key}>{name}</option>
                         ))}
@@ -3799,20 +3805,21 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                     </div>
                   )}
 
-                  {ruleType === 'cross_level' && (
-                    <div>
-                      <label className="text-[0.75rem] font-black text-gray-400 block mb-2">مستوى المحتوى المسموح بالوصول إليه (مثال: ثامنة أساسي)</label>
-                      <select
-                        value={ruleTargetLevel}
-                        onChange={(e) => setRuleTargetLevel(e.target.value)}
-                        className="w-full rounded-2xl border border-gray-100 p-4 text-sm font-black text-blue-dark outline-none bg-gray-50/50 focus:border-blue-brand focus:bg-white transition-all shadow-inner"
-                      >
-                        {Object.entries(LEVELS_MAP).map(([key, name]) => (
-                          <option key={key} value={key}>{name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+                  <div>
+                    <label className="text-[0.75rem] font-black text-gray-400 block mb-2">
+                      {ruleType === 'level_free' ? 'المحتوى المتاح مجاناً (مستوى المحتوى الدراسي)' : 'المستوى المسموح بالوصول إليه'}
+                    </label>
+                    <select
+                      value={ruleTargetLevel}
+                      onChange={(e) => setRuleTargetLevel(e.target.value)}
+                      className="w-full rounded-2xl border border-gray-100 p-4 text-sm font-black text-blue-dark outline-none bg-gray-50/50 focus:border-blue-brand focus:bg-white transition-all shadow-inner"
+                    >
+                      <option value="all">كل المحتويات (جميع المستويات)</option>
+                      {Object.entries(LEVELS_MAP).map(([key, name]) => (
+                        <option key={key} value={key}>{name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 {ruleType === 'user_free' && (
@@ -4000,18 +4007,20 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                         <span className={cn(
                           "text-[0.62rem] font-black px-2 py-0.5 rounded uppercase tracking-wider",
                           rule.type === 'level_free' ? "bg-amber-100 text-amber-800" :
-                          rule.type === 'user_free' ? "bg-blue-100 text-blue-800" :
-                          "bg-purple-100 text-purple-800"
+                          "bg-blue-100 text-blue-800"
                         )}>
-                          {rule.type === 'level_free' ? 'وصول مجاني لمستوى' :
-                           rule.type === 'user_free' ? 'وصول مجاني لتلاميذ' :
-                           'مراجعة عابرة للمستويات'}
+                          {rule.type === 'level_free' ? 'وصول مجاني لمستوى دراسي' : 'وصول مجاني لتلاميذ معينين'}
                         </span>
                         
                         <h4 className="font-black text-blue-dark text-[0.95rem] leading-snug pt-1">
-                          {rule.type === 'level_free' && `السماح بالوصول المجاني لـ ${LEVELS_MAP[rule.level] || rule.level}`}
-                          {rule.type === 'user_free' && `وصول استثنائي لعدد ${rule.userIds?.length || 0} من التلاميذ`}
-                          {rule.type === 'cross_level' && `تصفح تلاميذ ${LEVELS_MAP[rule.level] || rule.level} لدروس ${LEVELS_MAP[rule.targetLevel] || rule.targetLevel}`}
+                          {rule.type === 'level_free' && (
+                            rule.level === 'all' || !rule.level
+                              ? `السماح بالوصول لجميع الزوار والتلاميذ إلى ${rule.targetLevel === 'all' || !rule.targetLevel ? 'كل المستويات' : LEVELS_MAP[rule.targetLevel] || rule.targetLevel}`
+                              : `تمكين تلاميذ ${LEVELS_MAP[rule.level] || rule.level} من الوصول إلى ${rule.targetLevel === 'all' || !rule.targetLevel ? 'كل المستويات' : LEVELS_MAP[rule.targetLevel] || rule.targetLevel}`
+                          )}
+                          {rule.type === 'user_free' && (
+                            `وصول استثنائي لعدد ${rule.userIds?.length || 0} من التلاميذ إلى ${rule.targetLevel === 'all' || !rule.targetLevel ? 'كل المستويات' : LEVELS_MAP[rule.targetLevel] || rule.targetLevel}`
+                          )}
                         </h4>
                       </div>
 

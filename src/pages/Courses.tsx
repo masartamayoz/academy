@@ -74,9 +74,6 @@ export default function Courses() {
 
   const loadContent = async () => {
     let targetLevel = currentLevel;
-    if (userData?.userType === 'student' && userData?.level) {
-      targetLevel = userData.level;
-    }
 
     setLoading(true);
     try {
@@ -267,26 +264,20 @@ export default function Courses() {
                 </div>
                 
                 <div className="lg:hidden">
-                   {userData?.userType === 'student' && userData?.level ? (
-                     <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gold-brand/10 border border-gold-brand/20 text-xs font-black text-blue-dark shadow-sm">
-                       <Lock size={12} className="text-gold-brand shrink-0" />
-                       <span>{LEVELS[userData.level] || userData.level}</span>
-                     </div>
-                   ) : (
-                     <select 
-                      value={currentLevel} 
-                      onChange={e => setCurrentLevel(e.target.value)} 
-                      className="rounded-xl border border-gray-100 bg-white px-4 py-2 text-xs font-black text-blue-dark outline-none cursor-pointer focus:border-blue-brand transition-colors shadow-sm"
-                     >
-                       <option value="7">السنة السابعة</option>
-                       <option value="8">السنة الثامنة</option>
-                       <option value="9">السنة التاسعة</option>
-                       <option value="1sec">السنة الأولى ثانوي</option>
-                       <option value="2sec">السنة الثانية ثانوي</option>
-                       <option value="3sec">السنة الثالثة ثانوي</option>
-                       <option value="4sec">باكالوريا</option>
-                     </select>
-                   )}
+                   <select 
+                    value={currentLevel} 
+                    onChange={e => setCurrentLevel(e.target.value)} 
+                    className="rounded-xl border border-gray-100 bg-white px-4 py-2 text-xs font-black text-blue-dark outline-none cursor-pointer focus:border-blue-brand transition-colors shadow-sm"
+                   >
+                     {Object.entries(LEVELS).map(([key, name]) => {
+                       const canAccess = isLevelAccessible(key);
+                       return (
+                         <option key={key} value={key} disabled={!canAccess}>
+                           {name} {!canAccess ? '🔒' : ''}
+                         </option>
+                       );
+                     })}
+                   </select>
                 </div>
              </div>
           </div>
