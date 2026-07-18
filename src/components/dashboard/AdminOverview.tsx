@@ -258,7 +258,9 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     }
   };
 
-  const [activeSubTab, setActiveSubTab] = useState<'logs' | 'scheduled'>('logs');
+  const [activeSubTab, setActiveSubTab] = useState<'weekly' | 'scheduled' | 'logs'>('weekly');
+  const [generateStartDate, setGenerateStartDate] = useState('');
+  const [generateEndDate, setGenerateEndDate] = useState('');
   const [newSession, setNewSession] = useState({
     teacherId: '',
     groupId: '',
@@ -266,7 +268,8 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     dateTime: '',
     meetLink: '',
     chapter: '',
-    title: ''
+    title: '',
+    isFree: false
   });
 
   const [newUser, setNewUser] = useState({
@@ -304,6 +307,14 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   const [editingContent, setEditingContent] = useState<any>(null);
   const [showAddContentForm, setShowAddContentForm] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ id: string, label: string, type: string, coll?: string } | null>(null);
+
+  useEffect(() => {
+    if (activeTab === 'schedule') {
+      setActiveSubTab('weekly');
+    } else if (activeTab === 'attendance') {
+      setActiveSubTab('scheduled');
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     setLoading(true);
@@ -453,7 +464,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       return;
     }
     
-    if (newContent.type === 'lesson' && !newContent.title) {
+    if ((newContent.type === 'lesson' || newContent.type === 'summer_review') && !newContent.title) {
       alert('يرجى إدخال عنوان الدرس');
       return;
     }
@@ -472,6 +483,8 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       } else if (newContent.type === 'exercise') {
           const topicsLabel = newContent.topics.filter(t => t.trim()).join(' / ');
           dataToSave.title = `سلسلة تمارين: ${topicsLabel || ('رقم ' + newContent.order)}`;
+      } else if (newContent.type === 'summer_review') {
+          dataToSave.title = newContent.title.includes('الحصة') ? newContent.title : `الحصة ${newContent.order || 1} من 10: ${newContent.title}`;
       }
 
       await addDoc(collection(db, 'videos'), dataToSave);
@@ -513,6 +526,8 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       } else if (editingContent.type === 'exercise') {
           const topicsLabel = editingContent.topics.filter((t: string) => t.trim()).join(' / ');
           dataToSave.title = `سلسلة تمارين: ${topicsLabel || ('رقم ' + editingContent.order)}`;
+      } else if (editingContent.type === 'summer_review') {
+          dataToSave.title = editingContent.title.includes('الحصة') ? editingContent.title : `الحصة ${editingContent.order || 1} من 10: ${editingContent.title}`;
       }
 
       const { id, ...dataWithoutId } = dataToSave;
@@ -686,7 +701,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
         createdAt: serverTimestamp()
       });
       toast.success('تم جدولة الحصة بنجاح');
-      setNewSession({ teacherId: '', groupId: '', level: '', dateTime: '', meetLink: '', chapter: '', title: '' });
+      setNewSession({ teacherId: '', groupId: '', level: '', dateTime: '', meetLink: '', chapter: '', title: '', isFree: false });
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'teacherSessions');
     } finally {
@@ -695,11 +710,25 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   };
 
   const handleGenerateWeeklySessions = async () => {
+    if (!generateStartDate || !generateEndDate) {
+      toast.error('الرجاء تحديد تاريخ البدء وتاريخ الانتهاء أولاً');
+      return;
+    }
+
+    const start = new Date(generateStartDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(generateEndDate);
+    end.setHours(23, 59, 59, 999);
+
+    if (start > end) {
+      toast.error('تاريخ البدء يجب أن يكون قبل تاريخ الانتهاء');
+      return;
+    }
+
     setLoading(true);
-    addLog("بدء توليد حصص الأسبوع آلياً من الجداول...");
+    addLog(`بدء توليد حصص تلقائياً من ${generateStartDate} إلى ${generateEndDate}...`);
     
     try {
-      const today = new Date();
       const daysMap: { [key: string]: number } = {
         'الأحد': 0, 'الاثنين': 1, 'الثلاثاء': 2, 'الأربعاء': 3, 'الخميس': 4, 'الجمعة': 5, 'السبت': 6
       };
@@ -707,55 +736,56 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       let generatedCount = 0;
       let skippedCount = 0;
 
-      for (const group of data.groups) {
-        if (!group.schedule || group.schedule.length === 0) continue;
+      // Loop through each day in the range
+      let current = new Date(start);
+      while (current <= end) {
+        const currentDayNum = current.getDay();
         
-        for (const schedItem of group.schedule) {
-          const targetDayNum = daysMap[schedItem.day];
-          if (targetDayNum === undefined) continue;
+        for (const group of data.groups) {
+          if (!group.schedule || group.schedule.length === 0) continue;
           
-          const currentDayNum = today.getDay();
-          
-          // Calculate diff to next occurrence of this day
-          let diff = targetDayNum - currentDayNum;
-          if (diff < 0) diff += 7; 
-          
-          const targetDate = new Date(today);
-          targetDate.setDate(today.getDate() + diff);
-          
-          const [hours, minutes] = schedItem.startTime.split(':');
-          targetDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+          for (const schedItem of group.schedule) {
+            const targetDayNum = daysMap[schedItem.day];
+            if (targetDayNum === currentDayNum) {
+              const sessionDate = new Date(current);
+              const [hours, minutes] = schedItem.startTime.split(':');
+              sessionDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+              
+              // Double check if already exists
+              const exists = data.teacherSessions.some(s => 
+                s.groupId === group.id && 
+                new Date(s.dateTime).toDateString() === sessionDate.toDateString() &&
+                s.dateTime.includes(schedItem.startTime)
+              );
 
-          // Check if already exists for this group on this date (broad date check)
-          const exists = data.teacherSessions.some(s => 
-            s.groupId === group.id && 
-            new Date(s.dateTime).toDateString() === targetDate.toDateString() &&
-            s.dateTime.includes(schedItem.startTime)
-          );
+              if (exists) {
+                skippedCount++;
+                continue;
+              }
 
-          if (exists) {
-            skippedCount++;
-            continue;
+              await addDoc(collection(db, 'teacherSessions'), {
+                teacherId: group.teacherId || '',
+                groupId: group.id,
+                groupName: group.name,
+                level: group.level,
+                dateTime: sessionDate.toISOString(),
+                meetLink: group.meetLink || '',
+                title: `حصة أسبوعية: ${group.name}`,
+                chapter: 'مراجعة وتطبيقات عمليّة',
+                status: 'scheduled',
+                isFree: false, // Default is paid/subscribed-only
+                createdAt: serverTimestamp()
+              });
+              generatedCount++;
+            }
           }
-
-          await addDoc(collection(db, 'teacherSessions'), {
-            teacherId: group.teacherId || '',
-            groupId: group.id,
-            groupName: group.name,
-            level: group.level,
-            dateTime: targetDate.toISOString(),
-            meetLink: group.meetLink || '',
-            title: `حصة أسبوعية: ${group.name}`,
-            chapter: 'مراجعة وتطبيقات برمجية',
-            status: 'scheduled',
-            createdAt: serverTimestamp()
-          });
-          generatedCount++;
         }
+        
+        current.setDate(current.getDate() + 1);
       }
 
       addLog(`اكتمل التوليد: تم إنشاء ${generatedCount} حصة، وتخطي ${skippedCount} حصة موجودة.`);
-      toast.success(`تم إنشاء ${generatedCount} حصة جديدة بنجاح`);
+      toast.success(`اكتمل التوليد: تم إنشاء ${generatedCount} حصة جديدة بنجاح`);
     } catch (err) {
       console.error(err);
       addLog("خطأ أثناء توليد الحصص.");
@@ -777,7 +807,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
         completedAt: serverTimestamp()
       });
 
-      // 2. Add 20 DT to teacher's wallet
+      // 2. Add 30 DT (or 0 DT if free) to teacher's wallet
       const teacherId = session.teacherId;
       const walletRef = doc(db, 'wallets', teacherId);
       const walletSnap = data.wallets.find(w => w.id === teacherId);
@@ -785,22 +815,31 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       const currentBalance = parseFloat(walletSnap?.balance || '0');
       const earnedTotal = parseFloat(walletSnap?.earnedTotal || '0');
       
+      const isFree = !!session.isFree;
+      const earningAmount = isFree ? 0 : 30;
+      
       await setDoc(walletRef, {
-        balance: (currentBalance + 20).toString(),
-        earnedTotal: (earnedTotal + 20).toString(),
+        balance: (currentBalance + earningAmount).toString(),
+        earnedTotal: (earnedTotal + earningAmount).toString(),
         lastUpdated: serverTimestamp(),
         transactions: [
           ...(walletSnap?.transactions || []),
           {
             type: 'earnings',
-            amount: 20,
-            description: `مقابل حصة: ${session.title || session.chapter}`,
+            amount: earningAmount,
+            description: isFree 
+              ? `مقابل حصة مجانية (بدون معلوم): ${session.title || session.chapter}`
+              : `مقابل حصة مباشرة: ${session.title || session.chapter}`,
             date: new Date().toISOString()
           }
         ]
       }, { merge: true });
 
-      toast.success('تم إنهاء الحصة وإضافة 20 د لمحفظة المدرس');
+      if (isFree) {
+        toast.success('تم إنهاء الحصة بنجاح (حصة مجانية بدون معلوم)');
+      } else {
+        toast.success('تم إنهاء الحصة وإضافة 30 د لمحفظة المدرس');
+      }
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, 'teacherSessions');
       toast.error('حدث خطأ أثناء إنهاء الحصة');
@@ -1114,9 +1153,10 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                     <option value="assignment">فرض مراقبة</option>
                     <option value="synthesis">فرض تأليفي</option>
                     <option value="exercise">سلسلة تمارين</option>
+                    <option value="summer_review">مراجعة صيفية</option>
                   </select>
                 </div>
-                {(newContent.type === 'lesson' || newContent.type === 'exercise') && (
+                {(newContent.type === 'lesson' || newContent.type === 'exercise' || newContent.type === 'summer_review') && (
                   <div className="space-y-2">
                     <label className="text-xs font-black text-gray-400 uppercase pr-2">التصنيف *</label>
                     <select value={newContent.category || 'general'} onChange={e => setNewContent({...newContent, category: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
@@ -1148,10 +1188,10 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {newContent.type === 'lesson' ? (
+                {(newContent.type === 'lesson' || newContent.type === 'summer_review') ? (
                   <div className="md:col-span-2 space-y-2">
-                    <label className="text-xs font-black text-gray-400 uppercase pr-2">عنوان الدرس *</label>
-                    <input required type="text" value={newContent.title} onChange={e => setNewContent({...newContent, title: e.target.value})} placeholder="مثال: الأعداد الحقيقية" className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
+                    <label className="text-xs font-black text-gray-400 uppercase pr-2">{newContent.type === 'summer_review' ? 'عنوان الحصة *' : 'عنوان الدرس *'}</label>
+                    <input required type="text" value={newContent.title} onChange={e => setNewContent({...newContent, title: e.target.value})} placeholder={newContent.type === 'summer_review' ? "مثال: مراجعة الحساب الذهني والتناسب" : "مثال: الأعداد الحقيقية"} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
                   </div>
                 ) : newContent.type === 'exercise' ? (
                   <div className="md:col-span-2 space-y-2">
@@ -1293,6 +1333,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                   <option value="assignment">فروض مراقبة</option>
                   <option value="synthesis">فروض تأليفية</option>
                   <option value="exercise">سلاسل تمارين</option>
+                  <option value="summer_review">دروس مراجعة صيفية</option>
                 </select>
               </div>
             </div>
@@ -1300,7 +1341,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <AnimatePresence mode="popLayout">
                 {filteredContent.map((c) => {
-                  const displayTitle = c.type === 'lesson' ? c.title : 
+                  const displayTitle = c.type === 'lesson' || c.type === 'summer_review' ? c.title : 
                                      c.type === 'exercise' ? `سلسلة تمارين - ${c.topics?.join(', ')}` : 
                                      `${c.type === 'assignment' ? 'فرض مراقبة' : 'فرض تأليفي'} - نموذج ${c.modelNumber}`;
                   return (
@@ -1317,11 +1358,13 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                           "px-3 py-1 rounded-full text-[0.6rem] font-black uppercase tracking-wider",
                           c.type === 'lesson' ? 'bg-blue-50 text-blue-600' : 
                           c.type === 'assignment' ? 'bg-amber-50 text-amber-600' : 
-                          c.type === 'synthesis' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
+                          c.type === 'synthesis' ? 'bg-red-50 text-red-600' : 
+                          c.type === 'summer_review' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'
                         )}>
                           {c.type === 'lesson' ? 'درس' : 
                           c.type === 'assignment' ? 'فرض مراقبة' : 
-                          c.type === 'synthesis' ? 'فرض تأليفي' : 'سلسلة تمارين'}
+                          c.type === 'synthesis' ? 'فرض تأليفي' : 
+                          c.type === 'summer_review' ? 'دروس مراجعة صيفية' : 'سلسلة تمارين'}
                         </span>
                         <div className="flex items-center gap-1 text-[0.6rem] font-black text-gray-400">
                           <Tag size={10} className="text-blue-dark/40" />
@@ -1457,7 +1500,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                       { id: 'users', label: 'تصفير المستخدمين', count: stats.users, desc: 'حذف كل المستخدمين والاشتراكات عدا الأدمن', icon: UsersIcon, collection: 'users' },
                       { id: 'receipts', label: 'تصفير المدفوعات', count: data.receipts.length, desc: 'حذف سجلات الوصولات والعمليات المالية', icon: ReceiptIcon, collection: 'receipts' },
                       { id: 'content', label: 'تصفير المحتوى', count: stats.content, desc: 'حذف كل الدروس، التمارين والفيديوهات', icon: BookOpen, collection: 'videos' },
-                      { id: 'sessions', label: 'تصفير الجدولة', count: stats.sessions, desc: 'حذف الحصص المباشرة واللقاءات السابقة', icon: Calendar, collection: 'teacherSessions' },
+                      { id: 'sessions', label: 'تصفير الجدولة', count: stats.sessions, desc: 'حذف الحصص المباشرة السابقة', icon: Calendar, collection: 'teacherSessions' },
                       { id: 'groups', label: 'تصفير المجموعات', count: data.groups.length, desc: 'حذف توزيع الأفواج والمنظومات الدراسية', icon: Compass, collection: 'groups' },
                       { id: 'wallets', label: 'تصفير المحافظ', count: data.wallets.length, desc: 'تصفير رصيد كل المدرسين والاداريين', icon: Wallet, collection: 'wallets' },
                     ].map((card, i) => (
@@ -2992,302 +3035,413 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     );
   };
 
-  const renderAttendance = () => (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 shadow-sm">
-            <CheckCircle size={28} />
-          </div>
-          <div>
-            <h2 className="text-3xl font-black text-blue-dark">الحصص والحضور المباشر</h2>
-            <p className="text-gray-400 font-bold text-sm">إدارة جدول الحصص ومتابعة الحضور المباشر</p>
-          </div>
-        </div>
+  const renderAttendance = () => {
+    const days = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'];
 
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={handleGenerateWeeklySessions}
-            disabled={loading}
-            className="hidden md:flex items-center gap-2 rounded-2xl bg-gold-brand px-6 py-3 text-xs font-black text-blue-dark shadow-xl shadow-gold-brand/10 transition-all hover:scale-105 active:scale-95"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap size={16} />}
-            توليد حصص الأسبوع آلياً
-          </button>
-        </div>
-
-        <div className="flex bg-gray-100 p-1.5 rounded-2xl">
-          <button 
-            onClick={() => setActiveSubTab('logs')}
-            className={cn(
-              "px-6 py-2.5 rounded-xl text-xs font-black transition-all",
-              activeSubTab === 'logs' ? "bg-white text-blue-dark shadow-sm" : "text-gray-400 hover:text-gray-600"
-            )}
-          >
-            سجلات الحضور
-          </button>
-          <button 
-            onClick={() => setActiveSubTab('scheduled')}
-            className={cn(
-              "px-6 py-2.5 rounded-xl text-xs font-black transition-all",
-              activeSubTab === 'scheduled' ? "bg-white text-blue-dark shadow-sm" : "text-gray-400 hover:text-gray-600"
-            )}
-          >
-            الحصص المجدولة
-          </button>
-        </div>
-        
-        {activeSubTab === 'scheduled' && (
-          <button 
-            onClick={handleGenerateWeeklySessions}
-            disabled={loading}
-            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-black text-xs transition-all border border-indigo-100 shadow-sm"
-          >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-            <span>توليد حصص الأسبوع آلياً من الجداول</span>
-          </button>
-        )}
-      </div>
-
-      {activeSubTab === 'logs' ? (
-        <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-x-auto min-h-[400px]">
-          <div className="grid grid-cols-[1.5fr_1fr_1.5fr_1fr_1fr_60px] min-w-[1000px] bg-gray-50/80 p-6 border-b border-gray-100 text-[0.65rem] font-black text-gray-400 uppercase tracking-widest">
-             <div className="text-right pr-4">المستخدم</div>
-             <div className="text-center">الدور</div>
-             <div className="text-center">المجموعة</div>
-             <div className="text-center">الوقت</div>
-             <div className="text-center">التاريخ</div>
-             <div className="text-center">رابط</div>
+    return (
+      <div className="space-y-8 animate-in fade-in duration-500 pb-20">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 shadow-sm">
+              <Calendar size={28} />
+            </div>
+            <div>
+              <h2 className="text-3xl font-black text-blue-dark">الحصص المباشرة والجدول الموحد</h2>
+              <p className="text-gray-400 font-bold text-sm">إدارة وتوليد الحصص المباشرة ومتابعة جدول الحضور الأسبوعي للطلاب والمجموعات</p>
+            </div>
           </div>
-          <div className="divide-y divide-gray-50">
-            <AnimatePresence mode="popLayout">
-              {data.attendance.length > 0 ? (
-                data.attendance.map(att => (
-                  <motion.div 
-                    layout
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    key={att.id} 
-                    className="grid grid-cols-[1.5fr_1fr_1.5fr_1fr_1fr_60px] p-6 items-center hover:bg-gray-50 transition-all min-w-[1000px]"
-                  >
-                     <div className="flex items-center gap-3 text-right">
-                        <div className="h-10 w-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-black text-xs">
-                           {att.userName?.charAt(0) || 'U'}
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-black text-blue-dark truncate max-w-[180px]">{att.userName}</h4>
-                          <p className="text-[0.6rem] text-gray-400 font-bold">UID: {att.userId?.substring(0, 8)}...</p>
-                        </div>
-                     </div>
-                     <div className="text-center">
-                        <span className={cn(
-                          "px-3 py-1 rounded-full text-[0.6rem] font-black",
-                          att.userType === 'teacher' ? 'bg-indigo-50 text-indigo-600' : 'bg-blue-50 text-blue-dark'
-                        )}>
-                          {att.userType === 'teacher' ? 'مربي' : 'تلميذ'}
-                        </span>
-                     </div>
-                     <div className="text-center">
-                        <p className="text-xs font-black text-blue-dark">{att.groupName}</p>
-                        <p className="text-[0.6rem] text-gray-400 font-bold">ID: {att.groupId?.substring(0, 8)}</p>
-                     </div>
-                     <div className="text-center">
-                        <span className="text-[0.7rem] font-black text-gray-500">
-                          {formatDate(att.timestamp)}
-                        </span>
-                     </div>
-                     <div className="flex justify-center">
-                        <a href={att.meetLink} target="_blank" className="p-2 rounded-lg bg-blue-50 text-blue-brand hover:bg-blue-brand hover:text-white transition-all">
-                          <ExternalLink size={14} />
-                        </a>
-                     </div>
-                  </motion.div>
-                ))
-              ) : (
-                <div className="py-40 text-center flex flex-col items-center justify-center opacity-30 min-w-[1000px]">
-                   <CheckCircle size={80} className="mb-4" />
-                   <p className="text-lg font-black italic">لا يوجد سجل حضور حالياً</p>
-                   <p className="text-xs mt-2">سجلات الحضور ستظهر آلياً عند التحاق المستخدمين بالحصص المباشرة.</p>
-                </div>
+
+          <div className="flex bg-gray-100 p-1.5 rounded-2xl">
+            <button 
+              onClick={() => setActiveSubTab('weekly')}
+              className={cn(
+                "px-6 py-2.5 rounded-xl text-xs font-black transition-all",
+                activeSubTab === 'weekly' ? "bg-white text-blue-dark shadow-sm" : "text-gray-400 hover:text-gray-600"
               )}
-            </AnimatePresence>
+            >
+              الجدول الأسبوعي الموحد
+            </button>
+            <button 
+              onClick={() => setActiveSubTab('scheduled')}
+              className={cn(
+                "px-6 py-2.5 rounded-xl text-xs font-black transition-all",
+                activeSubTab === 'scheduled' ? "bg-white text-blue-dark shadow-sm" : "text-gray-400 hover:text-gray-600"
+              )}
+            >
+              الحصص المجدولة
+            </button>
+            <button 
+              onClick={() => setActiveSubTab('logs')}
+              className={cn(
+                "px-6 py-2.5 rounded-xl text-xs font-black transition-all",
+                activeSubTab === 'logs' ? "bg-white text-blue-dark shadow-sm" : "text-gray-400 hover:text-gray-600"
+              )}
+            >
+              سجلات الحضور
+            </button>
           </div>
         </div>
-      ) : (
-        <div className="space-y-8">
-           {/* Create Session Form */}
-           <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm">
-              <h3 className="text-xl font-black text-blue-dark mb-6 flex items-center gap-2">
-                 <PlusCircle className="text-blue-light" size={20} /> جدولة حصة مباشرة جديدة
-              </h3>
-              <form onSubmit={handleCreateSession} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                 <div className="space-y-2">
-                    <label className="text-xs font-black text-gray-400 uppercase pr-2">المربي</label>
-                    <select required value={newSession.teacherId} onChange={e => setNewSession({...newSession, teacherId: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-xs font-bold outline-none ring-1 ring-gray-100 italic">
-                       <option value="">اختر المربي</option>
-                       {data.users.filter(u => u.userType === 'teacher').map(t => (
-                         <option key={t.id} value={t.id}>{t.displayName}</option>
-                       ))}
-                    </select>
-                 </div>
-                 <div className="space-y-2">
-                    <label className="text-xs font-black text-gray-400 uppercase pr-2">المجموعة الهدف</label>
-                    <select required value={newSession.groupId} onChange={e => {
-                      const g = data.groups.find(g => g.id === e.target.value);
-                      setNewSession({...newSession, groupId: e.target.value, level: g?.level || ''});
-                    }} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-xs font-bold outline-none ring-1 ring-gray-100 italic">
-                       <option value="">اختر المجموعة</option>
-                       {data.groups.map(g => (
-                         <option key={g.id} value={g.id}>{g.name} (السنة {g.level})</option>
-                       ))}
-                    </select>
-                 </div>
-                 <div className="space-y-2">
-                    <label className="text-xs font-black text-gray-400 uppercase pr-2">التوقيت</label>
-                    <input required type="datetime-local" value={newSession.dateTime} onChange={e => setNewSession({...newSession, dateTime: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
-                    {newSession.dateTime && (
-                      <p className="text-[10px] text-emerald-600 font-bold bg-emerald-50/50 py-1.5 px-3 rounded-xl pr-2 mt-1 leading-normal">
-                        {(() => {
-                          try {
-                            const d = new Date(newSession.dateTime);
-                            if (isNaN(d.getTime())) return '';
-                            const options: Intl.DateTimeFormatOptions = { 
-                              weekday: 'long', 
-                              year: 'numeric', 
-                              month: 'long', 
-                              day: 'numeric' 
-                            };
-                            const arabicDate = d.toLocaleDateString('ar-TN', options);
-                            const h = d.getHours();
-                            const m = d.getMinutes().toString().padStart(2, '0');
-                            const displayedH = h.toString().padStart(2, '0');
-                            const period = h >= 12 ? 'مساءً' : 'صباحاً';
-                            const displayHour12 = h % 12 === 0 ? 12 : h % 12;
-                            return `مجدولة في: ${arabicDate} على الساعة ${displayedH}:${m} (${displayHour12}:${m} ${period})`;
-                          } catch (e) { return ''; }
-                        })()}
-                      </p>
-                    )}
-                 </div>
-                 <div className="space-y-2">
-                    <label className="text-xs font-black text-gray-400 uppercase pr-2">رابط الميت</label>
-                    <input required type="text" placeholder="https://meet.google.com/..." value={newSession.meetLink} onChange={e => setNewSession({...newSession, meetLink: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
-                 </div>
-                 <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-black text-gray-400 uppercase pr-2">عنوان الحصة / الموضوع</label>
-                    <input required type="text" placeholder="مثال: مراجعة شاملة للثلاثي الأول" value={newSession.title} onChange={e => setNewSession({...newSession, title: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
-                 </div>
-                 <div className="flex items-end md:col-span-2">
-                    <button disabled={loading} type="submit" className="w-full py-4 rounded-2xl bg-blue-dark text-white font-black text-sm shadow-xl flex items-center justify-center gap-2">
-                       {loading ? <Loader2 className="animate-spin" /> : <Save size={18} />} جدولة الحصة الآن
-                    </button>
-                 </div>
-              </form>
-           </div>
 
-           {/* Scheduled Sessions List */}
-           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {data.teacherSessions.length > 0 ? (
-                data.teacherSessions
-                  .sort((a, b) => {
-                    const getTime = (d: any) => {
-                      if (!d) return 0;
-                      try {
-                        const date = new Date(d);
-                        return isNaN(date.getTime()) ? 0 : date.getTime();
-                      } catch (e) { return 0; }
-                    };
-                    return getTime(b.dateTime) - getTime(a.dateTime);
-                  })
-                  .map(s => (
-                  <div key={s.id} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm relative group overflow-hidden">
-                    <div className="mb-4 flex items-center justify-between">
-                      <span className={cn(
-                        "px-3 py-1 rounded-full text-[0.6rem] font-black uppercase tracking-wider",
-                        s.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-dark'
-                      )}>
-                        {s.status === 'completed' ? 'تمت بنجاح' : 'جاري التنفيذ'}
-                      </span>
-                      <button 
-                        onClick={() => setPendingDelete({ id: s.id, label: s.title || 'حصة', type: 'generic', coll: 'teacherSessions' })}
-                        className="p-2 text-gray-300 hover:text-red-500 transition-colors"
-                      >
-                         <Trash2 size={14} />
-                      </button>
-                    </div>
-                    <h4 className="font-black text-blue-dark mb-1 truncate">{s.title || 'حصة بدون عنوان'}</h4>
-                    <p className="text-[0.65rem] font-bold text-gray-400 mb-4">{s.groupName} • {formatDate(s.dateTime)}</p>
+        {activeSubTab === 'weekly' && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-6 rounded-[32px] border border-gray-100">
+              <div>
+                <h3 className="text-lg font-black text-blue-dark">توزيع الحصص الأسبوعية للمجموعات</h3>
+                <p className="text-gray-400 text-xs font-bold mt-1">يعرض هذا المخطط الأيام والمواعيد القارة التي تم تحديدها لكل مجموعة تعليمية في إعدادات المجموعات.</p>
+              </div>
+              <button 
+                onClick={() => { setEditingGroup(null); navigate('/dashboard?tab=groups'); }}
+                className="px-6 py-3 rounded-xl bg-blue-dark text-white font-black text-xs hover:bg-blue-brand transition-all flex items-center gap-2"
+              >
+                <Plus size={16} /> ضبط وتعديل الجداول
+              </button>
+            </div>
+
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
+              {days.map(day => (
+                <div key={day} className="flex flex-col gap-4">
+                  <div className="bg-blue-dark text-white p-3 rounded-2xl text-center font-black text-xs shadow-lg shadow-blue-900/10">
+                    {day}
+                  </div>
+                  
+                  <div className="flex flex-col gap-3 min-h-[100px]">
+                    {data.groups.flatMap(g => (g.schedule || []).filter((s: any) => s.day === day).map((s: any) => ({ ...s, groupName: g.name, level: g.level, teacher: g.teacherName })))
+                      .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                      .map((session, idx) => (
+                        <div key={`${session.groupName}-${idx}`} className="p-4 rounded-2xl bg-white border border-gray-100 shadow-sm hover:border-blue-light/30 transition-all group">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-[0.6rem] font-black text-blue-light">{session.startTime} ← {session.endTime}</span>
+                          </div>
+                          <h4 className="text-xs font-black text-blue-dark truncate" title={session.groupName}>{session.groupName}</h4>
+                          <div className="mt-2 flex items-center justify-between">
+                            <span className="text-[0.6rem] font-bold text-gray-400 uppercase tracking-tighter">السنة {session.level}</span>
+                            <div className="h-6 w-6 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-brand transition-colors">
+                              <Clock size={12} />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     
-                    {s.status !== 'completed' && (
-                      <div className="space-y-2">
-                        {(() => {
-                           const sessionTime = s.dateTime?.toDate ? s.dateTime.toDate().getTime() : new Date(s.dateTime).getTime();
-                           const now = Date.now();
-                           const fifteenMinutesInMs = 15 * 60 * 1000;
-                           const canJoin = now >= (sessionTime - fifteenMinutesInMs);
-                           
-                           if (canJoin) {
-                             return (
-                               <a 
-                                 href={s.meetLink} 
-                                 target="_blank" 
-                                 rel="noopener noreferrer"
-                                 onClick={async () => {
-                                   try {
-                                     await addDoc(collection(db, 'attendance'), {
-                                       userId: user.uid,
-                                       userName: userData.displayName || 'Admin',
-                                       userType: 'admin',
-                                       groupId: s.groupId,
-                                       groupName: s.groupName,
-                                       meetLink: s.meetLink,
-                                       timestamp: serverTimestamp()
-                                     });
-                                   } catch (e) { console.error(e); }
-                                 }}
-                                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-dark text-white text-[0.7rem] font-black shadow-lg shadow-blue-500/20 hover:scale-[1.02] transition-all"
-                               >
-                                 <Video size={16} />
-                                 <span>الالتحاق بالحصة المباشرة</span>
-                               </a>
-                             );
-                           } else {
-                             return (
-                               <div className="w-full py-3 rounded-xl bg-gray-50 border border-gray-100 text-gray-400 text-[0.65rem] font-black flex items-center justify-center gap-2">
-                                 <Lock size={14} />
-                                 <span>الرابط سيتفعل قبل 15 دقيقة</span>
-                               </div>
-                             );
-                           }
-                        })()}
-
-                        <button 
-                          onClick={() => handleCompleteSession(s.id)}
-                          disabled={loading}
-                          className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-[0.65rem] font-black shadow-lg shadow-emerald-900/10 hover:bg-emerald-700 transition-all"
-                        >
-                          تأكيد الإتمام (دفع 20 د.ت للمربي)
-                        </button>
-                      </div>
-                    )}
-                    {s.status === 'completed' && (
-                      <div className="flex items-center justify-center gap-2 text-[0.65rem] font-black text-emerald-600 bg-emerald-50 py-2.5 rounded-xl">
-                        <CheckCircle size={14} /> تمت وحصل المربي على مستحقاته
+                    {data.groups.flatMap(g => (g.schedule || []).filter((s: any) => s.day === day)).length === 0 && (
+                      <div className="flex-1 py-6 rounded-2xl border-2 border-dashed border-gray-50 flex items-center justify-center">
+                        <span className="text-[0.65rem] font-bold text-gray-200">لا توجد حصص قارة</span>
                       </div>
                     )}
                   </div>
-                ))
-              ) : (
-                <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 py-20 text-center bg-white rounded-[32px] border-2 border-dashed border-gray-50 text-gray-300 font-bold italic">
-                   لا توجد حصص مجدولة لعرضها
                 </div>
-              )}
-           </div>
-        </div>
-      )}
-    </div>
-  );
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeSubTab === 'logs' && (
+          <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-x-auto min-h-[400px] animate-in fade-in duration-300">
+            <div className="grid grid-cols-[1.5fr_1fr_1.5fr_1fr_1fr_60px] min-w-[1000px] bg-gray-50/80 p-6 border-b border-gray-100 text-[0.65rem] font-black text-gray-400 uppercase tracking-widest">
+               <div className="text-right pr-4">المستخدم</div>
+               <div className="text-center">الدور</div>
+               <div className="text-center">المجموعة</div>
+               <div className="text-center">الوقت</div>
+               <div className="text-center">التاريخ</div>
+               <div className="text-center">رابط</div>
+            </div>
+            <div className="divide-y divide-gray-50">
+              <AnimatePresence mode="popLayout">
+                {data.attendance.length > 0 ? (
+                  data.attendance.map(att => (
+                    <motion.div 
+                      layout
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      key={att.id} 
+                      className="grid grid-cols-[1.5fr_1fr_1.5fr_1fr_1fr_60px] p-6 items-center hover:bg-gray-50 transition-all min-w-[1000px]"
+                    >
+                       <div className="flex items-center gap-3 text-right">
+                          <div className="h-10 w-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-black text-xs">
+                             {att.userName?.charAt(0) || 'U'}
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-black text-blue-dark truncate max-w-[180px]">{att.userName}</h4>
+                            <p className="text-[0.6rem] text-gray-400 font-bold">UID: {att.userId?.substring(0, 8)}...</p>
+                          </div>
+                       </div>
+                       <div className="text-center">
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-[0.6rem] font-black",
+                            att.userType === 'teacher' ? 'bg-indigo-50 text-indigo-600' : 'bg-blue-50 text-blue-dark'
+                          )}>
+                            {att.userType === 'teacher' ? 'مربي' : 'تلميذ'}
+                          </span>
+                       </div>
+                       <div className="text-center">
+                          <p className="text-xs font-black text-blue-dark">{att.groupName}</p>
+                          <p className="text-[0.6rem] text-gray-400 font-bold">ID: {att.groupId?.substring(0, 8)}</p>
+                       </div>
+                       <div className="text-center">
+                          <span className="text-[0.7rem] font-black text-gray-500">
+                            {formatDate(att.timestamp)}
+                          </span>
+                       </div>
+                       <div className="flex justify-center">
+                          <a href={att.meetLink} target="_blank" className="p-2 rounded-lg bg-blue-50 text-blue-brand hover:bg-blue-brand hover:text-white transition-all">
+                            <ExternalLink size={14} />
+                          </a>
+                       </div>
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="py-40 text-center flex flex-col items-center justify-center opacity-30 min-w-[1000px]">
+                     <CheckCircle size={80} className="mb-4" />
+                     <p className="text-lg font-black italic">لا يوجد سجل حضور حالياً</p>
+                     <p className="text-xs mt-2">سجلات الحضور ستظهر آلياً عند التحاق المستخدمين بالحصص المباشرة.</p>
+                  </div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        )}
+
+        {activeSubTab === 'scheduled' && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+             {/* Automatic Generation Date Range Form */}
+             <div className="bg-gradient-to-br from-[#0B0F19] to-[#1A233A] p-8 rounded-[40px] text-white shadow-2xl relative overflow-hidden border border-white/5">
+                <div className="absolute right-0 top-0 h-48 w-48 translate-x-1/4 -translate-y-1/4 rounded-full bg-blue-light/10 blur-[80px]" />
+                <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+                  <div>
+                    <h3 className="text-xl font-black mb-2 flex items-center gap-2">
+                      <Zap className="text-gold-brand animate-bounce" size={24} />
+                      التوليد الآلي والذكي للحصص من الجداول المعتمدة
+                    </h3>
+                    <p className="text-indigo-200/70 text-xs font-bold leading-relaxed max-w-2xl">
+                      حدد حيزاً زمنياً (من تاريخ إلى تاريخ) لتوليد حصص التدريس آلياً لجميع المجموعات بناءً على أوقاتها المسجلة بالجدول الموحد. لن يقوم النظام بتوليد الحصص المكررة التي تم إنشاؤها مسبقاً.
+                    </p>
+                  </div>
+                  
+                  <div className="flex flex-wrap items-end gap-4 bg-white/5 p-4 rounded-3xl border border-white/10">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-indigo-300 uppercase pr-1">من تاريخ</label>
+                      <input 
+                        type="date" 
+                        value={generateStartDate} 
+                        onChange={e => setGenerateStartDate(e.target.value)} 
+                        className="w-full rounded-xl bg-white/10 border-none px-4 py-3 text-xs font-bold text-white outline-none ring-1 ring-white/15 focus:ring-gold-brand"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-indigo-300 uppercase pr-1">إلى تاريخ</label>
+                      <input 
+                        type="date" 
+                        value={generateEndDate} 
+                        onChange={e => setGenerateEndDate(e.target.value)} 
+                        className="w-full rounded-xl bg-white/10 border-none px-4 py-3 text-xs font-bold text-white outline-none ring-1 ring-white/15 focus:ring-gold-brand"
+                      />
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={handleGenerateWeeklySessions}
+                      disabled={loading}
+                      className="px-6 py-3 rounded-xl bg-gold-brand hover:bg-yellow-500 text-blue-dark font-black text-xs transition-all flex items-center gap-2 shadow-lg shadow-gold-brand/10 active:scale-95 disabled:opacity-50"
+                    >
+                      {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                      توليد الحصص للفترة المحددة
+                    </button>
+                  </div>
+                </div>
+             </div>
+
+             {/* Create Session Form */}
+             <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm">
+                <h3 className="text-xl font-black text-blue-dark mb-6 flex items-center gap-2">
+                   <PlusCircle className="text-blue-light" size={20} /> جدولة حصة مباشرة جديدة يدويّاً
+                </h3>
+                <form onSubmit={handleCreateSession} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                   <div className="space-y-2">
+                      <label className="text-xs font-black text-gray-400 uppercase pr-2">المربي</label>
+                      <select required value={newSession.teacherId} onChange={e => setNewSession({...newSession, teacherId: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-xs font-bold outline-none ring-1 ring-gray-100 italic">
+                         <option value="">اختر المربي</option>
+                         {data.users.filter(u => u.userType === 'teacher').map(t => (
+                           <option key={t.id} value={t.id}>{t.displayName}</option>
+                         ))}
+                      </select>
+                   </div>
+                   <div className="space-y-2">
+                      <label className="text-xs font-black text-gray-400 uppercase pr-2">المجموعة الهدف</label>
+                      <select required value={newSession.groupId} onChange={e => {
+                        const g = data.groups.find(g => g.id === e.target.value);
+                        setNewSession({...newSession, groupId: e.target.value, level: g?.level || '', isFree: newSession.isFree});
+                      }} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-xs font-bold outline-none ring-1 ring-gray-100 italic">
+                         <option value="">اختر المجموعة</option>
+                         {data.groups.map(g => (
+                           <option key={g.id} value={g.id}>{g.name} (السنة {g.level})</option>
+                         ))}
+                      </select>
+                   </div>
+                   <div className="space-y-2">
+                      <label className="text-xs font-black text-gray-400 uppercase pr-2">التوقيت</label>
+                      <input required type="datetime-local" value={newSession.dateTime} onChange={e => setNewSession({...newSession, dateTime: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
+                      {newSession.dateTime && (
+                        <p className="text-[10px] text-emerald-600 font-bold bg-emerald-50/50 py-1.5 px-3 rounded-xl pr-2 mt-1 leading-normal">
+                          {(() => {
+                            try {
+                              const d = new Date(newSession.dateTime);
+                              if (isNaN(d.getTime())) return '';
+                              const options: Intl.DateTimeFormatOptions = { 
+                                weekday: 'long', 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                              };
+                              const arabicDate = d.toLocaleDateString('ar-TN', options);
+                              const h = d.getHours();
+                              const m = d.getMinutes().toString().padStart(2, '0');
+                              const displayedH = h.toString().padStart(2, '0');
+                              const period = h >= 12 ? 'مساءً' : 'صباحاً';
+                              const displayHour12 = h % 12 === 0 ? 12 : h % 12;
+                              return `مجدولة في: ${arabicDate} على الساعة ${displayedH}:${m} (${displayHour12}:${m} ${period})`;
+                            } catch (e) { return ''; }
+                          })()}
+                        </p>
+                      )}
+                   </div>
+                   <div className="space-y-2">
+                      <label className="text-xs font-black text-gray-400 uppercase pr-2">نوع وصلاحية الحصة</label>
+                      <select required value={newSession.isFree ? 'free' : 'paid'} onChange={e => setNewSession({...newSession, isFree: e.target.value === 'free'})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-xs font-bold outline-none ring-1 ring-gray-100">
+                         <option value="paid">🔒 مدفوعة (تظهر للمشتركين فقط)</option>
+                         <option value="free">🔓 مجانية (تظهر لجميع تلاميذ المستوى)</option>
+                      </select>
+                   </div>
+                   <div className="space-y-2 md:col-span-2">
+                      <label className="text-xs font-black text-gray-400 uppercase pr-2">رابط الميت</label>
+                      <input required type="text" placeholder="https://meet.google.com/..." value={newSession.meetLink} onChange={e => setNewSession({...newSession, meetLink: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
+                   </div>
+                   <div className="space-y-2 md:col-span-2">
+                      <label className="text-xs font-black text-gray-400 uppercase pr-2">عنوان الحصة / الموضوع</label>
+                      <input required type="text" placeholder="مثال: مراجعة شاملة للثلاثي الأول" value={newSession.title} onChange={e => setNewSession({...newSession, title: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
+                   </div>
+                   <div className="flex items-end md:col-span-4">
+                      <button disabled={loading} type="submit" className="w-full py-5 rounded-2xl bg-blue-dark text-white font-black text-base shadow-2xl hover:bg-blue-brand transition-all flex items-center justify-center gap-3">
+                         {loading ? <Loader2 className="animate-spin" /> : <Save size={20} />} جدولة الحصة الفردية الآن
+                      </button>
+                   </div>
+                </form>
+             </div>
+
+             {/* Scheduled Sessions List */}
+             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {data.teacherSessions.length > 0 ? (
+                  data.teacherSessions
+                    .sort((a, b) => {
+                      const getTime = (d: any) => {
+                        if (!d) return 0;
+                        try {
+                          const date = new Date(d);
+                          return isNaN(date.getTime()) ? 0 : date.getTime();
+                        } catch (e) { return 0; }
+                      };
+                      return getTime(b.dateTime) - getTime(a.dateTime);
+                    })
+                    .map(s => (
+                    <div key={s.id} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm relative group overflow-hidden flex flex-col justify-between min-h-[250px]">
+                      <div>
+                        <div className="mb-4 flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex gap-1.5 flex-wrap">
+                            <span className={cn(
+                              "px-2 py-0.5 rounded-full text-[0.55rem] font-black uppercase tracking-wider",
+                              s.isFree ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-blue-50 text-blue-brand border border-blue-100'
+                            )}>
+                              {s.isFree ? '🔓 مجانية' : '🔒 مدفوعة'}
+                            </span>
+                            <span className={cn(
+                              "px-2 py-0.5 rounded-full text-[0.55rem] font-black uppercase tracking-wider",
+                              s.status === 'completed' ? 'bg-emerald-50 text-emerald-600 animate-pulse' : 'bg-amber-50 text-amber-600'
+                            )}>
+                              {s.status === 'completed' ? 'تمت بنجاح' : 'جاري التنفيذ'}
+                            </span>
+                          </div>
+                          <button 
+                            onClick={() => setPendingDelete({ id: s.id, label: s.title || 'حصة', type: 'generic', coll: 'teacherSessions' })}
+                            className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                          >
+                             <Trash2 size={14} />
+                          </button>
+                        </div>
+                        <h4 className="font-black text-blue-dark mb-1 truncate" title={s.title}>{s.title || 'حصة بدون عنوان'}</h4>
+                        <p className="text-[0.65rem] font-bold text-gray-400 mb-4">{s.groupName} • {formatDate(s.dateTime)}</p>
+                      </div>
+                      
+                      <div>
+                        {s.status !== 'completed' && (
+                          <div className="space-y-2">
+                            {(() => {
+                               const sessionTime = s.dateTime?.toDate ? s.dateTime.toDate().getTime() : new Date(s.dateTime).getTime();
+                               const now = Date.now();
+                               const fifteenMinutesInMs = 15 * 60 * 1000;
+                               const canJoin = now >= (sessionTime - fifteenMinutesInMs);
+                               
+                               if (canJoin) {
+                                 return (
+                                   <a 
+                                     href={s.meetLink} 
+                                     target="_blank" 
+                                     rel="noopener noreferrer"
+                                     onClick={async () => {
+                                       try {
+                                         await addDoc(collection(db, 'attendance'), {
+                                           userId: user.uid,
+                                           userName: userData.displayName || 'Admin',
+                                           userType: 'admin',
+                                           groupId: s.groupId,
+                                           groupName: s.groupName,
+                                           meetLink: s.meetLink,
+                                           timestamp: serverTimestamp()
+                                         });
+                                       } catch (e) { console.error(e); }
+                                     }}
+                                     className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-dark text-white text-[0.7rem] font-black shadow-lg shadow-blue-500/20 hover:scale-[1.02] transition-all"
+                                   >
+                                     <Video size={16} />
+                                     <span>الالتحاق بالحصة المباشرة</span>
+                                   </a>
+                                 );
+                               } else {
+                                 return (
+                                   <div className="w-full py-3 rounded-xl bg-gray-50 border border-gray-100 text-gray-400 text-[0.65rem] font-black flex items-center justify-center gap-2">
+                                     <Lock size={14} />
+                                     <span>الرابط سيتفعل قبل 15 دقيقة</span>
+                                   </div>
+                                 );
+                               }
+                            })()}
+
+                            <button 
+                              onClick={() => handleCompleteSession(s.id)}
+                              disabled={loading}
+                              className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-[0.65rem] font-black shadow-lg shadow-emerald-900/10 hover:bg-emerald-700 transition-all"
+                            >
+                              {s.isFree ? 'تأكيد إتمام الحصة المجانية (بدون معلوم)' : 'تأكيد الإتمام (دفع 30 د.ت للمربي)'}
+                            </button>
+                          </div>
+                        )}
+                        {s.status === 'completed' && (
+                          <div className="flex items-center justify-center gap-2 text-[0.65rem] font-black text-emerald-600 bg-emerald-50 py-2.5 rounded-xl">
+                            <CheckCircle size={14} /> تمت وحصل المربي على مستحقاته
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 py-20 text-center bg-white rounded-[32px] border-2 border-dashed border-gray-50 text-gray-300 font-bold italic">
+                     لا توجد حصص مجدولة لعرضها
+                  </div>
+                )}
+             </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderWallets = () => (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
@@ -3421,6 +3575,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                   <option value="assignment">فرض مراقبة</option>
                   <option value="synthesis">فرض تأليفي</option>
                   <option value="exercise">سلسلة تمارين</option>
+                  <option value="summer_review">مراجعة صيفية</option>
                 </select>
               </div>
               <div className="space-y-2">
@@ -3452,7 +3607,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                     </button>
                  </div>
               </div>
-              {(c.type === 'lesson' || c.type === 'exercise') && (
+              {(c.type === 'lesson' || c.type === 'exercise' || c.type === 'summer_review') && (
                 <div className="space-y-2">
                   <label className="text-xs font-black text-gray-400 uppercase pr-2">التصنيف *</label>
                   <select value={c.category || 'general'} onChange={e => setC({...c, category: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
@@ -3486,10 +3641,10 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                 </div>
               )}
 
-              {(c.type === 'lesson' || c.type === 'assignment' || c.type === 'synthesis') && (
+              {(c.type === 'lesson' || c.type === 'assignment' || c.type === 'synthesis' || c.type === 'summer_review') && (
                 <div className="md:col-span-2 space-y-2">
-                  <label className="text-xs font-black text-gray-400 uppercase pr-2">العنوان {c.type === 'lesson' ? '*' : '(اختياري)'}</label>
-                  <input required={c.type === 'lesson'} type="text" value={c.title} onChange={e => setC({...c, title: e.target.value})} placeholder={c.type === 'lesson' ? "مثال: الأعداد الحقيقية" : "سيتم توليد عنوان آلي إذا ترك فارغاً"} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
+                  <label className="text-xs font-black text-gray-400 uppercase pr-2">{c.type === 'summer_review' ? 'عنوان الحصة *' : `العنوان ${c.type === 'lesson' ? '*' : '(اختياري)'}`}</label>
+                  <input required={c.type === 'lesson' || c.type === 'summer_review'} type="text" value={c.title} onChange={e => setC({...c, title: e.target.value})} placeholder={c.type === 'lesson' ? "مثال: الأعداد الحقيقية" : c.type === 'summer_review' ? "مثال: مراجعة الحساب الذهني والتناسب" : "سيتم توليد عنوان آلي إذا ترك فارغاً"} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
                 </div>
               )}
 
@@ -3565,68 +3720,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   };
 
 
-  const renderSchedule = () => {
-    const days = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'];
-    
-    return (
-      <div className="space-y-8 animate-in fade-in duration-500 pb-20">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-gold-brand/10 text-amber-600 flex items-center justify-center border border-gold-brand/20 shadow-sm">
-              <Calendar size={28} />
-            </div>
-            <div>
-              <h2 className="text-3xl font-black text-blue-dark">الجدول الأسبوعي الموحد</h2>
-              <p className="text-gray-400 font-bold text-sm">متابعة كافة الحصص المباشرة لجميع المجموعات ({data.groups.length} مجموعات)</p>
-            </div>
-          </div>
-          
-          <button 
-            onClick={() => { setEditingGroup(null); navigate('/dashboard?tab=groups'); }}
-            className="px-6 py-3 rounded-xl bg-blue-dark text-white font-black text-xs hover:bg-blue-brand transition-all flex items-center gap-2"
-          >
-            <Plus size={16} /> ضبط وتعديل الجداول
-          </button>
-        </div>
 
-        <div className="grid gap-8 grid-cols-1 xl:grid-cols-7">
-          {days.map(day => (
-            <div key={day} className="flex flex-col gap-4">
-              <div className="bg-blue-dark text-white p-3 rounded-2xl text-center font-black text-xs shadow-lg shadow-blue-900/10">
-                {day}
-              </div>
-              
-              <div className="flex flex-col gap-3 min-h-[100px]">
-                {data.groups.flatMap(g => (g.schedule || []).filter((s: any) => s.day === day).map((s: any) => ({ ...s, groupName: g.name, level: g.level, teacher: g.teacherName })))
-                  .sort((a, b) => a.startTime.localeCompare(b.startTime))
-                  .map((session, idx) => (
-                    <div key={`${session.groupName}-${idx}`} className="p-4 rounded-2xl bg-white border border-gray-100 shadow-sm hover:border-blue-light/30 transition-all group">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[0.6rem] font-black text-blue-light">{session.startTime} ← {session.endTime}</span>
-                      </div>
-                      <h4 className="text-xs font-black text-blue-dark truncate" title={session.groupName}>{session.groupName}</h4>
-                      <div className="mt-2 flex items-center justify-between">
-                        <span className="text-[0.6rem] font-bold text-gray-400 uppercase tracking-tighter">السنة {session.level}</span>
-                        <div className="h-6 w-6 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-brand transition-colors">
-                          <Clock size={12} />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                
-                {data.groups.flatMap(g => (g.schedule || []).filter((s: any) => s.day === day)).length === 0 && (
-                  <div className="flex-1 rounded-2xl border-2 border-dashed border-gray-50 flex items-center justify-center">
-                    <span className="text-[0.65rem] font-bold text-gray-200">فارغ</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
 
   const handleSaveAccessRule = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -4105,7 +4199,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       case 'wallets': return renderWallets();
       case 'content': return renderContentManager();
       case 'contentAccess': return renderContentAccessControl();
-      case 'schedule': return renderSchedule();
+      case 'schedule': return renderAttendance();
       case 'maintenance': return renderMaintenance();
       default: return renderOverview();
     }

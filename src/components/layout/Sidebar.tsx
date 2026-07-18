@@ -53,8 +53,7 @@ export default function Sidebar({ user, userData, isOpen, setIsOpen, isCollapsed
     student: [
       { id: 'overview', icon: LayoutDashboard, label: 'الإستقبال', href: '/dashboard' },
       { id: 'courses', icon: BookOpen, label: 'الدروس التعليمية', href: '/courses' },
-      { id: 'sessions', icon: Calendar, label: 'الحصص المباشرة', href: '/dashboard?tab=sessions' },
-      { id: 'schedule', icon: Calendar, label: 'الجدول الأسبوعي', href: '/dashboard?tab=schedule' },
+      { id: 'schedule', icon: Calendar, label: 'الحصص المباشرة', href: '/dashboard?tab=schedule' },
       { id: 'wallet', icon: Wallet, label: 'المحفظة', href: '/dashboard?tab=wallet' },
       { id: 'referral', icon: Users, label: 'إحالة الأصدقاء', href: '/dashboard?tab=referral' },
       { id: 'help', icon: Settings, label: 'المساعدة', href: '/dashboard?tab=help' },
@@ -70,9 +69,7 @@ export default function Sidebar({ user, userData, isOpen, setIsOpen, isCollapsed
     teacher: [
       { id: 'overview', icon: LayoutDashboard, label: 'لوحة التحكم', href: '/dashboard' },
       { id: 'courses', icon: BookOpen, label: 'الدروس والبرامج', href: '/courses' },
-      { id: 'sessions', icon: Calendar, label: 'الحصص المباشرة', href: '/dashboard?tab=sessions' },
-      { id: 'schedule', icon: Calendar, label: 'الجدول الأسبوعي', href: '/dashboard?tab=schedule' },
-      { id: 'attendance', icon: Users, label: 'تسجيل الحضور', href: '/dashboard?tab=attendance' },
+      { id: 'schedule', icon: Calendar, label: 'الحصص المباشرة', href: '/dashboard?tab=schedule' },
       { id: 'wallet', icon: Wallet, label: 'محفظتي المادية', href: '/dashboard?tab=wallet' },
     ],
     admin: [
@@ -84,8 +81,7 @@ export default function Sidebar({ user, userData, isOpen, setIsOpen, isCollapsed
       { id: 'users', icon: Users, label: 'قائمة المستخدمين', href: '/dashboard?tab=users' },
       { id: 'subscriptions', icon: CreditCard, label: 'الاشتراكات', href: '/dashboard?tab=subscriptions' },
       { id: 'groups', icon: Users, label: 'المجموعات', href: '/dashboard?tab=groups' },
-      { id: 'schedule', icon: Calendar, label: 'الجدول الأسبوعي', href: '/dashboard?tab=schedule' },
-      { id: 'attendance', icon: FileText, label: 'الحصص والحضور', href: '/dashboard?tab=attendance' },
+      { id: 'schedule', icon: Calendar, label: 'الحصص المباشرة والحضور', href: '/dashboard?tab=schedule' },
       { id: 'wallets', icon: Wallet, label: 'محافظ المدرسين', href: '/dashboard?tab=wallets' },
       { id: 'maintenance', icon: HardDrive, label: 'الصيانة', href: '/dashboard?tab=maintenance' },
     ]

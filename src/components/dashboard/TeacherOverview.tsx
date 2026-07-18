@@ -45,6 +45,7 @@ export default function TeacherOverview({ activeTab, userData, user }: Props) {
   const [payoutRequests, setPayoutRequests] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [requestingPayout, setRequestingPayout] = useState(false);
+  const [scheduleSubTab, setScheduleSubTab] = useState<'sessions' | 'weekly' | 'attendance'>('sessions');
 
   const formatDate = (date: any, includeTime: boolean = true) => {
     if (!date) return '---';
@@ -509,174 +510,263 @@ export default function TeacherOverview({ activeTab, userData, user }: Props) {
 
   switch (activeTab) {
     case 'overview': return renderOverview();
-    case 'sessions': return (
-      <div className="space-y-8 animate-in fade-in duration-500 pb-20">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 shadow-sm">
-              <Video size={28} />
-            </div>
-            <div>
-              <h2 className="text-3xl font-black text-blue-dark">حصص المباشرة المجدولة</h2>
-              <p className="text-gray-400 font-bold text-sm">قائمة المواعيد والروابط الرسمية ({sessions.length})</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {sessions.length > 0 ? (
-            sessions.map(s => {
-              const sessionTime = s.dateTime?.toDate ? s.dateTime.toDate().getTime() : new Date(s.dateTime).getTime();
-              const now = Date.now();
-              const fifteenMinutesInMs = 15 * 60 * 1000;
-              const canJoin = now >= (sessionTime - fifteenMinutesInMs);
-
-              return (
-                <div key={s.id} className="bg-white rounded-[32px] border border-gray-100 p-6 shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
-                  <div className="mb-4 flex items-center justify-between">
-                    <span className={cn(
-                      "px-3 py-1 rounded-full text-[0.6rem] font-black uppercase tracking-wider border",
-                      s.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
-                      s.status === 'scheduled' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-gray-50 text-gray-500 border-gray-100'
-                    )}>
-                      {s.status === 'completed' ? 'تمت' : s.status === 'scheduled' ? 'مجدولة' : 'ملغاة'}
-                    </span>
-                    <div className="flex items-center gap-2 text-[0.65rem] font-black text-gray-400">
-                      <Clock size={12} />
-                      <span>{formatDate(s.dateTime)}</span>
-                    </div>
-                  </div>
-
-                  <h4 className="text-lg font-black text-blue-dark mb-2">{s.title || s.chapter || 'حصة مباشرة'}</h4>
-                  <div className="space-y-1 mb-6">
-                    <p className="text-[0.65rem] font-bold text-gray-400">المستوى: <span className="text-blue-dark">السنة {s.level}</span></p>
-                    <p className="text-[0.65rem] font-bold text-gray-400">المجموعة: <span className="text-blue-dark">{s.groupName || 'نشط'}</span></p>
-                  </div>
-
-                  {s.status === 'scheduled' && s.meetLink && (
-                    canJoin ? (
-                      <button 
-                        onClick={() => {
-                          import('@/src/lib/attendanceService').then(({ logAttendance }) => {
-                            logAttendance({
-                              userId: user.uid,
-                              userName: userData.displayName || 'أستاذ',
-                              userType: 'teacher',
-                              groupId: s.groupId || '',
-                              groupName: s.groupName || 'نشط',
-                              meetLink: s.meetLink,
-                              sessionId: s.id
-                            });
-                          });
-                        }}
-                        className="w-full py-4 rounded-2xl bg-blue-dark text-white font-black text-sm shadow-xl flex items-center justify-center gap-2 hover:-translate-y-1 transition-all"
-                      >
-                        <Video size={18} />
-                        ابدأ الحصة الآن
-                      </button>
-                    ) : (
-                      <div className="space-y-3">
-                        <button 
-                          disabled
-                          className="w-full py-4 rounded-2xl bg-gray-100 text-gray-400 font-black text-sm border border-gray-200 cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                          <Lock size={16} /> يفتح القاعة قريباً
-                        </button>
-                        <p className="text-[0.6rem] text-center text-amber-600 font-bold">
-                          يتم تفعيل الرابط قبل 15 دقيقة من موعد الحصة
-                        </p>
-                      </div>
-                    )
-                  )}
-                  {s.status === 'completed' && (
-                    <div className="py-4 rounded-2xl bg-emerald-50 text-emerald-600 font-black text-sm text-center flex items-center justify-center gap-2">
-                      <CheckCircle2 size={18} />
-                      حصة مكتملة (+20 د.ت)
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          ) : (
-            <div className="sm:col-span-2 lg:col-span-3 py-24 text-center border-2 border-dashed border-gray-50 rounded-[32px]">
-               <Video size={64} className="mx-auto mb-6 opacity-10" />
-               <p className="text-lg font-black italic">لا توجد حصص مجدولة حالياً</p>
-               <p className="text-xs mt-2">ستظهر الحصص هنا فور تعيينها من قبل الإدارة.</p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-    case 'attendance': return renderAttendance();
-    case 'schedule': return (
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center border border-orange-100 shadow-sm">
-              <Calendar size={28} />
-            </div>
-            <div>
-              <h2 className="text-3xl font-black text-blue-dark">الجدول الأسبوعي لمجموعاتي</h2>
-              <p className="text-gray-400 font-bold text-sm">مواعيد الحصص المباشرة للمجموعات التي تشرف عليها ({myGroups.length} مجموعات)</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {myGroups.length > 0 ? (
-            myGroups.map(g => (
-              <div key={g.id} className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
-                <div className="p-6 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-blue-dark text-white flex items-center justify-center font-black text-xs shadow-sm">
-                      {g.level}
-                    </div>
-                    <div>
-                      <h4 className="font-black text-blue-dark text-sm">{g.name}</h4>
-                      <p className="text-[0.65rem] text-gray-400 font-bold">السنة {g.level} أساسي</p>
-                    </div>
-                  </div>
-                  {g.meetLink && (
-                    <a href={g.meetLink} target="_blank" className="p-2 rounded-lg bg-blue-50 text-blue-brand hover:bg-blue-brand hover:text-white transition-all">
-                      <Globe size={14} />
-                    </a>
-                  )}
-                </div>
-                
-                <div className="p-6 flex-1">
-                   {g.schedule && g.schedule.length > 0 ? (
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                       {g.schedule.map((s: any, idx: number) => (
-                         <div key={idx} className="flex items-center gap-3 p-3 rounded-2xl bg-blue-50/30 border border-blue-100/20 group hover:border-blue-brand/30 transition-all">
-                            <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center text-blue-brand font-black text-[0.65rem] shadow-sm">
-                               {s.day.charAt(0)}
-                            </div>
-                            <div>
-                               <p className="text-[0.68rem] font-bold text-blue-dark/60">{s.day}</p>
-                               <p className="text-xs font-black text-blue-dark">{s.startTime} → {s.endTime}</p>
-                            </div>
-                         </div>
-                       ))}
-                     </div>
-                   ) : (
-                     <div className="py-10 text-center opacity-30">
-                        <Calendar size={40} className="mx-auto mb-2" />
-                        <p className="text-xs font-bold">لم يتم ضبط جدول هذه المجموعة</p>
-                     </div>
-                   )}
-                </div>
+    case 'sessions':
+    case 'attendance':
+    case 'schedule': {
+      return (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20 text-right" dir="rtl">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center border border-orange-100 shadow-sm">
+                <Calendar size={28} />
               </div>
-            ))
+              <div>
+                <h2 className="text-3xl font-black text-blue-dark">الحصص المباشرة</h2>
+                <p className="text-gray-400 font-bold text-sm">متابعة وإدارة الحصص المباشرة والجدول الأسبوعي وحضور التلاميذ</p>
+              </div>
+            </div>
+
+            <div className="flex bg-gray-100 p-1.5 rounded-2xl self-start">
+              <button 
+                onClick={() => setScheduleSubTab('sessions')}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-xs font-black transition-all",
+                  scheduleSubTab === 'sessions' ? "bg-white text-blue-dark shadow-sm" : "text-gray-400 hover:text-gray-600"
+                )}
+              >
+                الحصص المباشرة المجدولة
+              </button>
+              <button 
+                onClick={() => setScheduleSubTab('weekly')}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-xs font-black transition-all",
+                  scheduleSubTab === 'weekly' ? "bg-white text-blue-dark shadow-sm" : "text-gray-400 hover:text-gray-600"
+                )}
+              >
+                الجدول الأسبوعي لمجموعاتي
+              </button>
+              <button 
+                onClick={() => setScheduleSubTab('attendance')}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-xs font-black transition-all",
+                  scheduleSubTab === 'attendance' ? "bg-white text-blue-dark shadow-sm" : "text-gray-400 hover:text-gray-600"
+                )}
+              >
+                سجلات حضور التلاميذ
+              </button>
+            </div>
+          </div>
+
+          {scheduleSubTab === 'sessions' ? (
+            <div className="space-y-8 animate-in fade-in duration-300">
+              <div>
+                <h3 className="text-lg font-black text-blue-dark">الحصص المباشرة المجدولة</h3>
+                <p className="text-gray-400 font-bold text-xs">قائمة مواعيد ولقاءات البث التفاعلي المبرمجة حالياً ({sessions.length})</p>
+              </div>
+
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {sessions.length > 0 ? (
+                  sessions.map(s => {
+                    const sessionTime = s.dateTime?.toDate ? s.dateTime.toDate().getTime() : new Date(s.dateTime).getTime();
+                    const now = Date.now();
+                    const fifteenMinutesInMs = 15 * 60 * 1000;
+                    const canJoin = now >= (sessionTime - fifteenMinutesInMs);
+
+                    return (
+                      <div key={s.id} className="bg-white rounded-[32px] border border-gray-100 p-6 shadow-sm hover:shadow-xl transition-all group overflow-hidden relative text-right">
+                        <div className="mb-4 flex items-center justify-between">
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-[0.6rem] font-black uppercase tracking-wider border",
+                            s.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
+                            s.status === 'scheduled' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-gray-50 text-gray-500 border-gray-100'
+                          )}>
+                            {s.status === 'completed' ? 'تمت' : s.status === 'scheduled' ? 'مجدولة' : 'ملغاة'}
+                          </span>
+                          <div className="flex items-center gap-2 text-[0.65rem] font-black text-gray-400">
+                            <Clock size={12} />
+                            <span>{formatDate(s.dateTime)}</span>
+                          </div>
+                        </div>
+
+                        <h4 className="text-lg font-black text-blue-dark mb-2">{s.title || s.chapter || 'حصة مباشرة'}</h4>
+                        <div className="space-y-1 mb-6 text-right">
+                          <p className="text-[0.65rem] font-bold text-gray-400">المستوى: <span className="text-blue-dark">السنة {s.level}</span></p>
+                          <p className="text-[0.65rem] font-bold text-gray-400">المجموعة: <span className="text-blue-dark">{s.groupName || 'نشط'}</span></p>
+                        </div>
+
+                        {s.status === 'scheduled' && s.meetLink && (
+                          canJoin ? (
+                            <button 
+                              onClick={() => {
+                                import('@/src/lib/attendanceService').then(({ logAttendance }) => {
+                                  logAttendance({
+                                    userId: user.uid,
+                                    userName: userData.displayName || 'أستاذ',
+                                    userType: 'teacher',
+                                    groupId: s.groupId || '',
+                                    groupName: s.groupName || 'نشط',
+                                    meetLink: s.meetLink,
+                                    sessionId: s.id
+                                  });
+                                });
+                              }}
+                              className="w-full py-4 rounded-2xl bg-blue-dark text-white font-black text-sm shadow-xl flex items-center justify-center gap-2 hover:-translate-y-1 transition-all"
+                            >
+                              <Video size={18} />
+                              ابدأ الحصة الآن
+                            </button>
+                          ) : (
+                            <div className="space-y-3">
+                              <button 
+                                disabled
+                                className="w-full py-4 rounded-2xl bg-gray-100 text-gray-400 font-black text-sm border border-gray-200 cursor-not-allowed flex items-center justify-center gap-2"
+                              >
+                                <Lock size={16} /> يفتح القاعة قريباً
+                              </button>
+                              <p className="text-[0.6rem] text-center text-amber-600 font-bold">
+                                يتم تفعيل الرابط قبل 15 دقيقة من موعد الحصة
+                              </p>
+                            </div>
+                          )
+                        )}
+                        {s.status === 'completed' && (
+                          <div className="py-4 rounded-2xl bg-emerald-50 text-emerald-600 font-black text-sm text-center flex items-center justify-center gap-2">
+                            <CheckCircle2 size={18} fill="currentColor" />
+                            {s.isFree ? 'حصة مكتملة (مجانية بدون معلوم)' : 'حصة مكتملة (+30 د.ت)'}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="sm:col-span-2 lg:col-span-3 py-24 text-center border-2 border-dashed border-gray-50 rounded-[32px] bg-white w-full">
+                     <Video size={64} className="mx-auto mb-6 opacity-10" />
+                     <p className="text-lg font-black italic">لا توجد حصص مجدولة حالياً</p>
+                     <p className="text-xs mt-2 text-gray-400 font-bold">ستظهر الحصص هنا فور تعيينها من قبل الإدارة.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : scheduleSubTab === 'weekly' ? (
+            <div className="space-y-8 animate-in fade-in duration-300">
+              <div>
+                <h3 className="text-lg font-black text-blue-dark">الجدول الأسبوعي المعتمد لمجموعاتي</h3>
+                <p className="text-gray-400 font-bold text-xs">أوقات ومواعيد الحصص الدورية للمجموعات التي تشرف عليها ({myGroups.length})</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {myGroups.length > 0 ? (
+                  myGroups.map(g => (
+                    <div key={g.id} className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden flex flex-col text-right">
+                      <div className="p-6 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-xl bg-blue-dark text-white flex items-center justify-center font-black text-xs shadow-sm">
+                            {g.level}
+                          </div>
+                          <div>
+                            <h4 className="font-black text-blue-dark text-sm">{g.name}</h4>
+                            <p className="text-[0.65rem] text-gray-400 font-bold">السنة {g.level} أساسي</p>
+                          </div>
+                        </div>
+                        {g.meetLink && (
+                          <a href={g.meetLink} target="_blank" className="p-2 rounded-lg bg-blue-50 text-blue-brand hover:bg-blue-brand hover:text-white transition-all">
+                            <Globe size={14} />
+                          </a>
+                        )}
+                      </div>
+                      
+                      <div className="p-6 flex-1">
+                         {g.schedule && g.schedule.length > 0 ? (
+                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                             {g.schedule.map((s: any, idx: number) => (
+                               <div key={idx} className="flex items-center gap-3 p-3 rounded-2xl bg-blue-50/30 border border-blue-100/20 group hover:border-blue-brand/30 transition-all justify-start">
+                                  <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center text-blue-brand font-black text-[0.65rem] shadow-sm shrink-0">
+                                     {s.day.charAt(0)}
+                                  </div>
+                                  <div>
+                                     <p className="text-[0.68rem] font-bold text-blue-dark/60">{s.day}</p>
+                                     <p className="text-xs font-black text-blue-dark">{s.startTime} ← {s.endTime}</p>
+                                  </div>
+                               </div>
+                             ))}
+                           </div>
+                         ) : (
+                           <div className="py-10 text-center opacity-30">
+                              <Calendar size={40} className="mx-auto mb-2" />
+                              <p className="text-xs font-bold">لم يتم ضبط جدول هذه المجموعة</p>
+                           </div>
+                         )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="lg:col-span-2 py-24 text-center border-2 border-dashed border-gray-50 rounded-[32px] bg-white w-full">
+                     <Calendar size={64} className="mx-auto mb-6 opacity-10" />
+                     <p className="text-lg font-black italic">لا توجد حصص مبرمجة حالياً</p>
+                     <p className="text-xs mt-2 text-gray-400 font-bold">سيظهر جدول مجموعاتك هنا فور إضافته من قبل الإدارة.</p>
+                  </div>
+                )}
+              </div>
+            </div>
           ) : (
-            <div className="lg:col-span-2 py-24 text-center border-2 border-dashed border-gray-50 rounded-[32px]">
-               <Calendar size={64} className="mx-auto mb-6 opacity-10" />
-               <p className="text-lg font-black italic">لا توجد حصص مبرمجة حالياً</p>
-               <p className="text-xs mt-2">سيتم تعيين جدول فور إضافته من قبل الإدارة.</p>
+            <div className="space-y-8 animate-in fade-in duration-300 text-right">
+              <div>
+                <h3 className="text-lg font-black text-blue-dark">سجلات حضور تلامذتي</h3>
+                <p className="text-gray-400 font-bold text-xs">متابعة وحصر التلاميذ الملتحقين بالبث المباشر لحصصك</p>
+              </div>
+
+              {(() => {
+                const myGroupIds = myGroups.map(g => g.id);
+                const myAttendance = attendance.filter((a: any) => myGroupIds.includes(a.groupId));
+
+                return (
+                  <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-x-auto min-h-[400px]">
+                    <div className="grid grid-cols-[1.5fr_1.5fr_1fr_1fr] bg-gray-50/80 p-6 border-b border-gray-100 text-[0.65rem] font-black text-gray-400 uppercase tracking-widest text-center min-w-[600px]">
+                       <div className="text-right pr-4">التلميذ</div>
+                       <div>المجموعة</div>
+                       <div>الوقت</div>
+                       <div>التاريخ</div>
+                    </div>
+                    <div className="divide-y divide-gray-50 overflow-x-auto">
+                      {myAttendance.length > 0 ? (
+                        myAttendance.map((att: any) => (
+                          <div key={att.id} className="grid grid-cols-[1.5fr_1.5fr_1fr_1fr] p-6 items-center text-center hover:bg-gray-50 transition-all min-w-[600px]">
+                             <div className="flex items-center gap-3 text-right">
+                                <div className="h-10 w-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-black text-xs">
+                                   {att.userName?.charAt(0) || 'U'}
+                                </div>
+                                <h4 className="text-sm font-black text-blue-dark truncate max-w-[150px]">{att.userName}</h4>
+                             </div>
+                             <div>
+                                <p className="text-xs font-black text-blue-dark">{att.groupName}</p>
+                             </div>
+                             <div>
+                                <span className="text-[0.7rem] font-black text-gray-500">
+                                  {formatDate(att.timestamp)}
+                                </span>
+                             </div>
+                             <div>
+                                <span className="text-[0.7rem] font-black text-gray-500">
+                                  {formatDate(att.timestamp, false)}
+                                </span>
+                             </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="py-40 text-center opacity-30">
+                           <CheckCircle2 size={64} className="mx-auto mb-4" />
+                           <p className="text-lg font-black italic text-gray-400">لا يوجد سجل حضور حالياً</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
-      </div>
-    );
+      );
+    }
     case 'wallet': return (
       <div className="space-y-8 animate-in fade-in duration-500 pb-20">
         <div className="flex items-center gap-4">
@@ -717,7 +807,7 @@ export default function TeacherOverview({ activeTab, userData, user }: Props) {
               <ul className="space-y-3 text-[0.7rem] font-bold text-gray-500 leading-relaxed">
                 <li className="flex gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-blue-light mt-1.5 flex-shrink-0" />
-                  <span>ثمن الحصة الواحدة هو 20 دينار تونسي.</span>
+                  <span>ثمن الحصة الواحدة هو 30 دينار تونسي (تكون الحصص المجانية المبرمجة بدون معلوم).</span>
                 </li>
                 <li className="flex gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-blue-light mt-1.5 flex-shrink-0" />

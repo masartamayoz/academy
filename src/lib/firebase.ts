@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { initializeFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { initializeFirestore, enableMultiTabIndexedDbPersistence, enableIndexedDbPersistence, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 export { firebaseConfig };
@@ -16,6 +16,32 @@ console.info('Initializing Firestore for project:', firebaseConfig.projectId);
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
 }, firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)' ? firebaseConfig.firestoreDatabaseId : undefined);
+
+// Enable offline persistence for robust reliability across temporary network dropouts
+if (typeof window !== 'undefined') {
+  enableMultiTabIndexedDbPersistence(db)
+    .then(() => {
+      console.info('Firestore offline multi-tab persistence enabled successfully.');
+    })
+    .catch((err) => {
+      if (err.code === 'failed-precondition') {
+        // Multiple tabs open, persistence can only be enabled in one tab at a time.
+        console.warn('Firestore multi-tab persistence failed-precondition: multiple tabs open.');
+      } else if (err.code === 'unimplemented') {
+        // The current browser does not support all of the features required to enable persistence
+        console.warn('Firestore multi-tab persistence unimplemented in this browser. Falling back to single-tab...');
+        enableIndexedDbPersistence(db)
+          .then(() => {
+            console.info('Firestore offline single-tab persistence enabled successfully.');
+          })
+          .catch((e) => {
+            console.warn('Firestore single-tab persistence failed:', e);
+          });
+      } else {
+        console.warn('Firestore multi-tab persistence failed to enable:', err);
+      }
+    });
+}
 
 export enum OperationType {
   CREATE = 'create',

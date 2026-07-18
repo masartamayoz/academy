@@ -60,6 +60,7 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
   const [sessions, setSessions] = useState<any[]>([]);
   const [selectedPlanForSub, setSelectedPlanForSub] = useState<any>(null);
   const [selectedMethod, setSelectedMethod] = useState<string>('');
+  const [scheduleSubTab, setScheduleSubTab] = useState<'sessions' | 'weekly'>('sessions');
 
   const hasAugustReviewAccess = (() => {
     if (!userData || (userData.planId !== 'august_review' && userData.plan !== 'august_review')) return false;
@@ -248,22 +249,28 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
     let unsubSessions: () => void = () => {};
     let unsubGroup: () => void = () => {};
 
-    if (userData.group && isSubscribed) {
+    if (userData.level) {
+      const sQuery = query(
+        collection(db, 'teacherSessions'),
+        where('level', '==', String(userData.level)),
+        where('status', 'in', ['scheduled', 'completed'])
+      );
+      unsubSessions = onSnapshot(sQuery, (sSnap) => {
+        const allSessions = sSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const filtered = allSessions.filter((s: any) => {
+          if (s.isFree) return true;
+          return isSubscribed && userData.group && s.groupName === userData.group;
+        });
+        setSessions(filtered);
+      }, (err) => handleFirestoreError(err, OperationType.LIST, 'teacherSessions'));
+    }
+
+    if (userData.group) {
       const gQuery = query(collection(db, 'groups'), where('name', '==', userData.group));
       unsubGroup = onSnapshot(gQuery, (snap) => {
         if (!snap.empty) {
           const gInfo = { id: snap.docs[0].id, ...snap.docs[0].data() };
           setGroupInfo(gInfo);
-
-          // Sub-snapshot for sessions of this group
-          const sQuery = query(
-            collection(db, 'teacherSessions'),
-            where('groupId', '==', gInfo.id),
-            where('status', 'in', ['scheduled', 'completed'])
-          );
-          unsubSessions = onSnapshot(sQuery, (sSnap) => {
-            setSessions(sSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-          }, (err) => handleFirestoreError(err, OperationType.LIST, 'teacherSessions'));
         }
       }, (err) => handleFirestoreError(err, OperationType.LIST, 'groups'));
     }
@@ -426,10 +433,12 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
                         <div className={cn(
                           "absolute bottom-2 right-2 rounded-md px-2 py-0.5 text-[0.65rem] font-bold text-white backdrop-blur-sm",
                           v.type === 'lesson' ? 'bg-blue-dark/80' : 
+                          v.type === 'summer_review' ? 'bg-indigo-600/80' : 
                           v.type === 'exercise' ? 'bg-emerald-600/80' : 
                           'bg-amber-600/80'
                         )}>
                           {v.type === 'lesson' ? 'درس فيديو' : 
+                           v.type === 'summer_review' ? 'مراجعة صيفية' : 
                            v.type === 'exercise' ? 'تمارين' : 
                            v.type === 'assignment' ? 'فرض مراقبة' : 'فرض تأليفي'}
                         </div>
@@ -559,239 +568,264 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
         </div>
       </div>
     );
-    case 'sessions': 
+    case 'sessions':
+    case 'schedule': {
       if (userData?.planId === 'recordings_yearly' || userData?.plan === 'recordings_yearly') return renderOverview();
       
-      const isSubscribed = userData?.subscriptionStatus === 'active';
-      
-      return (
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
-        <div className="flex items-center justify-between">
-           <div className="flex items-center gap-3">
-             <div className="h-12 w-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-100">
-               <Video size={24} />
-             </div>
-             <div>
-               <h3 className="text-2xl font-black text-blue-dark">حصص المباشرة</h3>
-               <p className="text-gray-400 font-bold text-xs">قائمة الحصص المجدولة والروابط الرسمية للالتحاق</p>
-             </div>
-           </div>
-           {groupInfo?.whatsappLink && (
-             <a 
-               href={groupInfo.whatsappLink} 
-               target="_blank" 
-               rel="noopener noreferrer"
-               className="hidden md:flex items-center gap-2 px-6 py-3 rounded-2xl bg-green-50 text-green-600 text-xs font-black border border-green-100 hover:bg-green-100 transition-all shadow-sm"
-             >
-               <Globe size={16} />
-               <span>مجموعة واتساب المرافقة</span>
-             </a>
-           )}
-        </div>
+      const isSubscribed = userData?.subscriptionStatus === 'active' || hasAugustReviewAccess || hasStudentFreeAccess;
 
-        {!isSubscribed ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed border-gray-100 rounded-[40px] bg-white px-6">
-            <div className="h-20 w-20 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 mb-6 shadow-xl shadow-amber-500/10">
-              <Lock size={40} />
+      return (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20 text-right" dir="rtl">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center border border-orange-100 shadow-sm">
+                <Calendar size={28} />
+              </div>
+              <div>
+                <h2 className="text-3xl font-black text-blue-dark">الحصص المباشرة</h2>
+                <p className="text-gray-400 font-bold text-sm">متابعة جدول الحصص المباشرة لمجموعتك</p>
+              </div>
             </div>
-            <h3 className="text-2xl font-black text-blue-dark mb-3">هذا القسم مخصص للمشتركين 🔐</h3>
-            <p className="text-gray-400 font-bold text-sm max-w-md mx-auto leading-relaxed">
-              انضم إلى مجتمع مسار التميز! الحصص المباشرة والجدول الأسبوعي والمتابعة الدقيقة متاحة حصرياً للمشتركين النشطين. اشترك الآن لتبدأ رحلة النجاح مع نخبة من الأساتذة.
-            </p>
-            <div className="mt-10 flex flex-wrap justify-center gap-4">
-              <Link to="/pricing" className="bg-blue-brand text-white px-8 py-3.5 rounded-2xl font-black text-sm shadow-xl shadow-blue-900/20 hover:bg-blue-dark transition-all flex items-center gap-2">
-                <Zap size={18} fill="currentColor" />
-                الاشتراك الآن
-              </Link>
+
+            <div className="flex bg-gray-100 p-1.5 rounded-2xl">
               <button 
-                onClick={() => setSearchParams({ tab: 'wallet' })}
-                className="bg-white border-2 border-gray-100 text-gray-600 px-8 py-3.5 rounded-2xl font-black text-sm hover:border-blue-light hover:text-blue-light transition-all"
+                onClick={() => setScheduleSubTab('sessions')}
+                className={cn(
+                  "px-6 py-2.5 rounded-xl text-xs font-black transition-all",
+                  scheduleSubTab === 'sessions' ? "bg-white text-blue-dark shadow-sm" : "text-gray-400 hover:text-gray-600"
+                )}
               >
-                رفع وصل الدفع
+                الحصص المباشرة المجدولة
+              </button>
+              <button 
+                onClick={() => setScheduleSubTab('weekly')}
+                className={cn(
+                  "px-6 py-2.5 rounded-xl text-xs font-black transition-all",
+                  scheduleSubTab === 'weekly' ? "bg-white text-blue-dark shadow-sm" : "text-gray-400 hover:text-gray-600"
+                )}
+              >
+                الجدول الأسبوعي المعتمد
               </button>
             </div>
           </div>
-        ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {sessions.length > 0 ? (
-              sessions
-                .sort((a, b) => {
-                  const getTime = (d: any) => {
-                    if (!d) return 0;
-                    try {
-                      const date = new Date(d);
-                      return isNaN(date.getTime()) ? 0 : date.getTime();
-                    } catch (e) { return 0; }
-                  };
-                  return getTime(b.dateTime) - getTime(a.dateTime);
-                })
-                .map(s => (
-                <div key={s.id} className="bg-white rounded-[32px] border border-gray-100 p-8 shadow-sm hover:shadow-xl transition-all relative overflow-hidden group">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className={cn(
-                      "px-3 py-1 rounded-full text-[0.6rem] font-black uppercase tracking-wider",
-                      s.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-brand'
-                    )}>
-                      {s.status === 'completed' ? 'تمت' : 'مجدولة'}
-                    </span>
-                    <div className="flex items-center gap-2 text-[0.6rem] font-bold text-gray-400">
-                      <Clock size={12} />
-                      {formatDate(s.dateTime)}
-                    </div>
+
+          {scheduleSubTab === 'sessions' ? (
+            <div className="space-y-8 animate-in fade-in duration-300">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-black text-blue-dark">الحصص المباشرة</h3>
+                  <p className="text-gray-400 font-bold text-xs">قائمة الحصص الفردية والمراجعات المبرمجة حالياً</p>
+                </div>
+                {groupInfo?.whatsappLink && (
+                  <a 
+                    href={groupInfo.whatsappLink} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-green-50 text-green-600 text-xs font-black border border-green-100 hover:bg-green-100 transition-all shadow-sm"
+                  >
+                    <Globe size={14} />
+                    <span>مجموعة واتساب المرافقة</span>
+                  </a>
+                )}
+              </div>
+
+              {!isSubscribed && (
+                <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-r from-blue-brand to-indigo-900 p-6 text-white shadow-lg flex flex-col md:flex-row md:items-center md:justify-between gap-6 border border-white/10 text-right">
+                  <div className="space-y-2">
+                    <h4 className="text-lg font-black text-gold-brand flex items-center gap-2 justify-start">
+                      <Lock size={18} className="text-gold-brand animate-pulse shrink-0" />
+                      <span>أنت تشاهد الحصص المباشرة المجانية فقط</span>
+                    </h4>
+                    <p className="text-xs font-bold text-blue-100 leading-relaxed max-w-2xl">
+                      هناك العديد من الحصص المباشرة والدروس التفاعلية المدفوعة والمتابعة الفردية التي تقدمها الأكاديمية مع المعلمين. اشترك الآن في العرض الكامل لتحصل على وصول شامل لكل الخدمات.
+                    </p>
                   </div>
+                  <div className="flex gap-3 shrink-0">
+                    <Link to="/pricing" className="bg-gold-brand text-blue-dark px-6 py-3 rounded-xl font-black text-xs shadow-lg hover:bg-white transition-all flex items-center gap-1.5">
+                      <Zap size={14} fill="currentColor" />
+                      <span>اشترك الآن</span>
+                    </Link>
+                  </div>
+                </div>
+              )}
 
-                  <h4 className="text-lg font-black text-blue-dark mb-2">{s.title || 'حصة مباشرة'}</h4>
-                  <p className="text-xs font-bold text-gray-400 mb-6 italic">{s.chapter || 'مراجعة وتطبيقات عمليّة'}</p>
-
-                  {s.status === 'scheduled' ? (() => {
-                    const sessionTime = s.dateTime?.toDate ? s.dateTime.toDate().getTime() : new Date(s.dateTime).getTime();
-                    const now = Date.now();
-                    const fifteenMinutesInMs = 15 * 60 * 1000;
-                    const canJoin = now >= (sessionTime - fifteenMinutesInMs);
-                    
-                    if (!canJoin) {
-                      return (
-                        <div className="space-y-3">
-                          <button 
-                            disabled
-                            className="w-full py-4 rounded-2xl bg-gray-100 text-gray-400 font-black text-sm border border-gray-200 cursor-not-allowed flex items-center justify-center gap-2"
-                          >
-                            <Lock size={16} /> يفتح القاعة قريباً
-                          </button>
-                          <p className="text-[0.6rem] text-center text-amber-600 font-bold">
-                            يتم تفعيل الرابط قبل 15 دقيقة من موعد الحصة
-                          </p>
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {sessions.length > 0 ? (
+                  sessions
+                    .sort((a, b) => {
+                      const getTime = (d: any) => {
+                        if (!d) return 0;
+                        try {
+                          const date = new Date(d);
+                          return isNaN(date.getTime()) ? 0 : date.getTime();
+                        } catch (e) { return 0; }
+                      };
+                      return getTime(b.dateTime) - getTime(a.dateTime);
+                    })
+                    .map(s => (
+                    <div key={s.id} className="bg-white rounded-[32px] border border-gray-100 p-8 shadow-sm hover:shadow-xl transition-all relative overflow-hidden group text-right">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex gap-2">
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-[0.6rem] font-black uppercase tracking-wider",
+                            s.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-brand'
+                          )}>
+                            {s.status === 'completed' ? 'تمت' : 'مجدولة'}
+                          </span>
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-[0.6rem] font-black uppercase tracking-wider",
+                            s.isFree ? 'bg-amber-50 text-amber-600' : 'bg-indigo-50 text-indigo-600'
+                          )}>
+                            {s.isFree ? '🔓 مجانية' : '🔒 مدفوعة'}
+                          </span>
                         </div>
-                      );
-                    }
+                        <div className="flex items-center gap-2 text-[0.6rem] font-bold text-gray-400">
+                          <Clock size={12} />
+                          {formatDate(s.dateTime)}
+                        </div>
+                      </div>
 
-                    return (
-                      <button 
-                        onClick={() => {
-                          import('@/src/lib/attendanceService').then(({ logAttendance }) => {
-                            logAttendance({
-                              userId: user.uid,
-                              userName: userData.displayName || 'تلميذ',
-                              userType: 'student',
-                              groupId: groupInfo.id,
-                              groupName: groupInfo.name,
-                              meetLink: s.meetLink,
-                              sessionId: s.id
-                            });
-                          });
-                        }}
-                        className="w-full py-4 rounded-2xl bg-blue-brand text-white font-black text-sm shadow-xl shadow-blue-900/10 hover:bg-blue-dark hover:-translate-y-1 transition-all flex items-center justify-center gap-2"
-                      >
-                        <Play size={18} /> الالتحاق بالحصة
-                      </button>
-                    );
-                  })() : (
-                    <div className="w-full py-4 rounded-2xl bg-gray-50 text-gray-400 font-black text-sm text-center flex items-center justify-center gap-2 border border-gray-100">
-                      <CheckCircle2 size={18} /> حصة مكتملة
+                      <h4 className="text-lg font-black text-blue-dark mb-2">{s.title || 'حصة مباشرة'}</h4>
+                      <p className="text-xs font-bold text-gray-400 mb-6 italic">{s.chapter || 'مراجعة وتطبيقات عمليّة'}</p>
+
+                      {s.status === 'scheduled' ? (() => {
+                        const sessionTime = s.dateTime?.toDate ? s.dateTime.toDate().getTime() : new Date(s.dateTime).getTime();
+                        const now = Date.now();
+                        const fifteenMinutesInMs = 15 * 60 * 1000;
+                        const canJoin = now >= (sessionTime - fifteenMinutesInMs);
+                        
+                        if (!canJoin) {
+                          return (
+                            <div className="space-y-3">
+                              <button 
+                                disabled
+                                className="w-full py-4 rounded-2xl bg-gray-100 text-gray-400 font-black text-sm border border-gray-200 cursor-not-allowed flex items-center justify-center gap-2"
+                              >
+                                <Lock size={16} /> يفتح القاعة قريباً
+                              </button>
+                              <p className="text-[0.6rem] text-center text-amber-600 font-bold">
+                                يتم تفعيل الرابط قبل 15 دقيقة من موعد الحصة
+                              </p>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <button 
+                            onClick={() => {
+                              import('@/src/lib/attendanceService').then(({ logAttendance }) => {
+                                logAttendance({
+                                  userId: user.uid,
+                                  userName: userData.displayName || 'تلميذ',
+                                  userType: 'student',
+                                  groupId: s.groupId || groupInfo?.id || 'free_session',
+                                  groupName: s.groupName || groupInfo?.name || 'حصة مجانية',
+                                  meetLink: s.meetLink,
+                                  sessionId: s.id
+                                });
+                              });
+                            }}
+                            className="w-full py-4 rounded-2xl bg-blue-brand text-white font-black text-sm shadow-xl shadow-blue-900/10 hover:bg-blue-dark hover:-translate-y-1 transition-all flex items-center justify-center gap-2"
+                          >
+                            <Play size={18} /> الالتحاق بالحصة
+                          </button>
+                        );
+                      })() : (
+                        <div className="w-full py-4 rounded-2xl bg-gray-50 text-gray-400 font-black text-sm text-center flex items-center justify-center gap-2 border border-gray-100">
+                          <CheckCircle2 size={18} /> حصة مكتملة
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-1 sm:col-span-2 lg:col-span-3 py-24 text-center border-2 border-dashed border-gray-50 rounded-[40px] bg-white w-full">
+                     <Video size={64} className="mx-auto mb-6 opacity-10" />
+                     <p className="text-xl font-black italic text-gray-300">لا توجد حصص مجدولة حالياً</p>
+                     <p className="text-xs mt-2 text-gray-400 font-bold">يرجى متابعة الجدول الأسبوعي ومجموعة الواتساب للتنبيهات.</p>
+                     {groupInfo?.meetLink && isSubscribed && (
+                       <div className="mt-8 flex flex-col items-center gap-4">
+                          <p className="text-[0.65rem] font-black text-blue-light uppercase tracking-widest">غرفة الميت الدائمة</p>
+                          <a 
+                            href={groupInfo.meetLink} 
+                            target="_blank"
+                            className="px-8 py-3 rounded-2xl bg-blue-50 text-blue-brand font-black text-xs border border-blue-100 hover:bg-blue-brand hover:text-white transition-all shadow-sm"
+                          >
+                            دخول غرفة الميت العامة
+                          </a>
+                       </div>
+                     )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-8 animate-in fade-in duration-300">
+              <div>
+                <h3 className="text-lg font-black text-blue-dark">الجدول الأسبوعي المعتمد</h3>
+                <p className="text-gray-400 font-bold text-xs">مواعيد حصصك الأسبوعية الثابتة في مجموعة {groupInfo?.name || '...'}</p>
+              </div>
+
+              {!isSubscribed ? (
+                <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed border-gray-100 rounded-[40px] bg-white px-6">
+                  <div className="h-20 w-20 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 mb-6 shadow-xl shadow-amber-500/10">
+                    <Lock size={40} />
+                  </div>
+                  <h3 className="text-2xl font-black text-blue-dark mb-3">الجدول مخصص للمشتركين 🔐</h3>
+                  <p className="text-gray-400 font-bold text-sm max-w-md mx-auto leading-relaxed">
+                    انضم إلى مجتمع مسار التميز! الحصص المباشرة والجدول الأسبوعي والمتابعة الدقيقة متاحة حصرياً للمشتركين النشطين. اشترك الآن لتبدأ رحلة النجاح مع نخبة من الأساتذة.
+                  </p>
+                  <Link to="/pricing" className="mt-10 bg-gold-brand hover:bg-gold-light text-blue-dark px-10 py-4 rounded-2xl font-black text-sm shadow-xl shadow-gold-brand/20 transition-all flex items-center gap-2">
+                    <Zap size={18} fill="currentColor" /> الاشتراك الآن
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {groupInfo?.schedule && groupInfo.schedule.length > 0 ? (
+                    groupInfo.schedule.map((s: any, idx: number) => (
+                      <div key={idx} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-all group text-right">
+                        <div className="flex items-center justify-between mb-6">
+                          <div className="px-5 py-2 rounded-xl bg-orange-50 text-orange-600 text-xs font-black">
+                            {s.day}
+                          </div>
+                          <div className="h-10 w-10 rounded-xl bg-gray-50 text-gray-400 flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-dark transition-colors">
+                            <Clock size={18} />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[0.65rem] font-bold text-gray-400 uppercase">توقيت الحصة</p>
+                          <h4 className="text-xl font-black text-blue-dark flex items-center gap-2 justify-end">
+                            <span>{s.startTime}</span>
+                            <span className="text-gray-300 text-sm">←</span>
+                            <span>{s.endTime}</span>
+                          </h4>
+                        </div>
+                        <div className="mt-6 pt-6 border-t border-gray-50 flex items-center justify-between">
+                          <span className="text-[0.65rem] font-bold text-green-500 flex items-center gap-1">
+                            <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                            حصة مباشرة
+                          </span>
+                          {groupInfo.meetLink && (
+                            <a href={groupInfo.meetLink} target="_blank" className="text-[0.65rem] font-black text-blue-brand hover:underline">
+                              رابط الميت
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="md:col-span-2 lg:col-span-3 py-24 text-center border-2 border-dashed border-gray-50 rounded-[32px] w-full bg-white">
+                       <Calendar size={64} className="mx-auto mb-6 opacity-10" />
+                       <p className="text-lg font-black italic">لا يوجد حصص مبرمجة حالياً</p>
+                       <p className="text-xs mt-2">سيظهر جدول حصصك هنا فور تحديثه من قبل الإدارة.</p>
                     </div>
                   )}
                 </div>
-              ))
-            ) : (
-              <div className="sm:col-span-2 lg:col-span-3 py-24 text-center border-2 border-dashed border-gray-50 rounded-[40px] bg-white">
-                 <Video size={64} className="mx-auto mb-6 opacity-10" />
-                 <p className="text-xl font-black italic text-gray-300">لا توجد حصص مجدولة حالياً</p>
-                 <p className="text-xs mt-2 text-gray-400 font-bold">يرجى متابعة الجدول الأسبوعي ومجموعة الواتساب للتنبيهات.</p>
-                 {groupInfo?.meetLink && (
-                   <div className="mt-8 flex flex-col items-center gap-4">
-                      <p className="text-[0.65rem] font-black text-blue-light uppercase tracking-widest">غرفة الميت الدائمة</p>
-                      <a 
-                        href={groupInfo.meetLink} 
-                        target="_blank"
-                        className="px-8 py-3 rounded-2xl bg-blue-50 text-blue-brand font-black text-xs border border-blue-100 hover:bg-blue-brand hover:text-white transition-all shadow-sm"
-                      >
-                        دخول غرفة الميت العامة
-                      </a>
-                   </div>
-                 )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    );
-    case 'schedule': 
-      if (userData?.planId === 'recordings_yearly' || userData?.plan === 'recordings_yearly') return renderOverview();
-      
-      const isSubscribedSched = userData?.subscriptionStatus === 'active';
-
-      return (
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center border border-orange-100 shadow-sm">
-              <Calendar size={28} />
+              )}
             </div>
-            <div>
-              <h2 className="text-3xl font-black text-blue-dark">الجدول الأسبوعي</h2>
-              <p className="text-gray-400 font-bold text-sm">مواعيد حصصك المباشرة في مجموعة {groupInfo?.name || '...'}</p>
-            </div>
-          </div>
+          )}
         </div>
-
-        {!isSubscribedSched ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed border-gray-100 rounded-[40px] bg-white px-6">
-            <div className="h-20 w-20 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 mb-6 shadow-xl shadow-amber-500/10">
-              <Lock size={40} />
-            </div>
-            <h3 className="text-2xl font-black text-blue-dark mb-3">الجدول مخصص للمشتركين 🔐</h3>
-            <p className="text-gray-400 font-bold text-sm max-w-md mx-auto leading-relaxed">
-              انضم إلى مجتمع مسار التميز! الحصص المباشرة والجدول الأسبوعي والمتابعة الدقيقة متاحة حصرياً للمشتركين النشطين. اشترك الآن لتبدأ رحلة النجاح مع نخبة من الأساتذة.
-            </p>
-            <Link to="/pricing" className="mt-10 bg-gold-brand hover:bg-gold-light text-blue-dark px-10 py-4 rounded-2xl font-black text-sm shadow-xl shadow-gold-brand/20 transition-all flex items-center gap-2">
-              <Zap size={18} fill="currentColor" /> الاشتراك الآن
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {groupInfo?.schedule && groupInfo.schedule.length > 0 ? (
-              groupInfo.schedule.map((s: any, idx: number) => (
-                <div key={idx} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-all group">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="px-5 py-2 rounded-xl bg-orange-50 text-orange-600 text-xs font-black">
-                      {s.day}
-                    </div>
-                    <div className="h-10 w-10 rounded-xl bg-gray-50 text-gray-400 flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-dark transition-colors">
-                      <Clock size={18} />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[0.65rem] font-bold text-gray-400 uppercase">توقيت الحصة</p>
-                    <h4 className="text-xl font-black text-blue-dark flex items-center gap-2">
-                      <span>{s.startTime}</span>
-                      <span className="text-gray-300 text-sm">←</span>
-                      <span>{s.endTime}</span>
-                    </h4>
-                  </div>
-                  <div className="mt-6 pt-6 border-t border-gray-50 flex items-center justify-between">
-                    <span className="text-[0.65rem] font-bold text-green-500 flex items-center gap-1">
-                      <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                      حصة مباشرة
-                    </span>
-                    {groupInfo.meetLink && (
-                      <a href={groupInfo.meetLink} target="_blank" className="text-[0.65rem] font-black text-blue-brand hover:underline">
-                        رابط الميت
-                      </a>
-                    )}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="md:col-span-2 lg:col-span-3 py-24 text-center border-2 border-dashed border-gray-50 rounded-[32px]">
-                 <Calendar size={64} className="mx-auto mb-6 opacity-10" />
-                 <p className="text-lg font-black italic">لا يوجد حصص مبرمجة حالياً</p>
-                 <p className="text-xs mt-2">سيظهر جدول حصصك هنا فور تحديثه من قبل الإدارة.</p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    );
+      );
+    }
     case 'wallet': return (
       <div className="rounded-[32px] border border-gray-100 bg-white p-10 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
          {renderTabHeader('محفظتي واشتراكاتي', <Wallet size={22} />)}

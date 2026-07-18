@@ -23,10 +23,31 @@ export default function Dashboard() {
     const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
       if (authUser) {
         setUser(authUser);
-        const snap = await getDoc(doc(db, 'users', authUser.uid));
-        if (snap.exists()) {
-          setUserData(snap.data());
+        
+        // Load from local cache for immediate offline rendering
+        const cachedKey = `masar_user_data_${authUser.uid}`;
+        const cached = localStorage.getItem(cachedKey);
+        if (cached) {
+          try {
+            setUserData(JSON.parse(cached));
+          } catch (e) {
+            console.warn('Stale cached user data, ignoring:', e);
+          }
         }
+
+        try {
+          const snap = await getDoc(doc(db, 'users', authUser.uid));
+          if (snap.exists()) {
+            const data = snap.data();
+            setUserData(data);
+            localStorage.setItem(cachedKey, JSON.stringify(data));
+          }
+        } catch (error) {
+          console.warn('Could not load user data from Firestore (offline or slow):', error);
+        }
+      } else {
+        setUser(null);
+        setUserData(null);
       }
     });
     return () => unsubscribe();

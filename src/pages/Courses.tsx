@@ -6,7 +6,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { 
   Search, BookOpen, FileText, Play, Lock, X, 
   Loader2, Plus, Download, ExternalLink, File,
-  Video, Award
+  Video, Award, Sun
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import AppShell from '@/src/components/layout/AppShell';
@@ -216,6 +216,7 @@ export default function Courses() {
                <p className="px-3 text-[0.65rem] font-black uppercase tracking-widest text-gray-400 mb-2">المحتوى التعليمي</p>
                <SidebarItem id="lesson" icon={BookOpen} label="الدروس المشروحة" current={currentType} onClick={setCurrentType} />
                <SidebarItem id="exercise" icon={FileText} label="سلاسل التمارين" current={currentType} onClick={setCurrentType} />
+               <SidebarItem id="summer_review" icon={Sun} label="مراجعة صيفية" current={currentType} onClick={setCurrentType} />
              </div>
 
              <div className="space-y-1.5">
@@ -293,6 +294,7 @@ export default function Courses() {
               {[
                 { id: 'lesson', label: 'الدروس المشروحة', icon: BookOpen },
                 { id: 'exercise', label: 'سلاسل التمارين', icon: FileText },
+                { id: 'summer_review', label: 'مراجعة صيفية', icon: Sun },
                 { id: 'assignment', label: 'فروض المراقبة', icon: FileText },
                 { id: 'synthesis', label: 'الفروض التأليفية', icon: Award }
               ].map(subItem => {
@@ -408,7 +410,7 @@ export default function Courses() {
                                        <span className="text-[0.65rem] font-black text-blue-light uppercase tracking-wider">{item.chapter}</span>
                                        <span className="w-1 h-1 rounded-full bg-gray-200" />
                                        <span className="text-[0.65rem] font-bold text-gray-400">
-                                          {item.type === 'lesson' ? 'درس فيديو' : item.type === 'exercise' ? 'سلسلة تمارين' : 'نموذج فرض'}
+                                          {item.type === 'lesson' ? 'درس فيديو' : item.type === 'summer_review' ? 'درس مراجعة صيفية' : item.type === 'exercise' ? 'سلسلة تمارين' : 'نموذج فرض'}
                                        </span>
                                     </div>
                                     <h4 className="text-[0.95rem] font-black text-blue-dark truncate leading-tight tracking-tight group-hover:text-blue-brand transition-colors">
@@ -565,7 +567,7 @@ export default function Courses() {
                     {viewerItem.pdfText && (
                        <ResourceButton 
                           icon={FileText} 
-                          title={viewerItem.type === 'lesson' ? "ملخص الدرس" : "نص التمرين / الفرض"} 
+                          title={viewerItem.type === 'lesson' || viewerItem.type === 'summer_review' ? "ملخص الدرس" : "نص التمرين / الفرض"} 
                           sub="وثيقة بصيغة PDF" 
                           active={activeRes?.url === viewerItem.pdfText} 
                           onClick={() => setActiveRes({ type: 'pdf', url: viewerItem.pdfText, name: 'الوثيقة التعليمية' })}
