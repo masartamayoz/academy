@@ -55,7 +55,9 @@ import {
   Zap,
   Mail,
   Lock,
-  MapPin
+  MapPin,
+  Link,
+  X
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
@@ -117,6 +119,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     subscriptions: [] as any[],
     payoutRequests: [] as any[],
     contentAccessRules: [] as any[],
+    parentChildren: [] as any[],
   });
   const [stats, setStats] = useState({
     users: 0,
@@ -301,6 +304,8 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [bulkActionGroup, setBulkActionGroup] = useState('');
   const [showAssignStudentsModal, setShowAssignStudentsModal] = useState<any>(null); // For direct group assignment
+  const [linkingParent, setLinkingParent] = useState<any>(null);
+  const [studentSearch, setStudentSearch] = useState('');
   const [editingGroup, setEditingGroup] = useState<any>(null);
   const [showAddGroupForm, setShowAddGroupForm] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
@@ -388,6 +393,12 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       setData(prev => ({ ...prev, contentAccessRules: rules }));
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'contentAccessRules'));
 
+    const unsubParentChildren = onSnapshot(collection(db, 'parentChildren'), (snapshot) => {
+      const parentChildren: any[] = [];
+      snapshot.forEach(d => parentChildren.push({ id: d.id, ...d.data() }));
+      setData(prev => ({ ...prev, parentChildren }));
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'parentChildren'));
+
     return () => {
       unsubUsers();
       unsubReceipts();
@@ -398,6 +409,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       unsubAttendance();
       unsubPayouts();
       unsubAccessRules();
+      unsubParentChildren();
     };
   }, []);
 
@@ -422,9 +434,26 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       );
       const uid = userCredential.user.uid;
 
+      // Clean phone number if provided
+      let userPhone = newUser.phone ? newUser.phone.trim() : '';
+      if (userPhone) {
+        let cleaned = userPhone.replace(/[^\d+]/g, '');
+        if (cleaned.startsWith('00')) {
+          cleaned = '+' + cleaned.slice(2);
+        }
+        if (/^\d{8}$/.test(cleaned)) {
+          cleaned = '+216' + cleaned;
+        }
+        if (/^216\d{8}$/.test(cleaned)) {
+          cleaned = '+' + cleaned;
+        }
+        userPhone = cleaned;
+      }
+
       // 3. Save user info to Firestore using the generated UID
       await setDoc(doc(db, 'users', uid), {
         ...newUser,
+        phone: userPhone,
         displayName: `${newUser.firstName} ${newUser.lastName} `.trim(),
         subscriptionStatus: 'inactive',
         createdAt: serverTimestamp(),
@@ -1012,6 +1041,10 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
             <label className="text-xs font-black text-gray-400 uppercase pr-2">كلمة المرور *</label>
             <input required type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
           </div>
+          <div className="space-y-2">
+            <label className="text-xs font-black text-gray-400 uppercase pr-2">رقم الهاتف {newUser.userType === 'teacher' ? '*' : '(اختياري)'}</label>
+            <input required={newUser.userType === 'teacher'} type="tel" placeholder="مثال: 98765432" value={newUser.phone} onChange={e => setNewUser({...newUser, phone: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
+          </div>
 
           {newUser.userType === 'student' && (
             <>
@@ -1069,10 +1102,6 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                     <option key={gov} value={gov}>{gov}</option>
                   ))}
                 </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black text-gray-400 uppercase pr-2">رقم الهاتف *</label>
-                <input required type="tel" value={newUser.phone} onChange={e => setNewUser({...newUser, phone: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
               </div>
             </>
           )}
@@ -2021,11 +2050,26 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       const planPrice = planObj ? planObj.price : '40';
       const paymentMethod = editingUser.paymentMethod || 'direct';
 
+      let editedPhone = editingUser.phone ? editingUser.phone.trim() : '';
+      if (editedPhone) {
+        let cleaned = editedPhone.replace(/[^\d+]/g, '');
+        if (cleaned.startsWith('00')) {
+          cleaned = '+' + cleaned.slice(2);
+        }
+        if (/^\d{8}$/.test(cleaned)) {
+          cleaned = '+216' + cleaned;
+        }
+        if (/^216\d{8}$/.test(cleaned)) {
+          cleaned = '+' + cleaned;
+        }
+        editedPhone = cleaned;
+      }
+
       const updatePayload: any = {
         firstName: editingUser.firstName,
         lastName: editingUser.lastName,
         displayName: `${editingUser.firstName} ${editingUser.lastName}`.trim(),
-        phone: editingUser.phone || '',
+        phone: editedPhone,
         userType: editingUser.userType,
         level: editingUser.level || '',
         subject: editingUser.subject || '',
@@ -2555,6 +2599,50 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                               {u.group}
                            </div>
                         )}
+                        {u.userType === 'parent' && (
+                          <div className="text-[0.6rem] font-bold text-gray-400 mt-1 flex flex-col gap-1 items-center justify-center">
+                            {(() => {
+                              const linked = (data.parentChildren || [])
+                                .filter(pc => pc.parentId === u.id)
+                                .map(pc => {
+                                  const child = data.users.find(student => student.id === pc.childId);
+                                  return child ? { id: pc.id, name: child.displayName } : null;
+                                })
+                                .filter(Boolean) as any[];
+                              return linked.length > 0 ? (
+                                <div className="flex flex-col gap-1 items-center">
+                                  <span className="text-[0.55rem] text-gray-400">المنظورين:</span>
+                                  <div className="flex flex-wrap gap-1 justify-center max-w-[120px]">
+                                    {linked.map((link) => (
+                                      <div key={link.id} className="flex items-center gap-0.5 bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded text-[0.55rem] font-bold">
+                                        <span>{link.name}</span>
+                                        <button
+                                          onClick={async (e) => {
+                                            e.stopPropagation();
+                                            if (confirm(`هل تريد إلغاء ربط التلميذ ${link.name}؟`)) {
+                                              try {
+                                                await deleteDoc(doc(db, 'parentChildren', link.id));
+                                                toast.success('تم إلغاء الربط بنجاح');
+                                              } catch (err) {
+                                                toast.error('حدث خطأ أثناء إلغاء الربط');
+                                              }
+                                            }
+                                          }}
+                                          className="text-red-400 hover:text-red-600 transition-colors mr-0.5"
+                                          title="إلغاء الربط"
+                                        >
+                                          <X size={8} />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-300 italic text-[0.55rem]">بدون منظورين</span>
+                              );
+                            })()}
+                          </div>
+                        )}
                      </div>
                      <div className="animate-in fade-in slide-in-from-right-1 duration-300">
                         <div className="flex items-center justify-center gap-1.5 text-[0.7rem] font-bold text-gray-500">
@@ -2619,6 +2707,15 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                         </span>
                      </div>
                      <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                        {u.userType === 'parent' && (
+                          <button 
+                            onClick={() => { setLinkingParent(u); setStudentSearch(''); }}
+                            className="p-2.5 rounded-[14px] bg-emerald-50 border border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm hover:shadow-lg hover:shadow-emerald-900/10 animate-pulse"
+                            title="ربط الولي بمنظوره"
+                          >
+                            <Link size={16} />
+                          </button>
+                        )}
                         <button 
                           onClick={() => setEditingUser(u)}
                           className="p-2.5 rounded-[14px] bg-white border border-gray-100 text-blue-dark hover:bg-blue-dark hover:text-white transition-all shadow-sm hover:shadow-lg hover:shadow-blue-900/10"
@@ -2957,15 +3054,15 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {['7', '8', '9'].map(level => {
+          {['7', '8', '9', '1sec', '2sec', '3sec', '4sec'].map(level => {
             const levelGroups = data.groups.filter(g => g.level === level);
             return (
               <div key={level} className="space-y-6">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-blue-dark text-white flex items-center justify-center font-black text-sm">
-                    {level}
+                    {level.includes('sec') ? level.replace('sec', 'ث') : level}
                   </div>
-                  <h3 className="text-lg font-black text-blue-dark">السنة {level === '7' ? 'سابعة' : level === '8' ? 'ثامنة' : 'تاسعة'} أساسي</h3>
+                  <h3 className="text-lg font-black text-blue-dark">السنة {level === '7' ? 'سابعة' : level === '8' ? 'ثامنة' : level === '9' ? 'تاسعة' : level === '1sec' ? 'أولى ثانوي' : level === '2sec' ? 'ثانية ثانوي' : level === '3sec' ? 'ثالثة ثانوي' : 'باكالوريا'}</h3>
                   <span className="text-[0.65rem] font-bold text-gray-400 mr-auto">{levelGroups.length} مجموعات</span>
                 </div>
 
@@ -2973,6 +3070,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                   {levelGroups.length > 0 ? levelGroups.map(g => {
                     const teacher = data.users.find(u => u.id === g.teacherId);
                     const membersCount = studentCountByGroup[g.name] || 0;
+                    const groupStudents = data.users.filter(u => u.userType === 'student' && u.group === g.name);
                     
                     return (
                       <div key={g.id} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 transition-all group relative overflow-hidden">
@@ -2997,6 +3095,43 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                              )}
                           </div>
                         </div>
+
+                        {/* List of students in this group */}
+                        {groupStudents.length > 0 ? (
+                          <div className="my-4 border-t border-b border-gray-100 py-3 space-y-2 max-h-[140px] overflow-y-auto">
+                            <span className="text-[10px] font-black text-gray-400 block mb-1">تلاميذ المجموعة ({groupStudents.length}):</span>
+                            <div className="space-y-1.5 pr-1">
+                              {groupStudents.map(student => (
+                                <div key={student.id} className="flex items-center justify-between p-2 rounded-xl bg-gray-50 hover:bg-gray-100/70 transition-all">
+                                  <span className="text-xs font-bold text-blue-dark truncate max-w-[120px]">{student.displayName}</span>
+                                  <button
+                                    onClick={async () => {
+                                      if (confirm(`هل أنت متأكد من إزالة التلميذ ${student.displayName} من المجموعة؟`)) {
+                                        try {
+                                          await updateDoc(doc(db, 'users', student.id), {
+                                            group: '',
+                                            updatedAt: serverTimestamp()
+                                          });
+                                          toast.success(`تمت إزالة التلميذ ${student.displayName} بنجاح`);
+                                        } catch (err) {
+                                          toast.error('حدث خطأ أثناء محاولة إزالة التلميذ');
+                                        }
+                                      }
+                                    }}
+                                    className="p-1 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
+                                    title="حذف من المجموعة"
+                                  >
+                                    <XCircle size={14} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="my-4 border-t border-b border-gray-50 py-3 text-center">
+                            <span className="text-[10px] text-gray-300 font-bold italic">لا يوجد تلاميذ مضافين بعد</span>
+                          </div>
+                        )}
 
                         <div className="space-y-2">
                            <button 
@@ -4588,12 +4723,148 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     );
   };
 
+  const renderLinkStudentModal = () => {
+    if (!linkingParent) return null;
+
+    // Filter students
+    const students = data.users.filter(u => u.userType === 'student');
+    
+    // Search within students
+    const filtered = students.filter(student => {
+      if (!studentSearch) return true;
+      const q = studentSearch.toLowerCase();
+      const fullName = `${student.firstName || ''} ${student.lastName || ''} ${student.displayName || ''}`.toLowerCase();
+      const email = (student.email || '').toLowerCase();
+      const phone = (student.phone || '');
+      return fullName.includes(q) || email.includes(q) || phone.includes(q);
+    });
+
+    // Get currently linked children IDs
+    const alreadyLinkedIds = (data.parentChildren || [])
+      .filter(pc => pc.parentId === linkingParent.id)
+      .map(pc => pc.childId);
+
+    return (
+      <div key="link-student-modal" className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-blue-dark/50 backdrop-blur-sm">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="bg-white rounded-[40px] w-full max-w-2xl shadow-2xl overflow-hidden font-Tajawal"
+        >
+          <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+            <div>
+              <h3 className="text-xl font-black text-blue-dark">ربط ولي الأمر بمنظوره (تلميذ)</h3>
+              <p className="text-[0.75rem] text-gray-400 font-bold">ربط الولي {linkingParent.displayName} بتلميذ من خلال المعطيات المتوفرة</p>
+            </div>
+            <button 
+              onClick={() => { setLinkingParent(null); setStudentSearch(''); }} 
+              className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+            >
+              <XCircle size={24} className="text-gray-400" />
+            </button>
+          </div>
+          
+          <div className="p-6">
+            <div className="relative mb-6">
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+              <input 
+                type="text" 
+                placeholder="ابحث عن التلميذ بالاسم، اللقب، البريد الإلكتروني أو رقم الهاتف..." 
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+                className="w-full rounded-2xl bg-gray-50 border-none pr-12 pl-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-blue-light transition-all"
+              />
+            </div>
+
+            <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
+              {filtered.map(student => {
+                const isLinked = alreadyLinkedIds.includes(student.id);
+                return (
+                  <div 
+                    key={student.id} 
+                    className={cn(
+                      "p-4 rounded-2xl border transition-all flex items-center justify-between",
+                      isLinked ? "border-emerald-100 bg-emerald-50/10" : "border-gray-50 bg-gray-50/30"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs", 
+                        isLinked ? "bg-emerald-100 text-emerald-600" : "bg-blue-50 text-blue-dark"
+                      )}>
+                        {student.displayName?.substring(0, 2)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-blue-dark">{student.displayName}</p>
+                        <p className="text-[0.65rem] text-gray-400 font-bold">
+                          السنة {student.level ? (student.level.includes('sec') ? student.level : `${student.level} أساسي`) : 'غير محدد'} • {student.email}
+                        </p>
+                        {student.phone && (
+                          <p className="text-[0.65rem] text-emerald-600 font-bold mt-0.5">الهاتف: {student.phone}</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      {isLinked ? (
+                        <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-600 text-xs font-black flex items-center gap-1">
+                          <CheckCircle size={12} /> مرتبط
+                        </span>
+                      ) : (
+                        <button
+                          disabled={loading}
+                          onClick={async () => {
+                            setLoading(true);
+                            try {
+                              const linkId = `${linkingParent.id}_${student.id}`;
+                              await setDoc(doc(db, 'parentChildren', linkId), {
+                                parentId: linkingParent.id,
+                                childId: student.id,
+                                createdAt: serverTimestamp()
+                              });
+                              toast.success(`تم ربط التلميذ ${student.displayName} بنجاح`);
+                            } catch (err) {
+                              toast.error('حدث خطأ أثناء محاولة الربط');
+                            } finally {
+                              setLoading(false);
+                            }
+                          }}
+                          className="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 text-xs font-black shadow-md transition-all flex items-center gap-1"
+                        >
+                          <Link size={12} /> ربط التلميذ
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {filtered.length === 0 && (
+                <div className="py-10 text-center text-gray-300 font-bold text-sm">لم يتم العثور على تلاميذ مطابقة للبحث</div>
+              )}
+            </div>
+          </div>
+
+          <div className="p-8 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+            <button 
+              onClick={() => { setLinkingParent(null); setStudentSearch(''); }} 
+              className="px-6 py-3 rounded-2xl bg-gray-200 hover:bg-gray-300 text-gray-700 font-black text-xs transition-all"
+            >
+              إغلاق
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
   return (
     <>
       <AnimatePresence mode="wait">
         {editingUser && renderEditUserModal()}
         {editingGroup && renderEditGroupModal()}
         {showAssignStudentsModal && renderAssignStudentsModal()}
+        {linkingParent && renderLinkStudentModal()}
         {(showAddContentForm || editingContent) && renderContentModal()}
         {pendingDelete && renderDeleteConfirmModal()}
         {viewingReceipt && renderReceiptPreviewModal()}
