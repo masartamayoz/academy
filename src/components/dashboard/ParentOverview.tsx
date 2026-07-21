@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { db, handleFirestoreError, OperationType } from '@/src/lib/firebase';
+import { db, handleFirestoreError, OperationType, firebaseConfig } from '@/src/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc, serverTimestamp, onSnapshot, limit } from 'firebase/firestore';
-import { User } from 'firebase/auth';
+import { User, getAuth, createUserWithEmailAndPassword, signOut, setPersistence, inMemoryPersistence } from 'firebase/auth';
+import { initializeApp, deleteApp } from 'firebase/app';
 import { 
   Users, 
   History, 
@@ -26,7 +27,11 @@ import {
   Image as ImageIcon,
   Rocket,
   LayoutDashboard,
-  CreditCard
+  CreditCard,
+  Copy,
+  Share2,
+  X,
+  Info
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -34,7 +39,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import CountdownTimer from '../common/CountdownTimer';
 
-import { SUBSCRIPTION_PLANS, PAYMENT_METHODS } from '@/src/constants';
+import { SUBSCRIPTION_PLANS, PAYMENT_METHODS, TUNISIAN_GOVERNORATES } from '@/src/constants';
 
 interface Props {
   activeTab: string;
@@ -60,6 +65,29 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
   const [selectedChildForReceipt, setSelectedChildForReceipt] = useState('');
   const [selectedPlanForSub, setSelectedPlanForSub] = useState<any>(null);
   const [selectedMethod, setSelectedMethod] = useState<string>('');
+  const [showCreateChildModal, setShowCreateChildModal] = useState(false);
+  const [newChild, setNewChild] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    phone: '',
+    userType: 'student' as const,
+    subject: 'الرياضيات',
+    level: '7',
+    address: '',
+    group: '',
+    birthDate: '',
+    wilaya: ''
+  });
+  const [createdChildCredentials, setCreatedChildCredentials] = useState<{
+    displayName: string;
+    email: string;
+    phone: string;
+    password: string;
+  } | null>(null);
+  const [selectedChildForDetails, setSelectedChildForDetails] = useState<any>(null);
+  const [detailsModalTab, setDetailsModalTab] = useState<'info' | 'attendance' | 'schedule'>('info');
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -333,6 +361,109 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
     }
   };
 
+  const handleCreateChild = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    let secondaryApp = null;
+    try {
+      if (!newChild.firstName.trim() || !newChild.lastName.trim() || !newChild.email.trim() || !newChild.password.trim() || !newChild.birthDate || !newChild.wilaya) {
+        toast.error('يرجى ملء جميع الحقول الإجبارية');
+        setLoading(false);
+        return;
+      }
+
+      const secondaryAppName = `secondary-app-${Date.now()}`;
+      secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
+      const secondaryAuth = getAuth(secondaryApp);
+
+      await setPersistence(secondaryAuth, inMemoryPersistence);
+
+      const userCredential = await createUserWithEmailAndPassword(
+        secondaryAuth,
+        newChild.email.trim(),
+        newChild.password
+      );
+      const uid = userCredential.user.uid;
+
+      let userPhone = newChild.phone ? newChild.phone.trim() : '';
+      if (userPhone) {
+        let cleaned = userPhone.replace(/[^\d+]/g, '');
+        if (cleaned.startsWith('00')) {
+          cleaned = '+' + cleaned.slice(2);
+        }
+        if (/^\d{8}$/.test(cleaned)) {
+          cleaned = '+216' + cleaned;
+        }
+        if (/^216\d{8}$/.test(cleaned)) {
+          cleaned = '+' + cleaned;
+        }
+        userPhone = cleaned;
+      }
+
+      const displayName = `${newChild.firstName.trim()} ${newChild.lastName.trim()}`;
+      await setDoc(doc(db, 'users', uid), {
+        ...newChild,
+        phone: userPhone,
+        displayName: displayName,
+        subscriptionStatus: 'inactive',
+        createdAt: serverTimestamp(),
+        uid: uid
+      });
+
+      const linkId = `${user.uid}_${uid}`;
+      await setDoc(doc(db, 'parentChildren', linkId), {
+        parentId: user.uid,
+        childId: uid,
+        createdAt: serverTimestamp()
+      });
+
+      await signOut(secondaryAuth);
+      
+      toast.success(`تم إنشاء حساب الابن وربطه بنجاح: ${displayName}`);
+      
+      setCreatedChildCredentials({
+        displayName: displayName,
+        email: newChild.email.trim(),
+        phone: userPhone,
+        password: newChild.password
+      });
+
+      setNewChild({
+        firstName: '',
+        lastName: '',
+        email: '',
+        password: '',
+        phone: '',
+        userType: 'student',
+        subject: 'الرياضيات',
+        level: '7',
+        address: '',
+        group: '',
+        birthDate: '',
+        wilaya: ''
+      });
+      setShowCreateChildModal(false);
+    } catch (err: any) {
+      console.error('Error creating child user:', err);
+      let errorMsg = 'حدث خطأ أثناء إضافة حساب الابن';
+      
+      if (err.code === 'auth/email-already-in-use') {
+        errorMsg = 'هذا البريد الإلكتروني مستخدم بالفعل';
+      } else if (err.code === 'auth/weak-password') {
+        errorMsg = 'كلمة المرور ضعيفة جداً (يجب أن لا تقل عن 6 أحرف)';
+      } else if (err.code === 'auth/invalid-email') {
+        errorMsg = 'البريد الإلكتروني غير صالح';
+      }
+      
+      toast.error(errorMsg);
+    } finally {
+      if (secondaryApp) {
+        await deleteApp(secondaryApp);
+      }
+      setLoading(false);
+    }
+  };
+
   const getLevelLabel = (lvl: string) => {
     const labels: Record<string, string> = {
       '7': 'سابعة أساسي',
@@ -374,6 +505,13 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
               >
                 <Plus size={18} />
                 ربط تلميذ جديد
+              </button>
+              <button 
+                onClick={() => setShowCreateChildModal(true)}
+                className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-black text-white hover:bg-emerald-700 shadow-xl shadow-emerald-900/10 transition-all active:scale-95"
+              >
+                <Plus size={18} />
+                إنشاء حساب جديد لابني
               </button>
             </div>
         </div>
@@ -438,7 +576,12 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                       <Rocket size={14} />
                       اشترك الآن
                     </button>
-                    <button className="flex-1 rounded-2xl bg-white border border-gray-100 py-3 text-[0.8rem] font-black text-gray-600 hover:border-blue-light hover:text-blue-light transition-all">التفاصيل</button>
+                    <button 
+                      onClick={() => setSelectedChildForDetails(c)} 
+                      className="flex-1 rounded-2xl bg-white border border-gray-100 py-3 text-[0.8rem] font-black text-gray-600 hover:border-blue-light hover:text-blue-light transition-all"
+                    >
+                      التفاصيل
+                    </button>
                   </div>
                   
                   <div className="absolute top-4 left-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -460,13 +603,22 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
             <Users size={64} className="mx-auto mb-6 opacity-5" />
             <h3 className="text-xl font-extrabold text-gray-600">اربط حساب الأبناء الآن</h3>
             <p className="mt-2 text-sm max-w-sm mx-auto">لم تضف أي تلميذ بعد لمتابعته. قم بربط حساب الأبناء لمتابعة مسارهم التعليمي، حصصهم، ونتائجهم.</p>
-            <button 
-              onClick={() => setShowLinkModal(true)}
-              className="mt-10 inline-flex items-center gap-2 rounded-2xl border-2 border-blue-light px-8 py-3 text-sm font-black text-blue-light hover:bg-blue-light hover:text-white transition-all"
-            >
-               <Plus size={18} />
-               ابدأ الربط الآن
-            </button>
+            <div className="mt-10 flex flex-wrap justify-center gap-4">
+              <button 
+                onClick={() => setShowLinkModal(true)}
+                className="inline-flex items-center gap-2 rounded-2xl border-2 border-blue-light px-8 py-3 text-sm font-black text-blue-light hover:bg-blue-light hover:text-white transition-all"
+              >
+                 <Plus size={18} />
+                 ابدأ ربط حساب قائم
+              </button>
+              <button 
+                onClick={() => setShowCreateChildModal(true)}
+                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-8 py-3.5 text-sm font-black text-white hover:bg-emerald-700 shadow-xl shadow-emerald-900/10 transition-all active:scale-95"
+              >
+                 <Plus size={18} />
+                 إنشاء حساب جديد للابن
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -1090,6 +1242,558 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+
+        {showCreateChildModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !loading && setShowCreateChildModal(false)}
+              className="absolute inset-0 bg-blue-dark/40 backdrop-blur-sm" 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-[680px] rounded-[32px] bg-white p-8 md:p-10 shadow-2xl overflow-y-auto max-h-[90vh] shadow-blue-900/20 text-right"
+            >
+              <h3 className="mb-2 text-2xl font-black text-blue-dark">إنشاء حساب جديد لابني</h3>
+              <p className="mb-8 text-gray-400 text-sm font-bold">يرجى ملء البيانات التالية لإنشاء حساب تلميذ جديد وربطه بحسابك تلقائياً.</p>
+              
+              <form onSubmit={handleCreateChild} className="space-y-6">
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-[0.65rem] font-black text-gray-400 uppercase pr-2">الاسم الأول *</label>
+                    <input 
+                      required 
+                      type="text" 
+                      value={newChild.firstName} 
+                      onChange={e => setNewChild({...newChild, firstName: e.target.value})} 
+                      className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-blue-light transition-all" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[0.65rem] font-black text-gray-400 uppercase pr-2">اللقب *</label>
+                    <input 
+                      required 
+                      type="text" 
+                      value={newChild.lastName} 
+                      onChange={e => setNewChild({...newChild, lastName: e.target.value})} 
+                      className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-blue-light transition-all" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[0.65rem] font-black text-gray-400 uppercase pr-2">البريد الإلكتروني *</label>
+                    <input 
+                      required 
+                      type="email" 
+                      value={newChild.email} 
+                      onChange={e => setNewChild({...newChild, email: e.target.value})} 
+                      className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-blue-light transition-all" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[0.65rem] font-black text-gray-400 uppercase pr-2">كلمة المرور *</label>
+                    <input 
+                      required 
+                      type="password" 
+                      value={newChild.password} 
+                      onChange={e => setNewChild({...newChild, password: e.target.value})} 
+                      className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-blue-light transition-all" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[0.65rem] font-black text-gray-400 uppercase pr-2">رقم الهاتف (اختياري)</label>
+                    <input 
+                      type="tel" 
+                      placeholder="مثال: 98765432" 
+                      value={newChild.phone} 
+                      onChange={e => setNewChild({...newChild, phone: e.target.value})} 
+                      className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-blue-light transition-all" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[0.65rem] font-black text-gray-400 uppercase pr-2">المستوى الدراسي *</label>
+                    <select 
+                      value={newChild.level} 
+                      onChange={e => setNewChild({...newChild, level: e.target.value})} 
+                      className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-blue-light transition-all"
+                    >
+                      <option value="7">السنة السابعة أساسي</option>
+                      <option value="8">السنة الثامنة أساسي</option>
+                      <option value="9">السنة التاسعة أساسي</option>
+                      <option value="1sec">السنة الأولى ثانوي</option>
+                      <option value="2sec">السنة الثانية ثانوي</option>
+                      <option value="3sec">السنة الثالثة ثانوي</option>
+                      <option value="4sec">باكالوريا</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[0.65rem] font-black text-gray-400 uppercase pr-2">تاريخ الميلاد *</label>
+                    <input 
+                      required 
+                      type="date" 
+                      value={newChild.birthDate} 
+                      onChange={e => setNewChild({...newChild, birthDate: e.target.value})} 
+                      className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-blue-light transition-all" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[0.65rem] font-black text-gray-400 uppercase pr-2">الولاية *</label>
+                    <select 
+                      required 
+                      value={newChild.wilaya} 
+                      onChange={e => setNewChild({...newChild, wilaya: e.target.value})} 
+                      className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-blue-light transition-all"
+                    >
+                      <option value="">اختر الولاية</option>
+                      {TUNISIAN_GOVERNORATES.map(gov => (
+                        <option key={gov} value={gov}>{gov}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button 
+                    type="button"
+                    disabled={loading}
+                    onClick={() => setShowCreateChildModal(false)}
+                    className="flex-1 rounded-2xl border border-gray-100 py-4 text-sm font-black text-gray-400 hover:bg-gray-50 transition-all disabled:opacity-50"
+                  >
+                    إلغاء
+                  </button>
+                  <button 
+                    disabled={loading}
+                    className="flex-[2] rounded-2xl bg-emerald-600 py-4 text-sm font-black text-white hover:bg-emerald-700 shadow-xl shadow-emerald-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                    إنشاء الحساب
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {createdChildCredentials && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setCreatedChildCredentials(null)}
+              className="absolute inset-0 bg-blue-dark/55 backdrop-blur-sm" 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-[480px] rounded-[32px] bg-white p-10 shadow-2xl overflow-hidden shadow-blue-900/20 text-right"
+            >
+              <div className="h-14 w-14 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 mb-6">
+                <CheckCircle2 size={32} />
+              </div>
+              <h3 className="mb-2 text-2xl font-black text-blue-dark">تم إنشاء الحساب بنجاح! 🎉</h3>
+              <p className="mb-6 text-gray-400 text-sm font-bold">تم إنشاء حساب ابنك وربطه بملفك الشخصي تلقائياً. هذه هي معطيات تسجيل الدخول الخاصة به:</p>
+              
+              <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-4 text-right mb-6">
+                <div>
+                  <span className="text-[0.65rem] text-gray-400 font-bold block mb-1">الاسم واللقب</span>
+                  <span className="text-sm font-black text-blue-dark">{createdChildCredentials.displayName}</span>
+                </div>
+                <div>
+                  <span className="text-[0.65rem] text-gray-400 font-bold block mb-1">البريد الإلكتروني (أو رقم الهاتف)</span>
+                  <span className="text-sm font-mono font-black text-blue-dark select-all">{createdChildCredentials.email}</span>
+                </div>
+                {createdChildCredentials.phone && (
+                  <div>
+                    <span className="text-[0.65rem] text-gray-400 font-bold block mb-1">رقم الهاتف</span>
+                    <span className="text-sm font-mono font-black text-blue-dark select-all">{createdChildCredentials.phone}</span>
+                  </div>
+                )}
+                <div>
+                  <span className="text-[0.65rem] text-gray-400 font-bold block mb-1">كلمة المرور</span>
+                  <span className="text-sm font-mono font-black text-blue-dark select-all">{createdChildCredentials.password}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <button 
+                  type="button"
+                  onClick={() => {
+                    const text = `حساب الابن في منصة مسار التميز:\nالاسم: ${createdChildCredentials.displayName}\nالبريد الإلكتروني: ${createdChildCredentials.email}\nكلمة المرور: ${createdChildCredentials.password}`;
+                    navigator.clipboard.writeText(text);
+                    toast.success('تم نسخ بيانات الدخول إلى الحافظة');
+                  }}
+                  className="flex-1 rounded-2xl bg-blue-dark py-4 text-sm font-black text-white hover:bg-[#0A0D14] transition-all flex items-center justify-center gap-2"
+                >
+                  <Copy size={16} />
+                  نسخ البيانات
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    const text = `حساب الابن في منصة مسار التميز:\nالاسم: ${createdChildCredentials.displayName}\nالبريد الإلكتروني: ${createdChildCredentials.email}\nكلمة المرور: ${createdChildCredentials.password}`;
+                    if (navigator.share) {
+                      navigator.share({
+                        title: 'بيانات حساب الابن',
+                        text: text,
+                      }).catch(console.error);
+                    } else {
+                      navigator.clipboard.writeText(text);
+                      toast.success('تم نسخ البيانات لعدم دعم ميزة المشاركة في هذا المتصفح');
+                    }
+                  }}
+                  className="flex-1 rounded-2xl border border-gray-100 py-4 text-sm font-black text-gray-600 hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                >
+                  <Share2 size={16} />
+                  مشاركة البيانات
+                </button>
+              </div>
+
+              <button 
+                type="button"
+                onClick={() => setCreatedChildCredentials(null)}
+                className="w-full mt-4 py-3 rounded-2xl bg-gray-50 text-gray-500 hover:bg-gray-100 text-xs font-black transition-all"
+              >
+                إغلاق
+              </button>
+            </motion.div>
+          </div>
+        )}
+
+        {selectedChildForDetails && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedChildForDetails(null)}
+              className="absolute inset-0 bg-blue-dark/50 backdrop-blur-sm" 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-[700px] rounded-[32px] bg-white p-8 shadow-2xl overflow-y-auto max-h-[92vh] shadow-blue-900/20 text-right font-Tajawal"
+            >
+              {/* Close Button */}
+              <button 
+                onClick={() => setSelectedChildForDetails(null)}
+                className="absolute top-6 left-6 h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:text-blue-dark hover:bg-gray-100 transition-all"
+              >
+                <X size={18} />
+              </button>
+
+              {/* Student Header Info */}
+              <div className="flex items-center gap-5 pb-6 border-b border-gray-100 mb-6">
+                <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-blue-50 text-blue-brand font-black text-2xl uppercase shadow-sm">
+                  {selectedChildForDetails.childData?.displayName?.charAt(0) || '?'}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-2xl font-black text-blue-dark">{selectedChildForDetails.childData?.displayName || 'تلميذ مجهول'}</h3>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <span className="text-[0.7rem] bg-gray-100 px-2.5 py-0.5 rounded-full text-gray-500 font-black">
+                      {getLevelLabel(selectedChildForDetails.childData?.level)}
+                    </span>
+                    <div className={cn(
+                      "h-2 w-2 rounded-full",
+                      selectedChildForDetails.childData?.subscriptionStatus === 'active' ? "bg-emerald-500" : "bg-amber-500"
+                    )} />
+                    <span className={cn(
+                      "text-[0.7rem] font-bold",
+                      selectedChildForDetails.childData?.subscriptionStatus === 'active' ? "text-emerald-500" : "text-amber-500"
+                    )}>
+                      {selectedChildForDetails.childData?.subscriptionStatus === 'active' ? 'مشترك' : 'غير مشترك'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabs inside Modal */}
+              <div className="flex border-b border-gray-100 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setDetailsModalTab('info')}
+                  className={cn(
+                    "flex-1 pb-3 text-sm font-black transition-all border-b-2 text-center",
+                    detailsModalTab === 'info' ? "border-blue-brand text-blue-brand" : "border-transparent text-gray-400 hover:text-gray-600"
+                  )}
+                >
+                  البيانات والاشتراك
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailsModalTab('attendance')}
+                  className={cn(
+                    "flex-1 pb-3 text-sm font-black transition-all border-b-2 text-center",
+                    detailsModalTab === 'attendance' ? "border-blue-brand text-blue-brand" : "border-transparent text-gray-400 hover:text-gray-600"
+                  )}
+                >
+                  الحضور والغياب
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailsModalTab('schedule')}
+                  className={cn(
+                    "flex-1 pb-3 text-sm font-black transition-all border-b-2 text-center",
+                    detailsModalTab === 'schedule' ? "border-blue-brand text-blue-brand" : "border-transparent text-gray-400 hover:text-gray-600"
+                  )}
+                >
+                  الجدول والحصص
+                </button>
+              </div>
+
+              {/* Tab 1: Info & Subscription */}
+              {detailsModalTab === 'info' && (
+                <div className="space-y-6">
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100/50">
+                      <span className="text-[0.65rem] text-gray-400 font-bold block mb-1">البريد الإلكتروني</span>
+                      <span className="text-sm font-bold text-blue-dark">{selectedChildForDetails.childData?.email || 'لا يوجد'}</span>
+                    </div>
+                    <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100/50 font-mono">
+                      <span className="text-[0.65rem] text-gray-400 font-bold block mb-1 font-Tajawal">رقم الهاتف</span>
+                      <span className="text-sm font-bold text-blue-dark">{selectedChildForDetails.childData?.phone || 'لا يوجد'}</span>
+                    </div>
+                    <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100/50">
+                      <span className="text-[0.65rem] text-gray-400 font-bold block mb-1">الولاية</span>
+                      <span className="text-sm font-bold text-blue-dark">{selectedChildForDetails.childData?.wilaya || 'لا يوجد'}</span>
+                    </div>
+                    <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100/50 font-mono">
+                      <span className="text-[0.65rem] text-gray-400 font-bold block mb-1 font-Tajawal">تاريخ الميلاد</span>
+                      <span className="text-sm font-bold text-blue-dark">{selectedChildForDetails.childData?.birthDate || 'لا يوجد'}</span>
+                    </div>
+                  </div>
+
+                  {/* Student Code copy block */}
+                  <div className="p-5 rounded-2xl border border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <span className="text-[0.65rem] text-gray-400 font-bold block mb-1">رمز التلميذ (Student Code)</span>
+                      <span className="text-xs font-mono font-black text-blue-dark">{selectedChildForDetails.childId}</span>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedChildForDetails.childId);
+                        toast.success('تم نسخ رمز التلميذ بنجاح');
+                      }}
+                      className="self-end sm:self-center inline-flex items-center gap-2 text-xs font-black text-blue-brand hover:underline"
+                    >
+                      <Copy size={14} />
+                      نسخ الرمز
+                    </button>
+                  </div>
+
+                  {/* Subscription Status Block */}
+                  <div className="p-6 rounded-3xl border border-gray-100 bg-white shadow-sm space-y-4">
+                    <h4 className="text-sm font-black text-blue-dark flex items-center gap-2">
+                      <Info size={16} className="text-blue-light" /> حالة الاشتراك
+                    </h4>
+                    {selectedChildForDetails.childData?.subscriptionStatus === 'active' ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 text-emerald-600 bg-emerald-50 border border-emerald-100 p-4 rounded-2xl">
+                          <CheckCircle2 size={20} />
+                          <div className="text-right">
+                            <p className="text-xs font-black">الاشتراك نشط ومفعّل</p>
+                            <p className="text-[0.68rem] font-bold opacity-90 mt-0.5 font-mono">
+                              تاريخ انتهاء الصلاحية: {selectedChildForDetails.childData.subscriptionExpiry ? new Date(selectedChildForDetails.childData.subscriptionExpiry).toLocaleDateString('ar-TN') : 'غير محدد'}
+                            </p>
+                          </div>
+                        </div>
+                        {selectedChildForDetails.childData.subscriptionExpiry && (
+                          <div className="p-5 rounded-2xl bg-gray-50 border border-gray-100 relative overflow-hidden">
+                            <div className="absolute right-0 top-0 h-full w-1 bg-gold-brand" />
+                            <CountdownTimer expiryDate={selectedChildForDetails.childData.subscriptionExpiry} />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="flex items-start gap-3 text-amber-600 bg-amber-50 border border-amber-100 p-4 rounded-2xl">
+                          <AlertCircle size={20} className="shrink-0 mt-0.5" />
+                          <div className="text-right">
+                            <p className="text-xs font-black">الاشتراك غير مفعّل</p>
+                            <p className="text-[0.68rem] font-bold opacity-90 mt-1 leading-relaxed">
+                              الاشتراك غير مفعّل حالياً لهذا التلميذ. يرجى تفعيل الاشتراك لتتمكن من متابعة الدروس المباشرة، التقارير الأسبوعية، وجداول الحضور.
+                            </p>
+                          </div>
+                        </div>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            setSelectedChildForReceipt(selectedChildForDetails.childId);
+                            setSelectedChildForDetails(null);
+                            setSearchParams({ tab: 'wallet' });
+                          }}
+                          className="w-full py-4 rounded-2xl bg-[#0A0D14] hover:bg-blue-dark text-white text-xs font-black transition-all flex items-center justify-center gap-2 shadow-lg"
+                        >
+                          <Rocket size={16} />
+                          اشترك للتلميذ الآن
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 2: Attendance */}
+              {detailsModalTab === 'attendance' && (
+                <div className="space-y-6">
+                  {selectedChildForDetails.childData?.subscriptionStatus !== 'active' ? (
+                    <div className="p-10 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                      <Lock size={32} className="text-amber-500 mx-auto mb-3" />
+                      <p className="text-sm font-black text-blue-dark">المحتوى مقفل 🔒</p>
+                      <p className="text-[0.7rem] text-gray-400 font-bold mt-1 max-w-xs mx-auto leading-relaxed">
+                        سجل الحضور والمتابعة متاح فقط للتلاميذ المشتركين بشكل نشط.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-gray-400">إجمالي الحضور والنشاط</span>
+                        <span className="text-xs font-black text-blue-brand bg-blue-50 px-3 py-1 rounded-full">
+                          {(attendanceData[selectedChildForDetails.childId] || []).length} حصص
+                        </span>
+                      </div>
+                      <div className="overflow-x-auto rounded-2xl border border-gray-100 max-h-[300px]">
+                        <table className="w-full text-right">
+                          <thead className="bg-gray-50 border-b border-gray-100 sticky top-0">
+                            <tr>
+                              <th className="px-4 py-3 text-[0.7rem] font-black text-gray-500 uppercase">المجموعة</th>
+                              <th className="px-4 py-3 text-[0.7rem] font-black text-gray-500 uppercase">التاريخ والوقت</th>
+                              <th className="px-4 py-3 text-[0.7rem] font-black text-gray-500 uppercase">الحالة</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {(attendanceData[selectedChildForDetails.childId] || []).length > 0 ? (
+                              (attendanceData[selectedChildForDetails.childId] || [])
+                                .sort((a: any, b: any) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0))
+                                .map((record: any) => (
+                                  <tr key={record.id} className="hover:bg-gray-50/30 transition-colors">
+                                    <td className="px-4 py-4">
+                                      <span className="text-xs font-black text-blue-dark">{record.groupName}</span>
+                                    </td>
+                                    <td className="px-4 py-4">
+                                      <div className="flex flex-col font-mono">
+                                        <span className="text-xs font-black text-blue-dark font-Tajawal">
+                                          {record.timestamp?.toDate().toLocaleDateString('ar-TN')}
+                                        </span>
+                                        <span className="text-[0.62rem] font-bold text-gray-400">
+                                          {record.timestamp?.toDate().toLocaleTimeString('ar-TN', { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-4">
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[0.62rem] font-black">
+                                        <CheckCircle2 size={10} />
+                                        حاضر
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))
+                            ) : (
+                              <tr>
+                                <td colSpan={3} className="px-4 py-16 text-center text-gray-300 italic font-bold text-xs">
+                                  لا توجد أي سجلات حضور مسجلة لهذا التلميذ حتى الآن.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab 3: Schedule & Lessons */}
+              {detailsModalTab === 'schedule' && (
+                <div className="space-y-6">
+                  {selectedChildForDetails.childData?.subscriptionStatus !== 'active' ? (
+                    <div className="p-10 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                      <Lock size={32} className="text-amber-500 mx-auto mb-3" />
+                      <p className="text-sm font-black text-blue-dark">المحتوى مقفل 🔒</p>
+                      <p className="text-[0.7rem] text-gray-400 font-bold mt-1 max-w-xs mx-auto leading-relaxed">
+                        جدول الحصص الأسبوعي متاح فقط للتلاميذ المشتركين بشكل نشط.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-6 md:grid-cols-2">
+                      {/* Weekly Schedule */}
+                      <div className="space-y-4">
+                        <p className="text-[0.68rem] font-black text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                          <Clock size={14} /> الجدول الأسبوعي الأساسي
+                        </p>
+                        {childSchedules[selectedChildForDetails.childId]?.schedule && childSchedules[selectedChildForDetails.childId].schedule.length > 0 ? (
+                          <div className="grid gap-2.5 max-h-[250px] overflow-y-auto pr-1">
+                            {childSchedules[selectedChildForDetails.childId].schedule.map((s: any, idx: number) => (
+                              <div key={idx} className="flex items-center justify-between p-3.5 rounded-xl bg-gray-50 border border-gray-100/50">
+                                <span className="text-[0.68rem] font-black text-blue-dark bg-white px-2.5 py-0.5 rounded-lg border border-gray-100 shadow-sm">{s.day}</span>
+                                <div className="flex items-center gap-1.5 text-[0.68rem] font-bold text-gray-500 font-mono">
+                                  <span>{s.startTime}</span>
+                                  <span>←</span>
+                                  <span>{s.endTime}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-6 text-center bg-gray-50 rounded-2xl border border-gray-100 text-[0.65rem] text-gray-400 italic">
+                            لم يتم تعيين جدول أسبوعي للمجموعة حالياً
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Live Sessions */}
+                      <div className="space-y-4">
+                        <p className="text-[0.68rem] font-black text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                          <Video size={14} /> الحصص والدروس الأخيرة
+                        </p>
+                        {childSessions[selectedChildForDetails.childId] && childSessions[selectedChildForDetails.childId].length > 0 ? (
+                          <div className="grid gap-2.5 max-h-[250px] overflow-y-auto pr-1">
+                            {childSessions[selectedChildForDetails.childId].map((session: any) => (
+                              <div key={session.id} className="p-3.5 rounded-xl bg-gray-50 border border-gray-100/50 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[0.68rem] font-black text-blue-dark truncate max-w-[130px]">{session.title}</span>
+                                  <span className={cn(
+                                    "px-2 py-0.5 rounded text-[0.58rem] font-black shrink-0",
+                                    session.status === 'completed' ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600"
+                                  )}>
+                                    {session.status === 'completed' ? 'مكتملة' : 'مجدولة'}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center text-[0.6rem] text-gray-400 font-bold font-mono">
+                                  <span className="font-Tajawal">{session.subject}</span>
+                                  <span>{session.startTime ? new Date(session.startTime).toLocaleDateString('ar-TN') : ''}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-6 text-center bg-gray-50 rounded-2xl border border-gray-100 text-[0.65rem] text-gray-400 italic font-Tajawal">
+                            لا توجد حصص مباشرة مسجلة حالياً
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Close Bottom Button */}
+              <button 
+                type="button"
+                onClick={() => setSelectedChildForDetails(null)}
+                className="w-full mt-8 py-3.5 rounded-2xl bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-700 text-xs font-black transition-all text-center"
+              >
+                إغلاق
+              </button>
             </motion.div>
           </div>
         )}
