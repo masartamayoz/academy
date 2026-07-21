@@ -31,13 +31,21 @@ import {
   Copy,
   Share2,
   X,
-  Info
+  Info,
+  BookOpen,
+  FileText,
+  Play,
+  Download,
+  Award,
+  Sun,
+  File
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import CountdownTimer from '../common/CountdownTimer';
+import { useContentAccess } from '@/src/lib/accessControl';
 
 import { SUBSCRIPTION_PLANS, PAYMENT_METHODS, TUNISIAN_GOVERNORATES } from '@/src/constants';
 
@@ -88,6 +96,100 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
   } | null>(null);
   const [selectedChildForDetails, setSelectedChildForDetails] = useState<any>(null);
   const [detailsModalTab, setDetailsModalTab] = useState<'info' | 'attendance' | 'schedule'>('info');
+
+  // Lessons tab states
+  const [selectedChildIdForLessons, setSelectedChildIdForLessons] = useState<string>('');
+  const [lessonsType, setLessonsType] = useState<string>('lesson');
+  const [lessonsContent, setLessonsContent] = useState<any[]>([]);
+  const [lessonsLoading, setLessonsLoading] = useState<boolean>(false);
+  const [lessonsSearchTerm, setLessonsSearchTerm] = useState<string>('');
+  const [lessonsViewerItem, setLessonsViewerItem] = useState<any | null>(null);
+  const [lessonsActiveRes, setLessonsActiveRes] = useState<{type: 'video' | 'pdf', url: string, name: string} | null>(null);
+
+  // Default the child ID when children are loaded
+  useEffect(() => {
+    if (children.length > 0 && !selectedChildIdForLessons) {
+      setSelectedChildIdForLessons(children[0].childId);
+    }
+  }, [children, selectedChildIdForLessons]);
+
+  // Compute active child based on chosen ID
+  const activeLessonsChild = children.find(c => c.childId === selectedChildIdForLessons) || children[0];
+
+  // Memoize childUserObj for useContentAccess
+  const childUserObj = React.useMemo(() => {
+    if (!activeLessonsChild) return null;
+    return {
+      ...activeLessonsChild.childData,
+      uid: activeLessonsChild.childId,
+      id: activeLessonsChild.childId
+    };
+  }, [activeLessonsChild]);
+
+  const { isLevelAccessible, hasAccess } = useContentAccess(childUserObj);
+
+  // Helper function to extract YouTube ID
+  const extractYTId = (url: string) => {
+    const m = (url || '').match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
+    return m ? m[1] : null;
+  };
+
+  // Fetch lessons for active child's level
+  useEffect(() => {
+    if (!activeLessonsChild?.childData?.level || activeTab !== 'lessons') return;
+
+    let isMounted = true;
+    const loadChildLessons = async () => {
+      setLessonsLoading(true);
+      try {
+        const targetLevel = activeLessonsChild.childData.level;
+        const q = query(
+          collection(db, 'videos'),
+          where('level', '==', String(targetLevel)),
+          where('type', '==', lessonsType)
+        );
+        const snap = await getDocs(q);
+        if (isMounted) {
+          const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          docs.sort((a: any, b: any) => {
+            if (a.order !== undefined && b.order !== undefined && a.order !== b.order) {
+               return a.order - b.order;
+            }
+            const timeA = a.createdAt?.toMillis?.() || a.createdAt || 0;
+            const timeB = b.createdAt?.toMillis?.() || b.createdAt || 0;
+            return timeB - timeA;
+          });
+          setLessonsContent(docs);
+        }
+      } catch (err) {
+        console.error('Error loading child lessons:', err);
+        if (isMounted) setLessonsContent([]);
+      } finally {
+        if (isMounted) setLessonsLoading(false);
+      }
+    };
+
+    loadChildLessons();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedChildIdForLessons, lessonsType, activeLessonsChild, activeTab]);
+
+  // Handle active resource update for video/PDF player
+  useEffect(() => {
+    if (lessonsViewerItem) {
+      const vUrls = lessonsViewerItem.videoUrls || (lessonsViewerItem.videoUrl ? [lessonsViewerItem.videoUrl] : []);
+      if (vUrls.length > 0 && vUrls[0]) {
+        setLessonsActiveRes({ type: 'video', url: vUrls[0], name: 'شرح الفيديو' });
+      } else if (lessonsViewerItem.pdfText) {
+        setLessonsActiveRes({ type: 'pdf', url: lessonsViewerItem.pdfText, name: 'الوثيقة التعليمية' });
+      } else if (lessonsViewerItem.pdfSolution) {
+        setLessonsActiveRes({ type: 'pdf', url: lessonsViewerItem.pdfSolution, name: 'الإصلاح النموذجي' });
+      }
+    } else {
+      setLessonsActiveRes(null);
+    }
+  }, [lessonsViewerItem]);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -1174,6 +1276,317 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
             )}
           </div>
         </div>
+      ) : activeTab === 'lessons' ? (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 text-right font-Tajawal">
+          {children.length === 0 ? (
+            <div className="rounded-[40px] border border-gray-100 bg-white p-10 shadow-sm text-center">
+              <div className="h-20 w-20 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center mx-auto mb-6">
+                <BookOpen size={36} className="text-blue-brand" />
+              </div>
+              <h3 className="text-2xl font-black text-blue-dark">دروس أبنائي</h3>
+              <p className="text-gray-400 font-bold text-sm mt-2 max-w-lg mx-auto leading-relaxed">
+                لم تقم بربط أي تلميذ بحسابك بعد. يرجى ربط حساب ابنك أو إنشاء حساب جديد له للتمكن من تصفح دروسه التعليمية المخصصة ومتابعة تقدمه الدراسي.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8 max-w-md mx-auto">
+                <button
+                  onClick={() => setShowLinkModal(true)}
+                  className="w-full sm:flex-1 py-4 px-6 rounded-2xl bg-blue-brand hover:bg-blue-dark text-white text-sm font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/10"
+                >
+                  <Users size={16} />
+                  <span>ربط حساب موجود</span>
+                </button>
+                <button
+                  onClick={() => setShowCreateChildModal(true)}
+                  className="w-full sm:flex-1 py-4 px-6 rounded-2xl bg-[#0A0D14] hover:bg-gray-900 text-white text-sm font-black transition-all flex items-center justify-center gap-2 shadow-lg"
+                >
+                  <Plus size={16} />
+                  <span>إنشاء حساب جديد لابني</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-8">
+              {/* Header and Child Selector */}
+              <div className="rounded-[32px] border border-gray-100 bg-white p-8 shadow-sm space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div>
+                    <h3 className="text-2xl font-black text-blue-dark flex items-center gap-3 justify-start">
+                      <BookOpen size={28} className="text-blue-brand" />
+                      <span>دروس أبنائي التعليمية</span>
+                    </h3>
+                    <p className="text-gray-400 font-bold text-xs mt-1">
+                      تابع وتصفح الدروس التعليمية والفيديوهات وسلاسل التمارين الخاصة بأبنائك
+                    </p>
+                  </div>
+
+                  {/* Kids Selector pills */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {children.map(c => {
+                      const isActive = c.childId === selectedChildIdForLessons;
+                      return (
+                        <button
+                          key={c.childId}
+                          onClick={() => setSelectedChildIdForLessons(c.childId)}
+                          className={cn(
+                            "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-[0.8rem] font-black transition-all border",
+                            isActive
+                              ? "bg-blue-brand text-white border-blue-brand shadow-md"
+                              : "bg-gray-50 border-gray-100 text-gray-500 hover:bg-gray-100"
+                          )}
+                        >
+                          <div className={cn(
+                            "h-6 w-6 rounded-lg flex items-center justify-center text-[0.7rem] font-bold uppercase",
+                            isActive ? "bg-white/20 text-white" : "bg-blue-50 text-blue-brand"
+                          )}>
+                            {c.childData?.displayName?.charAt(0) || '?'}
+                          </div>
+                          <span>{c.childData?.displayName || 'تلميذ مجهول'}</span>
+                          <span className={cn(
+                            "text-[0.62rem] px-1.5 py-0.5 rounded",
+                            isActive ? "bg-white/10 text-white" : "bg-gray-200 text-gray-500"
+                          )}>
+                            {getLevelLabel(c.childData?.level)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Grid content like student view */}
+              <div className="flex flex-col lg:flex-row gap-8">
+                {/* Sidebar/Filtering */}
+                <div className="w-full lg:w-[280px] shrink-0 space-y-4">
+                  <div className="rounded-[28px] border border-gray-100 bg-white p-6 shadow-sm space-y-4">
+                    <p className="text-[0.65rem] font-black uppercase tracking-widest text-gray-400">تصنيف المحتوى</p>
+                    
+                    <div className="flex flex-col gap-2">
+                      {[
+                        { id: 'lesson', label: 'الدروس المشروحة', icon: BookOpen },
+                        { id: 'exercise', label: 'سلاسل التمارين', icon: FileText },
+                        { id: 'summer_review', label: 'مراجعة صيفية', icon: Sun },
+                        { id: 'assignment', label: 'فروض المراقبة', icon: FileText },
+                        { id: 'synthesis', label: 'الفروض التأليفية', icon: Award }
+                      ].map(subItem => {
+                        const Icon = subItem.icon;
+                        const active = lessonsType === subItem.id;
+                        return (
+                          <button
+                            key={subItem.id}
+                            onClick={() => setLessonsType(subItem.id)}
+                            className={cn(
+                              "flex items-center gap-3 w-full text-right px-4 py-3 rounded-2xl text-[0.8rem] font-black transition-all border",
+                              active
+                                ? "bg-blue-dark text-white border-blue-dark shadow-sm"
+                                : "bg-gray-50/50 text-gray-500 border-gray-100 hover:bg-gray-100/50 hover:text-blue-dark"
+                            )}
+                          >
+                            <Icon size={16} className={active ? "text-gold-brand" : "text-gray-400"} />
+                            <span className="flex-1">{subItem.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Student Info Card */}
+                  <div className="rounded-[28px] border border-gray-100 bg-gray-50 p-6 space-y-3">
+                    <p className="text-[0.65rem] font-black uppercase tracking-widest text-gray-400">حالة التلميذ</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-500">حالة الاشتراك:</span>
+                      <span className={cn(
+                        "text-xs font-black px-2.5 py-0.5 rounded-full",
+                        activeLessonsChild?.childData?.subscriptionStatus === 'active' 
+                          ? "bg-emerald-50 text-emerald-600 border border-emerald-100" 
+                          : "bg-amber-50 text-amber-600 border border-amber-100"
+                      )}>
+                        {activeLessonsChild?.childData?.subscriptionStatus === 'active' ? 'نشط' : 'غير نشط'}
+                      </span>
+                    </div>
+                    {activeLessonsChild?.childData?.subscriptionStatus !== 'active' && (
+                      <div className="pt-2">
+                        <button
+                          onClick={() => {
+                            setSelectedChildForReceipt(activeLessonsChild.childId);
+                            setSearchParams({ tab: 'wallet' });
+                          }}
+                          className="w-full py-2.5 rounded-xl bg-gold-brand hover:bg-gold-light text-blue-dark text-[0.7rem] font-black transition-all text-center flex items-center justify-center gap-1 shadow-sm"
+                        >
+                          <Rocket size={12} />
+                          <span>تفعيل الاشتراك</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Lessons Content Stage */}
+                <div className="flex-1 space-y-6">
+                  {/* Search and Metadata Bar */}
+                  <div className="rounded-[28px] border border-gray-100 bg-white p-4 px-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="relative flex-1 max-w-md">
+                      <input 
+                        type="text" 
+                        value={lessonsSearchTerm} 
+                        onChange={e => setLessonsSearchTerm(e.target.value)} 
+                        className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 p-3 pr-10 text-xs font-bold outline-none focus:border-blue-light focus:bg-white transition-all" 
+                        placeholder="ابحث عن درس، محور، أو تمرين..." 
+                      />
+                      <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-auto text-[0.7rem] font-black text-gray-400 bg-gray-50 px-3.5 py-1.5 rounded-full border border-gray-100">
+                      <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                      <span>{lessonsContent.filter(c => c.title?.toLowerCase().includes(lessonsSearchTerm.toLowerCase()) || c.chapter?.toLowerCase().includes(lessonsSearchTerm.toLowerCase())).length} عنصر متوفر</span>
+                    </div>
+                  </div>
+
+                  {/* Lessons List */}
+                  {lessonsLoading ? (
+                    <div className="rounded-[32px] border border-gray-100 bg-white p-20 text-center shadow-sm">
+                      <Loader2 className="mx-auto animate-spin text-blue-brand mb-4" size={40} />
+                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest">جاري تحميل الدروس...</p>
+                    </div>
+                  ) : (
+                    (() => {
+                      const filteredLessons = lessonsContent.filter(c => 
+                        c.title?.toLowerCase().includes(lessonsSearchTerm.toLowerCase()) || 
+                        c.chapter?.toLowerCase().includes(lessonsSearchTerm.toLowerCase())
+                      );
+
+                      if (filteredLessons.length === 0) {
+                        return (
+                          <div className="rounded-[32px] border border-gray-100 bg-white p-16 text-center shadow-sm text-gray-300">
+                            <BookOpen size={48} className="mx-auto text-gray-200 mb-4" />
+                            <p className="font-black text-lg text-blue-dark/20 italic">لم نجد أي دروس مخصصة حالياً</p>
+                            <p className="text-xs font-bold text-gray-400 mt-1">تأكد من اختيار تصنيف آخر أو تصفية بحث مختلفة</p>
+                          </div>
+                        );
+                      }
+
+                      // Group by categories
+                      const categories = [
+                        { id: 'algebra', label: 'الجبر / ALGÈBRE' },
+                        { id: 'geometry', label: 'الهندسة / GÉOMÉTRIE' },
+                        { id: 'stats', label: 'إحصاءات واحتمالات / STATISTIQUES' },
+                        { id: 'general', label: 'عام / GÉNÉRAL' },
+                      ];
+
+                      return (
+                        <div className="space-y-12">
+                          {categories.map(cat => {
+                            const catItems = filteredLessons.filter(item => (item.category || 'general') === cat.id);
+                            if (catItems.length === 0) return null;
+
+                            return (
+                              <div key={cat.id} className="space-y-4">
+                                <div className="flex items-center gap-4">
+                                  <h3 className="text-xs font-black text-blue-dark tracking-wider bg-blue-50 px-3.5 py-1 rounded-full">{cat.label}</h3>
+                                  <div className="h-px flex-1 bg-gray-100" />
+                                </div>
+
+                                <div className="grid gap-4">
+                                  {catItems.map((item, idx) => {
+                                    const childHasAccess = hasAccess(item.level, item.isFree);
+                                    return (
+                                      <div 
+                                        key={item.id} 
+                                        className="group relative flex flex-col md:flex-row items-center gap-5 p-4 rounded-[24px] border border-gray-100 bg-white transition-all duration-300 hover:shadow-md"
+                                      >
+                                        {/* Thumbnail / Action block */}
+                                        <div 
+                                          onClick={() => childHasAccess && setLessonsViewerItem(item)}
+                                          className="relative w-full md:w-[150px] aspect-[16/10] rounded-2xl bg-blue-dark cursor-pointer overflow-hidden shrink-0"
+                                        >
+                                          {extractYTId(item.videoUrls?.[0] || item.videoUrl) ? (
+                                            <img 
+                                              src={`https://img.youtube.com/vi/${extractYTId(item.videoUrls?.[0] || item.videoUrl)}/hqdefault.jpg`} 
+                                              className="h-full w-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-500" 
+                                              alt={item.title}
+                                              referrerPolicy="no-referrer"
+                                            />
+                                          ) : (
+                                            <div className="flex h-full items-center justify-center text-white/20">
+                                              <FileText size={28} strokeWidth={1.5} />
+                                            </div>
+                                          )}
+                                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-40" />
+                                          
+                                          {item.isFree && (
+                                            <span className="absolute top-2 right-2 rounded-md bg-gold-brand px-1.5 py-0.5 text-[0.5rem] font-black text-blue-dark">مجاني</span>
+                                          )}
+
+                                          {childHasAccess && (
+                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+                                              <div className="h-8 w-8 rounded-full bg-white text-blue-dark flex items-center justify-center shadow-lg">
+                                                <Play fill="currentColor" size={12} className="mr-0.5" />
+                                              </div>
+                                            </div>
+                                          )}
+
+                                          {!childHasAccess && (
+                                            <div className="absolute inset-0 bg-blue-dark/70 backdrop-blur-[1px] flex items-center justify-center">
+                                              <Lock size={14} className="text-gold-brand" />
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {/* Content Meta Info */}
+                                        <div className="flex-1 min-w-0 flex flex-col md:flex-row items-center gap-4 w-full">
+                                          <div className="flex-1 text-center md:text-right min-w-0 space-y-1">
+                                            <div className="flex items-center justify-center md:justify-start gap-1.5">
+                                              <span className="text-[0.62rem] font-black text-blue-brand uppercase">{item.chapter}</span>
+                                              <span className="w-1 h-1 rounded-full bg-gray-200" />
+                                              <span className="text-[0.62rem] font-bold text-gray-400">
+                                                {item.type === 'lesson' ? 'درس فيديو' : item.type === 'summer_review' ? 'درس مراجعة صيفية' : item.type === 'exercise' ? 'سلسلة تمارين' : 'نموذج فرض'}
+                                              </span>
+                                            </div>
+                                            <h4 className="text-[0.85rem] font-black text-blue-dark truncate leading-tight group-hover:text-blue-brand transition-colors">
+                                              {item.title}
+                                            </h4>
+                                          </div>
+
+                                          <div className="shrink-0 w-full md:w-auto">
+                                            <button 
+                                              onClick={() => childHasAccess && setLessonsViewerItem(item)} 
+                                              className={cn(
+                                                "w-full md:w-[120px] flex items-center justify-center gap-2 rounded-xl py-2.5 text-[0.75rem] font-black transition-all",
+                                                childHasAccess 
+                                                  ? "bg-blue-brand hover:bg-blue-dark text-white shadow-sm" 
+                                                  : "bg-gray-50 text-gray-400 cursor-not-allowed"
+                                              )}
+                                            >
+                                              {childHasAccess ? (
+                                                <>
+                                                  <Play size={10} fill="currentColor" />
+                                                  <span>عرض الدرس</span>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <Lock size={10} />
+                                                  <span>مغلق</span>
+                                                </>
+                                              )}
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       ) : activeTab === 'children' ? (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
            {renderChildren()}
@@ -1795,6 +2208,174 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                 إغلاق
               </button>
             </motion.div>
+          </div>
+        )}
+
+        {lessonsViewerItem && (
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/95 backdrop-blur-3xl animate-in fade-in duration-300">
+             <div className="relative w-full h-full flex flex-col lg:flex-row overflow-hidden">
+                {/* Main Stage (Player/PDF) */}
+                <div className="flex-1 h-full flex flex-col bg-black">
+                   {/* Top Controls Overlay */}
+                   <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-6 px-10 bg-gradient-to-b from-black/80 to-transparent">
+                      <div className="flex items-center gap-4">
+                         <button onClick={() => setLessonsViewerItem(null)} className="h-10 w-10 rounded-xl bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-all border border-white/25">
+                            <X size={20} />
+                         </button>
+                         <div className="text-right">
+                            <h3 className="font-black text-white text-base leading-none">{lessonsViewerItem.title}</h3>
+                            <div className="flex items-center gap-2.5 mt-1.5 justify-start">
+                               <span className="text-[0.6rem] font-black text-gold-light uppercase tracking-widest bg-gold-brand/10 px-1.5 py-0.5 rounded border border-gold-brand/20">
+                                 {getLevelLabel(lessonsViewerItem.level)}
+                               </span>
+                               <span className="text-[0.6rem] text-white/40 font-bold">{lessonsViewerItem.chapter}</span>
+                            </div>
+                         </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                         {lessonsActiveRes?.type === 'pdf' && (
+                            <>
+                              <a 
+                                href={lessonsActiveRes.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white text-white hover:text-blue-dark font-black text-xs transition-all border border-white/15"
+                              >
+                                 <ExternalLink size={14} />
+                                 <span>فتح في نافذة مستقلة</span>
+                              </a>
+                              <a 
+                                href={lessonsActiveRes.url} 
+                                download
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gold-brand hover:bg-gold-light text-blue-dark font-black text-xs transition-all shadow-md shadow-gold-500/10"
+                              >
+                                 <Download size={14} />
+                                 <span>تحميل الوثيقة</span>
+                              </a>
+                            </>
+                         )}
+                      </div>
+                   </div>
+
+                   {/* Content Frame */}
+                   <div className="flex-1 flex items-center justify-center relative pt-20 lg:pt-0">
+                      {lessonsActiveRes?.type === 'video' ? (
+                         <div className="w-full h-full">
+                            <iframe 
+                              className="w-full h-full border-none" 
+                              src={`https://www.youtube.com/embed/${extractYTId(lessonsActiveRes.url)}?rel=0&autoplay=1&modestbranding=1`} 
+                              allowFullScreen 
+                              allow="autoplay"
+                            />
+                         </div>
+                      ) : lessonsActiveRes?.type === 'pdf' ? (
+                         <div className="w-full h-full bg-[#1a1a1a] flex flex-col">
+                            <div className="flex-1 relative">
+                               <iframe 
+                                 className="w-full h-full border-none" 
+                                 src={`https://docs.google.com/viewer?url=${encodeURIComponent(lessonsActiveRes.url)}&embedded=true`} 
+                                 title={lessonsActiveRes.name}
+                               />
+                            </div>
+                         </div>
+                      ) : (
+                         <div className="text-white/20 flex flex-col items-center gap-3">
+                            <Loader2 className="animate-spin" size={36} />
+                            <p className="font-black text-xs uppercase tracking-widest">جاري التجهيز...</p>
+                         </div>
+                      )}
+                   </div>
+                </div>
+
+                {/* Resource Sidebar */}
+                <aside className="w-full lg:w-[350px] h-full bg-blue-dark border-r border-white/5 flex flex-col shadow-2xl relative z-40 text-right">
+                   <div className="p-6 border-b border-white/5 bg-white/5">
+                      <p className="text-[0.6rem] font-black text-blue-light uppercase tracking-wider mb-2">قائمة المحتويات</p>
+                      <h4 className="text-white font-black text-base">مصادر الدرس المتاحة</h4>
+                   </div>
+
+                   <div className="flex-1 overflow-y-auto p-5 space-y-3">
+                      {(lessonsViewerItem.videoUrls || (lessonsViewerItem.videoUrl ? [lessonsViewerItem.videoUrl] : [])).map((url: string, idx: number) => url && (
+                         <button 
+                            key={`lessons-vid-${idx}`}
+                            onClick={() => setLessonsActiveRes({ type: 'video', url, name: idx === 0 ? 'شرح الفيديو' : `فيديو ${idx + 1}` })}
+                            className={cn(
+                              "w-full p-4 rounded-2xl flex items-center gap-3 text-right border transition-all",
+                              lessonsActiveRes?.url === url 
+                                ? "bg-white/10 border-white/20 text-white" 
+                                : "bg-white/5 border-transparent text-white/60 hover:bg-white/10 hover:text-white"
+                            )}
+                         >
+                            <Video size={18} className="shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-black truncate">{idx === 0 ? "شرح بالفيديو" : `فيديو إضافي ${idx + 1}`}</p>
+                              <p className="text-[0.62rem] opacity-60 font-bold mt-0.5">الحل المفصل والمنهجية</p>
+                            </div>
+                         </button>
+                      ))}
+
+                      {lessonsViewerItem.pdfText && (
+                         <button 
+                            onClick={() => setLessonsActiveRes({ type: 'pdf', url: lessonsViewerItem.pdfText, name: 'الوثيقة التعليمية' })}
+                            className={cn(
+                              "w-full p-4 rounded-2xl flex items-center gap-3 text-right border transition-all",
+                              lessonsActiveRes?.url === lessonsViewerItem.pdfText 
+                                ? "bg-white/10 border-white/20 text-white" 
+                                : "bg-white/5 border-transparent text-white/60 hover:bg-white/10 hover:text-white"
+                            )}
+                         >
+                            <FileText size={18} className="shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-black truncate">{lessonsViewerItem.type === 'lesson' || lessonsViewerItem.type === 'summer_review' ? "ملخص الدرس" : "نص التمرين / الفرض"}</p>
+                              <p className="text-[0.62rem] opacity-60 font-bold mt-0.5">وثيقة بصيغة PDF</p>
+                            </div>
+                         </button>
+                      )}
+
+                      {lessonsViewerItem.pdfSolution && (
+                         <button 
+                            onClick={() => setLessonsActiveRes({ type: 'pdf', url: lessonsViewerItem.pdfSolution, name: 'الإصلاح النموذجي' })}
+                            className={cn(
+                              "w-full p-4 rounded-2xl flex items-center gap-3 text-right border transition-all",
+                              lessonsActiveRes?.url === lessonsViewerItem.pdfSolution 
+                                ? "bg-white/10 border-white/20 text-white" 
+                                : "bg-white/5 border-transparent text-white/60 hover:bg-white/10 hover:text-white"
+                            )}
+                         >
+                            <Award size={18} className="shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-black truncate">الإصلاح النموذجي</p>
+                              <p className="text-[0.62rem] opacity-60 font-bold mt-0.5">النتائج والتعليلات</p>
+                            </div>
+                         </button>
+                      )}
+
+                      {lessonsViewerItem.pdfUrl && !lessonsViewerItem.pdfText && (
+                         <button 
+                            onClick={() => setLessonsActiveRes({ type: 'pdf', url: lessonsViewerItem.pdfUrl, name: 'الوثيقة التعليمية' })}
+                            className={cn(
+                              "w-full p-4 rounded-2xl flex items-center gap-3 text-right border transition-all",
+                              lessonsActiveRes?.url === lessonsViewerItem.pdfUrl 
+                                ? "bg-white/10 border-white/20 text-white" 
+                                : "bg-white/5 border-transparent text-white/60 hover:bg-white/10 hover:text-white"
+                            )}
+                         >
+                            <FileText size={18} className="shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-black truncate">الوثيقة التعليمية</p>
+                              <p className="text-[0.62rem] opacity-60 font-bold mt-0.5">قواعد هامة وملخصات</p>
+                            </div>
+                         </button>
+                      )}
+                   </div>
+
+                   <div className="p-6 border-t border-white/5 bg-white/5 flex items-center justify-between text-white/50 text-[0.65rem]">
+                     <span>أكاديمية مسار التميز</span>
+                     <button onClick={() => setLessonsViewerItem(null)} className="text-white hover:underline font-black">إغلاق</button>
+                   </div>
+                </aside>
+             </div>
           </div>
         )}
       </AnimatePresence>
