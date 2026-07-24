@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SUBSCRIPTION_PLANS, PAYMENT_METHODS, TUNISIAN_GOVERNORATES } from '@/src/constants';
 import { useNavigate } from 'react-router-dom';
 import { db, auth, handleFirestoreError, OperationType } from '@/src/lib/firebase';
+import { activateSubscriptionWithLinkedUsers, syncSubscriptionOnLink, getPlanExpiryDate } from '@/src/lib/subscriptionService';
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, orderBy, addDoc, deleteDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { User, getAuth, createUserWithEmailAndPassword, signOut, setPersistence, inMemoryPersistence } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
@@ -60,45 +61,6 @@ import {
   X
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
-
-const getPlanExpiryDate = (planId: string): Date => {
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  switch (planId) {
-    case 'august_review':
-      return new Date(currentYear, 7, 31, 23, 59, 59); // 31 August of current year
-    case 'trimester1':
-      return new Date(currentYear, 11, 22, 23, 59, 59); // 22 December of current year
-    case 'trimester2':
-      // If past March 22, set to next year's March 22
-      const t2Date = new Date(currentYear, 2, 22, 23, 59, 59);
-      if (t2Date < now) {
-        return new Date(currentYear + 1, 2, 22, 23, 59, 59);
-      }
-      return t2Date;
-    case 'trimester3':
-      const t3Date = new Date(currentYear, 5, 15, 23, 59, 59);
-      if (t3Date < now) {
-        return new Date(currentYear + 1, 5, 15, 23, 59, 59);
-      }
-      return t3Date;
-    case 'full_year':
-      const yearEnd = new Date(currentYear, 5, 15, 23, 59, 59);
-      if (yearEnd < now) {
-        return new Date(currentYear + 1, 5, 15, 23, 59, 59);
-      }
-      return yearEnd;
-    case 'recordings_yearly':
-      const oneYear = new Date();
-      oneYear.setFullYear(oneYear.getFullYear() + 1);
-      return oneYear;
-    case 'monthly':
-    default:
-      const thirtyDays = new Date();
-      thirtyDays.setDate(thirtyDays.getDate() + 30);
-      return thirtyDays;
-  }
-};
 
 interface Props {
   activeTab: string;
@@ -600,30 +562,19 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
         approvedAt: serverTimestamp()
       });
 
-      // 2. Update User profile
+      // 2. Activate subscription for user & synchronize with linked parent/children
       const expiryDate = getPlanExpiryDate(planId);
-      
-      await updateDoc(doc(db, 'users', userId), { 
-        subscriptionStatus: 'active',
-        currentPlan: planName,
-        plan: planId,
-        planId: planId,
-        lastPaymentDate: serverTimestamp(),
-        subscriptionExpiry: expiryDate.toISOString()
+      await activateSubscriptionWithLinkedUsers({
+        userId,
+        planId,
+        planName,
+        planPrice,
+        paymentMethod: receipt.paymentMethod,
+        expiryDateStr: expiryDate.toISOString(),
+        explicitParentId: receipt.parentId
       });
 
-      // 3. Update/Create Wallet Subscription record
-      await setDoc(doc(db, 'wallets', userId), {
-        activeSubscription: {
-          planName,
-          planId: planId,
-          activatedAt: serverTimestamp(),
-          price: planPrice
-        },
-        lastUpdated: serverTimestamp()
-      }, { merge: true });
-
-      toast.success('تم تفعيل الاشتراك وربطه بالمحفظة بنجاح');
+      toast.success('تم تفعيل الاشتراك وتعميمه على الحسابات المرتبطة بنجاح');
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, 'receipts');
       toast.error('حدث خطأ أثناء التفعيل');
@@ -2082,24 +2033,30 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       };
 
       if (editingUser.subscriptionStatus === 'active') {
-        updatePayload.plan = planId;
-        updatePayload.currentPlan = planName;
-        updatePayload.lastPaymentDate = serverTimestamp();
+        if (editingUser.userType === 'teacher' || editingUser.userType === 'admin') {
+          updatePayload.plan = 'teacher_access';
+          updatePayload.currentPlan = 'حساب مربي مفعل';
+          updatePayload.lastPaymentDate = serverTimestamp();
+          updatePayload.subscriptionExpiry = null;
+        } else {
+          updatePayload.plan = planId;
+          updatePayload.currentPlan = planName;
+          updatePayload.lastPaymentDate = serverTimestamp();
+        }
       }
 
       await updateDoc(doc(db, 'users', editingUser.id), updatePayload);
 
-      if (editingUser.subscriptionStatus === 'active') {
-        await setDoc(doc(db, 'wallets', editingUser.id), {
-          activeSubscription: {
-            planName,
-            planId,
-            activatedAt: serverTimestamp(),
-            price: planPrice,
-            paymentMethod
-          },
-          lastUpdated: serverTimestamp()
-        }, { merge: true });
+      if (editingUser.subscriptionStatus === 'active' && editingUser.userType !== 'teacher' && editingUser.userType !== 'admin') {
+        const expiryStr = editingUser.subscriptionExpiry || getPlanExpiryDate(planId).toISOString();
+        await activateSubscriptionWithLinkedUsers({
+          userId: editingUser.id,
+          planId,
+          planName,
+          planPrice,
+          paymentMethod,
+          expiryDateStr: expiryStr
+        });
 
         if (isActivating) {
           await addDoc(collection(db, 'receipts'), {
@@ -2162,17 +2119,30 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
               value={editingUser.subscriptionStatus || 'inactive'} 
               onChange={e => {
                 const newStatus = e.target.value;
+                const isTeacherOrAdmin = editingUser.userType === 'teacher' || editingUser.userType === 'admin';
                 const defaultPlan = editingUser.plan || 'monthly';
                 const selectedPlanObj = SUBSCRIPTION_PLANS.find(p => p.id === defaultPlan);
                 const expiry = getPlanExpiryDate(defaultPlan);
-                setEditingUser({
-                  ...editingUser,
-                  subscriptionStatus: newStatus,
-                  plan: newStatus === 'active' ? defaultPlan : (editingUser.plan || ''),
-                  currentPlan: newStatus === 'active' ? (selectedPlanObj ? selectedPlanObj.name : 'الاشتراك الشهري') : (editingUser.currentPlan || ''),
-                  paymentMethod: newStatus === 'active' ? (editingUser.paymentMethod || 'direct') : (editingUser.paymentMethod || ''),
-                  subscriptionExpiry: newStatus === 'active' ? expiry.toISOString() : null
-                });
+
+                if (isTeacherOrAdmin) {
+                  setEditingUser({
+                    ...editingUser,
+                    subscriptionStatus: newStatus,
+                    plan: newStatus === 'active' ? 'teacher_access' : (editingUser.plan || ''),
+                    currentPlan: newStatus === 'active' ? 'حساب مربي مفعل' : (editingUser.currentPlan || ''),
+                    paymentMethod: '',
+                    subscriptionExpiry: null
+                  });
+                } else {
+                  setEditingUser({
+                    ...editingUser,
+                    subscriptionStatus: newStatus,
+                    plan: newStatus === 'active' ? defaultPlan : (editingUser.plan || ''),
+                    currentPlan: newStatus === 'active' ? (selectedPlanObj ? selectedPlanObj.name : 'الاشتراك الشهري') : (editingUser.currentPlan || ''),
+                    paymentMethod: newStatus === 'active' ? (editingUser.paymentMethod || 'direct') : (editingUser.paymentMethod || ''),
+                    subscriptionExpiry: newStatus === 'active' ? expiry.toISOString() : null
+                  });
+                }
               }} 
               className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100"
             >
@@ -2182,7 +2152,29 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
           </div>
           <div className="space-y-2">
             <label className="text-xs font-black text-gray-400 uppercase pr-2">الدور</label>
-            <select value={editingUser.userType || 'student'} onChange={e => setEditingUser({...editingUser, userType: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
+            <select 
+              value={editingUser.userType || 'student'} 
+              onChange={e => {
+                const newType = e.target.value;
+                const isTeacherOrAdmin = newType === 'teacher' || newType === 'admin';
+                if (isTeacherOrAdmin) {
+                  setEditingUser({
+                    ...editingUser,
+                    userType: newType,
+                    plan: editingUser.subscriptionStatus === 'active' ? 'teacher_access' : editingUser.plan,
+                    currentPlan: editingUser.subscriptionStatus === 'active' ? 'حساب مربي مفعل' : editingUser.currentPlan,
+                    paymentMethod: '',
+                    subscriptionExpiry: null
+                  });
+                } else {
+                  setEditingUser({
+                    ...editingUser,
+                    userType: newType
+                  });
+                }
+              }} 
+              className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100"
+            >
               <option value="student">تلميذ</option>
               <option value="teacher">مربي</option>
               <option value="parent">ولي</option>
@@ -2190,7 +2182,19 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
             </select>
           </div>
 
-          {editingUser.subscriptionStatus === 'active' && (
+          {editingUser.subscriptionStatus === 'active' && (editingUser.userType === 'teacher' || editingUser.userType === 'admin') && (
+            <div className="md:col-span-2 bg-emerald-50/70 border border-emerald-100 rounded-3xl p-6 space-y-2 font-Tajawal animate-in fade-in slide-in-from-top-1 duration-300">
+              <h4 className="text-xs font-black text-emerald-800 flex items-center gap-2">
+                <ShieldCheck size={18} className="text-emerald-600" />
+                تفعيل حساب المربي / الأستاذ
+              </h4>
+              <p className="text-xs text-emerald-700 font-bold leading-relaxed">
+                المربي غير مطالب بدفع معاليم الاشتراك. عند تفعيل الحساب، يمنح الأستاذ وصولاً كاملاً لجميع الدروس، إضافة الموارد، ولوحة تحكم المدرسين بدون معاليم اشتراك.
+              </p>
+            </div>
+          )}
+
+          {editingUser.subscriptionStatus === 'active' && editingUser.userType !== 'teacher' && editingUser.userType !== 'admin' && (
             <div className="md:col-span-2 bg-blue-50/20 border border-blue-100/50 rounded-3xl p-6 space-y-4 font-Tajawal animate-in fade-in slide-in-from-top-1 duration-300">
               <h4 className="text-xs font-black text-blue-dark border-b border-gray-100 pb-2 flex items-center gap-1.5">
                 <ShieldCheck size={14} className="text-emerald-500" /> تفاصيل تفعيل الاشتراك التلقائي
@@ -2666,7 +2670,13 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                           {u.subscriptionStatus === 'active' ? <CheckCircle size={12} strokeWidth={3} /> : <XCircle size={12} strokeWidth={3} />}
                           <span>{u.subscriptionStatus === 'active' ? 'مفعل' : 'موقوف'}</span>
                         </div>
-                        {u.subscriptionExpiry && (
+                        {u.userType === 'teacher' ? (
+                          u.subscriptionStatus === 'active' && (
+                            <span className="text-[0.55rem] font-black px-2 py-0.5 rounded-md mt-1 bg-emerald-50 text-emerald-600">
+                              وصول كامل للتدريس
+                            </span>
+                          )
+                        ) : u.subscriptionExpiry ? (
                            <span className={cn(
                              "text-[0.55rem] font-black px-2 py-0.5 rounded-md mt-1",
                              (() => {
@@ -2687,7 +2697,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                                } catch (e) { return 'خطأ في التاريخ'; }
                              })()}
                            </span>
-                        )}
+                        ) : null}
                         {u.currentPlan && (
                           <span className="text-[0.55rem] font-bold text-blue-light/70 text-center max-w-[80px] break-words">
                             {u.currentPlan}
@@ -4823,6 +4833,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                                 childId: student.id,
                                 createdAt: serverTimestamp()
                               });
+                              await syncSubscriptionOnLink(linkingParent.id, student.id);
                               toast.success(`تم ربط التلميذ ${student.displayName} بنجاح`);
                             } catch (err) {
                               toast.error('حدث خطأ أثناء محاولة الربط');

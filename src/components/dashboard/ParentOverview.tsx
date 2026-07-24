@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, handleFirestoreError, OperationType, firebaseConfig } from '@/src/lib/firebase';
+import { syncSubscriptionOnLink } from '@/src/lib/subscriptionService';
 import { collection, query, where, getDocs, doc, getDoc, addDoc, setDoc, deleteDoc, serverTimestamp, onSnapshot, limit } from 'firebase/firestore';
 import { User, getAuth, createUserWithEmailAndPassword, signOut, setPersistence, inMemoryPersistence } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
@@ -437,6 +438,8 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
         createdAt: serverTimestamp() // Match blueprint
       });
 
+      await syncSubscriptionOnLink(user.uid, studentId);
+
       toast.success('تم ربط الحساب بنجاح');
       setChildIdInput('');
       setShowLinkModal(false);
@@ -518,6 +521,8 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
         childId: uid,
         createdAt: serverTimestamp()
       });
+
+      await syncSubscriptionOnLink(user.uid, uid);
 
       await signOut(secondaryAuth);
       

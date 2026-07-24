@@ -60,7 +60,7 @@ export default function AppShell({ children, title, description }: AppShellProps
              });
           }
           // Check for subscription expiry
-          if (data.userType === 'student' && data.subscriptionExpiry && data.subscriptionStatus === 'active') {
+          if ((data.userType === 'student' || data.userType === 'parent') && data.subscriptionExpiry && data.subscriptionStatus === 'active') {
              const expiry = new Date(data.subscriptionExpiry);
              if (expiry < new Date()) {
                 data.subscriptionStatus = 'inactive';
