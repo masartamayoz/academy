@@ -43,6 +43,8 @@ import {
   FileText,
   UserCheck,
   UserPlus,
+  User as UserIconLucide,
+  Ban,
   Save,
   Upload,
   ShieldCheck,
@@ -249,7 +251,8 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     address: '',
     group: '',
     birthDate: '',
-    wilaya: ''
+    wilaya: '',
+    linkedUserId: ''
   });
 
   const [newGroup, setNewGroup] = useState({
@@ -267,7 +270,10 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   const [bulkActionGroup, setBulkActionGroup] = useState('');
   const [showAssignStudentsModal, setShowAssignStudentsModal] = useState<any>(null); // For direct group assignment
   const [linkingParent, setLinkingParent] = useState<any>(null);
+  const [linkingStudent, setLinkingStudent] = useState<any>(null);
   const [studentSearch, setStudentSearch] = useState('');
+  const [parentSearch, setParentSearch] = useState('');
+  const [assignModalSearch, setAssignModalSearch] = useState('');
   const [editingGroup, setEditingGroup] = useState<any>(null);
   const [showAddGroupForm, setShowAddGroupForm] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
@@ -414,8 +420,9 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       }
 
       // 3. Save user info to Firestore using the generated UID
+      const { linkedUserId, ...userDataToSave } = newUser;
       await setDoc(doc(db, 'users', uid), {
-        ...newUser,
+        ...userDataToSave,
         phone: userPhone,
         displayName: `${newUser.firstName} ${newUser.lastName} `.trim(),
         subscriptionStatus: 'inactive',
@@ -423,11 +430,35 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
         uid: uid
       });
 
+      // 3.1 Link user to existing family member if selected
+      if (linkedUserId) {
+        let parentId = '';
+        let childId = '';
+        if (newUser.userType === 'parent') {
+          parentId = uid;
+          childId = linkedUserId;
+        } else if (newUser.userType === 'student') {
+          parentId = linkedUserId;
+          childId = uid;
+        }
+
+        if (parentId && childId) {
+          const linkId = `${parentId}_${childId}`;
+          await setDoc(doc(db, 'parentChildren', linkId), {
+            parentId,
+            childId,
+            createdAt: serverTimestamp(),
+            createdBy: 'admin'
+          });
+          await syncSubscriptionOnLink(parentId, childId);
+        }
+      }
+
       // 4. Sign out the newly created user from the secondary instance
       await signOut(secondaryAuth);
       
-      toast.success(`تمت إضافة المستخدم بنجاح: ${newUser.firstName} ${newUser.lastName}`);
-      setNewUser({ firstName: '', lastName: '', email: '', password: '', phone: '', userType: 'student', subject: 'الرياضيات', level: '7', address: '', group: '', birthDate: '', wilaya: '' });
+      toast.success(`تمت إضافة المستخدم بنجاح: ${newUser.firstName} ${newUser.lastName}${linkedUserId ? ' وتم الربط بالحساب المختار بنجاح' : ''}`);
+      setNewUser({ firstName: '', lastName: '', email: '', password: '', phone: '', userType: 'student', subject: 'الرياضيات', level: '7', address: '', group: '', birthDate: '', wilaya: '', linkedUserId: '' });
     } catch (err: any) {
       console.error('Error creating user:', err);
       let errorMsg = 'حدث خطأ أثناء إضافة المستخدم';
@@ -1025,19 +1056,53 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                   ))}
                 </select>
               </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-xs font-black text-gray-400 uppercase pr-2">ربط الحساب بولي أمر موجود (اختياري)</label>
+                <select 
+                  value={newUser.linkedUserId || ''} 
+                  onChange={e => setNewUser({...newUser, linkedUserId: e.target.value})} 
+                  className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-blue-light"
+                >
+                  <option value="">بدون ربط حالياً (يمكن الربط لاحقاً)</option>
+                  {data.users.filter(u => u.userType === 'parent').map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.displayName || `${p.firstName} ${p.lastName}`} ({p.email}) {p.phone ? `- هاتف: ${p.phone}` : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-gray-400 font-bold pr-2">سيتم ربط حساب التلميذ فوراً بالولي المختار عند الإنشاء ومزامنة الاشتراكات تلقائياً.</p>
+              </div>
             </>
           )}
 
           {newUser.userType === 'parent' && (
-            <div className="space-y-2">
-              <label className="text-xs font-black text-gray-400 uppercase pr-2">الولاية *</label>
-              <select required value={newUser.wilaya} onChange={e => setNewUser({...newUser, wilaya: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
-                <option value="">اختر الولاية</option>
-                {TUNISIAN_GOVERNORATES.map(gov => (
-                  <option key={gov} value={gov}>{gov}</option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-400 uppercase pr-2">الولاية *</label>
+                <select required value={newUser.wilaya} onChange={e => setNewUser({...newUser, wilaya: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
+                  <option value="">اختر الولاية</option>
+                  {TUNISIAN_GOVERNORATES.map(gov => (
+                    <option key={gov} value={gov}>{gov}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-xs font-black text-gray-400 uppercase pr-2">ربط الحساب بتلميذ موجود (اختياري)</label>
+                <select 
+                  value={newUser.linkedUserId || ''} 
+                  onChange={e => setNewUser({...newUser, linkedUserId: e.target.value})} 
+                  className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-blue-light"
+                >
+                  <option value="">بدون ربط حالياً (يمكن الربط لاحقاً)</option>
+                  {data.users.filter(u => u.userType === 'student').map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.displayName || `${s.firstName} ${s.lastName}`} ({s.email}) {s.phone ? `- هاتف: ${s.phone}` : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-gray-400 font-bold pr-2">سيتم ربط حساب الولي فوراً بالتلميذ المختار عند الإنشاء ومزامنة الاشتراكات تلقائياً.</p>
+              </div>
+            </>
           )}
 
           {newUser.userType === 'teacher' && (
@@ -2144,105 +2209,159 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   };
 
   const renderEditUserModal = () => (
-    <div key="edit-user-modal" className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-blue-dark/50 backdrop-blur-sm">
+    <div key="edit-user-modal" className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-blue-dark/50 backdrop-blur-md overflow-y-auto">
       <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-[40px] w-full max-w-2xl shadow-2xl border border-white/20 overflow-hidden"
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        className="bg-white rounded-[32px] sm:rounded-[40px] w-full max-w-4xl shadow-2xl border border-white/20 overflow-hidden my-auto max-h-[92vh] flex flex-col font-Tajawal"
       >
-        <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-          <div>
-            <h3 className="text-2xl font-black text-blue-dark">تعديل بيانات المستخدم</h3>
-            <p className="text-gray-400 font-bold text-sm">تعديل معلومات {editingUser.displayName}</p>
+        {/* Header */}
+        <div className="p-6 sm:p-8 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-50/80 via-white to-blue-50/30 shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-blue-dark text-white flex items-center justify-center font-black text-lg shadow-lg shadow-blue-dark/20">
+              {editingUser.displayName?.charAt(0).toUpperCase() || 'U'}
+            </div>
+            <div>
+              <h3 className="text-xl sm:text-2xl font-black text-blue-dark">تعديل بيانات المستخدم</h3>
+              <p className="text-gray-400 font-bold text-xs sm:text-sm">تعديل معلومات وحالة اشتراك {editingUser.displayName}</p>
+            </div>
           </div>
-          <button onClick={() => setEditingUser(null)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-            <XCircle size={24} className="text-gray-400" />
+          <button onClick={() => setEditingUser(null)} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400 hover:text-gray-600">
+            <XCircle size={26} />
           </button>
         </div>
-        <form onSubmit={handleUpdateUser} className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <label className="text-xs font-black text-gray-400 uppercase pr-2">الاسم الأول</label>
-            <input required type="text" value={editingUser.firstName || ''} onChange={e => setEditingUser({...editingUser, firstName: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-black text-gray-400 uppercase pr-2">اللقب</label>
-            <input required type="text" value={editingUser.lastName || ''} onChange={e => setEditingUser({...editingUser, lastName: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-black text-gray-400 uppercase pr-2">رقم الهاتف</label>
-            <input type="text" value={editingUser.phone || ''} onChange={e => setEditingUser({...editingUser, phone: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-black text-gray-400 uppercase pr-2">حالة الاشتراك</label>
-            <select 
-              value={editingUser.subscriptionStatus || 'inactive'} 
-              onChange={e => {
-                const newStatus = e.target.value;
-                const isTeacherOrAdmin = editingUser.userType === 'teacher' || editingUser.userType === 'admin';
-                const defaultPlan = editingUser.plan || 'monthly';
-                const selectedPlanObj = SUBSCRIPTION_PLANS.find(p => p.id === defaultPlan);
-                const expiry = getPlanExpiryDate(defaultPlan);
 
-                if (isTeacherOrAdmin) {
-                  setEditingUser({
-                    ...editingUser,
-                    subscriptionStatus: newStatus,
-                    plan: newStatus === 'active' ? 'teacher_access' : (editingUser.plan || ''),
-                    currentPlan: newStatus === 'active' ? 'حساب مربي مفعل' : (editingUser.currentPlan || ''),
-                    paymentMethod: '',
-                    subscriptionExpiry: null
-                  });
-                } else {
-                  setEditingUser({
-                    ...editingUser,
-                    subscriptionStatus: newStatus,
-                    plan: newStatus === 'active' ? defaultPlan : (editingUser.plan || ''),
-                    currentPlan: newStatus === 'active' ? (selectedPlanObj ? selectedPlanObj.name : 'الاشتراك الشهري') : (editingUser.currentPlan || ''),
-                    paymentMethod: newStatus === 'active' ? (editingUser.paymentMethod || 'direct') : (editingUser.paymentMethod || ''),
-                    subscriptionExpiry: newStatus === 'active' ? expiry.toISOString() : null
-                  });
-                }
-              }} 
-              className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100"
-            >
-              <option value="active">نشط (مفعل)</option>
-              <option value="inactive">غير نشط</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-black text-gray-400 uppercase pr-2">الدور</label>
-            <select 
-              value={editingUser.userType || 'student'} 
-              onChange={e => {
-                const newType = e.target.value;
-                const isTeacherOrAdmin = newType === 'teacher' || newType === 'admin';
-                if (isTeacherOrAdmin) {
-                  setEditingUser({
-                    ...editingUser,
-                    userType: newType,
-                    plan: editingUser.subscriptionStatus === 'active' ? 'teacher_access' : editingUser.plan,
-                    currentPlan: editingUser.subscriptionStatus === 'active' ? 'حساب مربي مفعل' : editingUser.currentPlan,
-                    paymentMethod: '',
-                    subscriptionExpiry: null
-                  });
-                } else {
-                  setEditingUser({
-                    ...editingUser,
-                    userType: newType
-                  });
-                }
-              }} 
-              className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100"
-            >
-              <option value="student">تلميذ</option>
-              <option value="teacher">مربي</option>
-              <option value="parent">ولي</option>
-              <option value="admin">مدير</option>
-            </select>
+        {/* Scrollable Form Body */}
+        <form onSubmit={handleUpdateUser} className="p-6 sm:p-8 overflow-y-auto space-y-6 flex-1">
+          {/* Section 1: Basic Information */}
+          <div className="bg-gray-50/60 border border-gray-100 rounded-3xl p-5 sm:p-6 space-y-4">
+            <div className="flex items-center gap-2 border-b border-gray-200/60 pb-3 text-blue-dark font-black text-sm">
+              <UserIconLucide size={18} className="text-blue-light" />
+              <span>البيانات الأساسية</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-gray-400 uppercase pr-1">الاسم الأول *</label>
+                <input required type="text" value={editingUser.firstName || ''} onChange={e => setEditingUser({...editingUser, firstName: e.target.value})} className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-light/50 transition-all" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-gray-400 uppercase pr-1">اللقب *</label>
+                <input required type="text" value={editingUser.lastName || ''} onChange={e => setEditingUser({...editingUser, lastName: e.target.value})} className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-light/50 transition-all" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-gray-400 uppercase pr-1">رقم الهاتف</label>
+                <input type="text" value={editingUser.phone || ''} onChange={e => setEditingUser({...editingUser, phone: e.target.value})} className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-light/50 transition-all" />
+              </div>
+            </div>
           </div>
 
+          {/* Section 2: Account Role & Subscription Status */}
+          <div className="bg-gray-50/60 border border-gray-100 rounded-3xl p-5 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-200/60 pb-3">
+              <div className="flex items-center gap-2 text-blue-dark font-black text-sm">
+                <ShieldCheck size={18} className="text-blue-light" />
+                <span>نوع الحساب وحالة الاشتراك</span>
+              </div>
+              {editingUser.subscriptionStatus === 'active' && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (confirm(`هل أنت تأكد من إلغاء اشتراك ${editingUser.displayName}؟ سيتم إلغاء صلاحيات العرض وإيقاف الاشتراك ومزامنة أفراد العائلة المرتبطين.`)) {
+                      setEditingUser({
+                        ...editingUser,
+                        subscriptionStatus: 'inactive',
+                        currentPlan: '',
+                        plan: '',
+                        subscriptionExpiry: null
+                      });
+                      toast.info('تم تغيير حالة الاشتراك إلى "غير نشط". انقر على "حفظ التغييرات" لإتمام الحفظ والمزامنة.');
+                    }
+                  }}
+                  className="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-500 hover:text-white border border-red-200 text-red-600 text-xs font-black transition-all flex items-center gap-1.5 shadow-sm"
+                >
+                  <Ban size={14} />
+                  إلغاء الاشتراك
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-gray-400 uppercase pr-1">الدور (نوع المستخدم)</label>
+                <select 
+                  value={editingUser.userType || 'student'} 
+                  onChange={e => {
+                    const newType = e.target.value;
+                    const isTeacherOrAdmin = newType === 'teacher' || newType === 'admin';
+                    if (isTeacherOrAdmin) {
+                      setEditingUser({
+                        ...editingUser,
+                        userType: newType,
+                        plan: editingUser.subscriptionStatus === 'active' ? 'teacher_access' : editingUser.plan,
+                        currentPlan: editingUser.subscriptionStatus === 'active' ? 'حساب مربي مفعل' : editingUser.currentPlan,
+                        paymentMethod: '',
+                        subscriptionExpiry: null
+                      });
+                    } else {
+                      setEditingUser({
+                        ...editingUser,
+                        userType: newType
+                      });
+                    }
+                  }} 
+                  className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-light/50 transition-all"
+                >
+                  <option value="student">تلميذ</option>
+                  <option value="teacher">مربي / أستاذ</option>
+                  <option value="parent">ولي أمر</option>
+                  <option value="admin">مدير نظام</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-gray-400 uppercase pr-1">حالة الاشتراك</label>
+                <select 
+                  value={editingUser.subscriptionStatus || 'inactive'} 
+                  onChange={e => {
+                    const newStatus = e.target.value;
+                    const isTeacherOrAdmin = editingUser.userType === 'teacher' || editingUser.userType === 'admin';
+                    const defaultPlan = editingUser.plan || 'monthly';
+                    const selectedPlanObj = SUBSCRIPTION_PLANS.find(p => p.id === defaultPlan);
+                    const expiry = getPlanExpiryDate(defaultPlan);
+
+                    if (isTeacherOrAdmin) {
+                      setEditingUser({
+                        ...editingUser,
+                        subscriptionStatus: newStatus,
+                        plan: newStatus === 'active' ? 'teacher_access' : (editingUser.plan || ''),
+                        currentPlan: newStatus === 'active' ? 'حساب مربي مفعل' : (editingUser.currentPlan || ''),
+                        paymentMethod: '',
+                        subscriptionExpiry: null
+                      });
+                    } else {
+                      setEditingUser({
+                        ...editingUser,
+                        subscriptionStatus: newStatus,
+                        plan: newStatus === 'active' ? defaultPlan : '',
+                        currentPlan: newStatus === 'active' ? (selectedPlanObj ? selectedPlanObj.name : 'الاشتراك الشهري') : '',
+                        paymentMethod: newStatus === 'active' ? (editingUser.paymentMethod || 'direct') : '',
+                        subscriptionExpiry: newStatus === 'active' ? expiry.toISOString() : null
+                      });
+                    }
+                  }} 
+                  className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-light/50 transition-all"
+                >
+                  <option value="active">نشط (مفعل)</option>
+                  <option value="inactive">غير نشط (ملغى / متوقف)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Teacher Banner or Subscription Offers Config */}
           {editingUser.subscriptionStatus === 'active' && (editingUser.userType === 'teacher' || editingUser.userType === 'admin') && (
-            <div className="md:col-span-2 bg-emerald-50/70 border border-emerald-100 rounded-3xl p-6 space-y-2 font-Tajawal animate-in fade-in slide-in-from-top-1 duration-300">
+            <div className="bg-emerald-50/80 border border-emerald-100 rounded-3xl p-5 sm:p-6 space-y-2 font-Tajawal animate-in fade-in duration-300">
               <h4 className="text-xs font-black text-emerald-800 flex items-center gap-2">
                 <ShieldCheck size={18} className="text-emerald-600" />
                 تفعيل حساب المربي / الأستاذ
@@ -2254,18 +2373,18 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
           )}
 
           {editingUser.subscriptionStatus === 'active' && editingUser.userType !== 'teacher' && editingUser.userType !== 'admin' && (
-            <div className="md:col-span-2 bg-gradient-to-br from-blue-50/40 via-white to-indigo-50/30 border border-blue-100 rounded-3xl p-6 space-y-5 font-Tajawal animate-in fade-in slide-in-from-top-1 duration-300 shadow-sm">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-blue-100/60 pb-3">
+            <div className="bg-gradient-to-br from-blue-50/40 via-white to-indigo-50/30 border border-blue-100 rounded-3xl p-5 sm:p-6 space-y-5 font-Tajawal animate-in fade-in duration-300 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-blue-100/60 pb-3">
                 <div>
                   <h4 className="text-xs font-black text-blue-dark flex items-center gap-2">
                     <ShieldCheck size={18} className="text-emerald-500" />
                     إدارة وتعديل العروض والمزامنة العائلية
                   </h4>
                   <p className="text-[11px] text-gray-500 font-bold mt-0.5">
-                    اختر الإجراء المطلوب (تعديل وتصحيح العرض الحالي أو إضافة عرض جديد) للتنفيذ والمزامنة تلقائياً
+                    اختر الإجراء المطلوب (تعديل وتصحيح العرض الحالي، إضافة عرض جديد، أو إلغاء الاشتراك) للتنفيذ والمزامنة تلقائياً
                   </p>
                 </div>
-                <span className="self-start md:self-auto text-[10px] bg-blue-100 text-blue-800 font-black px-3 py-1 rounded-full whitespace-nowrap">
+                <span className="self-start sm:self-auto text-[10px] bg-blue-100 text-blue-800 font-black px-3 py-1 rounded-full whitespace-nowrap">
                   مزامنة تلقائية للأولياء والتلاميذ
                 </span>
               </div>
@@ -2338,10 +2457,10 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* العرض (الخطة) */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black text-gray-400 uppercase pr-2">العرض (الخطة) *</label>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black text-gray-400 uppercase pr-1">العرض (الخطة) *</label>
                   <select 
                     value={editingUser.plan || 'monthly'} 
                     onChange={e => {
@@ -2357,7 +2476,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                         subscriptionExpiry: expiry.toISOString()
                       });
                     }} 
-                    className="w-full rounded-2xl bg-white border border-gray-100 px-6 py-3 text-xs font-black outline-none ring-1 ring-gray-50 focus:ring-blue-100"
+                    className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-3 text-xs font-black outline-none focus:ring-2 focus:ring-blue-100"
                   >
                     {SUBSCRIPTION_PLANS.map(plan => (
                       <option key={plan.id} value={plan.id}>{plan.name} ({plan.price} د.ت)</option>
@@ -2365,9 +2484,9 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                   </select>
                 </div>
 
-                {/* سعر العرض (مع إمكانية التعديل لتصحيح الأخطاء) */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black text-gray-400 uppercase pr-2">سعر العرض (دينار تونسي) *</label>
+                {/* سعر العرض */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black text-gray-400 uppercase pr-1">سعر العرض (دينار تونسي) *</label>
                   <input 
                     type="number" 
                     value={editingUser.planPrice !== undefined ? editingUser.planPrice : (() => {
@@ -2376,17 +2495,17 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                     })()}
                     onChange={e => setEditingUser({ ...editingUser, planPrice: e.target.value })}
                     placeholder="السعر بالدينار"
-                    className="w-full rounded-2xl bg-white border border-gray-100 px-6 py-3 text-xs font-black outline-none ring-1 ring-gray-50 focus:ring-blue-100"
+                    className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-3 text-xs font-black outline-none focus:ring-2 focus:ring-blue-100"
                   />
                 </div>
 
                 {/* طريقة الدفع */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black text-gray-400 uppercase pr-2">طريقة الدفع *</label>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black text-gray-400 uppercase pr-1">طريقة الدفع *</label>
                   <select 
                     value={editingUser.paymentMethod || 'direct'} 
                     onChange={e => setEditingUser({ ...editingUser, paymentMethod: e.target.value })} 
-                    className="w-full rounded-2xl bg-white border border-gray-100 px-6 py-3 text-xs font-black outline-none ring-1 ring-gray-50 focus:ring-blue-100"
+                    className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-3 text-xs font-black outline-none focus:ring-2 focus:ring-blue-100"
                   >
                     <option value="direct">دفع مباشر نقداً (كاش)</option>
                     {PAYMENT_METHODS.map(method => (
@@ -2396,8 +2515,8 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                 </div>
 
                 {/* تاريخ انتهاء الاشتراك */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black text-gray-400 uppercase pr-2">تاريخ انتهاء الاشتراك *</label>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black text-gray-400 uppercase pr-1">تاريخ انتهاء الاشتراك *</label>
                   <input 
                     type="datetime-local" 
                     value={(() => {
@@ -2408,86 +2527,102 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                       } catch (e) { return ''; }
                     })()} 
                     onChange={e => setEditingUser({...editingUser, subscriptionExpiry: e.target.value})} 
-                    className="w-full rounded-2xl bg-white border border-gray-100 px-6 py-3 text-xs font-black outline-none ring-1 ring-gray-50 focus:ring-blue-100" 
+                    className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-3 text-xs font-black outline-none focus:ring-2 focus:ring-blue-100" 
                   />
                 </div>
               </div>
+
+              {/* Cancel Subscription Action Bar inside Offers section */}
+              <div className="pt-2 border-t border-blue-100/60 flex items-center justify-between">
+                <span className="text-[11px] text-gray-400 font-bold">هل ترغب بإلغاء اشتراك المستخدم نهائياً؟</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm(`هل تؤكد إلغاء الاشتراك الحالي للحساب ${editingUser.displayName}؟`)) {
+                      setEditingUser({
+                        ...editingUser,
+                        subscriptionStatus: 'inactive',
+                        currentPlan: '',
+                        plan: '',
+                        subscriptionExpiry: null
+                      });
+                      toast.success('تم تحديد الاشتراك ملغى. اضغط على حفظ التغييرات لتأكيد الحفظ والمزامنة العائلية.');
+                    }
+                  }}
+                  className="px-4 py-2 rounded-xl bg-red-100 hover:bg-red-600 text-red-700 hover:text-white font-black text-xs transition-all flex items-center gap-1.5"
+                >
+                  <Ban size={14} />
+                  إلغاء الاشتراك الآن
+                </button>
+              </div>
             </div>
           )}
 
-          {editingUser.userType === 'student' && (
-            <>
-              <div className="space-y-2">
-                <label className="text-xs font-black text-gray-400 uppercase pr-2">المستوى</label>
-                <select value={editingUser.level || ''} onChange={e => setEditingUser({...editingUser, level: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
-                  <option value="">اختر المستوى</option>
-                  <option value="7">السنة السابعة</option>
-                  <option value="8">السنة الثامنة</option>
-                  <option value="9">السنة التاسعة</option>
-                  <option value="1sec">السنة الأولى ثانوي</option>
-                  <option value="2sec">السنة الثانية ثانوي</option>
-                  <option value="3sec">السنة الثالثة ثانوي</option>
-                  <option value="4sec">باكالوريا</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black text-gray-400 uppercase pr-2">المجموعة</label>
-                <select value={editingUser.group || ''} onChange={e => setEditingUser({...editingUser, group: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
-                  <option value="">بدون مجموعة</option>
-                  {data.groups.filter(g => g.level === editingUser.level).map(g => (
-                    <option key={g.id} value={g.name}>{g.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black text-gray-400 uppercase pr-2">تاريخ الميلاد *</label>
-                <input required type="date" value={editingUser.birthDate || ''} onChange={e => setEditingUser({...editingUser, birthDate: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black text-gray-400 uppercase pr-2">الولاية *</label>
-                <select required value={editingUser.wilaya || ''} onChange={e => setEditingUser({...editingUser, wilaya: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
+          {/* Section 4: Role-Specific Details */}
+          <div className="bg-gray-50/60 border border-gray-100 rounded-3xl p-5 sm:p-6 space-y-4">
+            <div className="flex items-center gap-2 border-b border-gray-200/60 pb-3 text-blue-dark font-black text-sm">
+              <Layers size={18} className="text-blue-light" />
+              <span>تفاصيل الدراسة والمعلومات الجغرافية</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {editingUser.userType === 'student' && (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-gray-400 uppercase pr-1">المستوى التعليمي</label>
+                    <select value={editingUser.level || ''} onChange={e => setEditingUser({...editingUser, level: e.target.value})} className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-light/50 transition-all">
+                      <option value="">اختر المستوى</option>
+                      <option value="7">السنة السابعة</option>
+                      <option value="8">السنة الثامنة</option>
+                      <option value="9">السنة التاسعة</option>
+                      <option value="1sec">السنة الأولى ثانوي</option>
+                      <option value="2sec">السنة الثانية ثانوي</option>
+                      <option value="3sec">السنة الثالثة ثانوي</option>
+                      <option value="4sec">باكالوريا</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-gray-400 uppercase pr-1">المجموعة</label>
+                    <select value={editingUser.group || ''} onChange={e => setEditingUser({...editingUser, group: e.target.value})} className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-light/50 transition-all">
+                      <option value="">بدون مجموعة</option>
+                      {data.groups.filter(g => g.level === editingUser.level).map(g => (
+                        <option key={g.id} value={g.name}>{g.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-gray-400 uppercase pr-1">تاريخ الميلاد *</label>
+                    <input required type="date" value={editingUser.birthDate || ''} onChange={e => setEditingUser({...editingUser, birthDate: e.target.value})} className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-light/50 transition-all" />
+                  </div>
+                </>
+              )}
+
+              {editingUser.userType === 'teacher' && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-gray-400 uppercase pr-1">المادة الدراسية *</label>
+                  <input type="text" value={editingUser.subject || ''} onChange={e => setEditingUser({...editingUser, subject: e.target.value})} className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-light/50 transition-all" />
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-gray-400 uppercase pr-1">الولاية *</label>
+                <select required value={editingUser.wilaya || ''} onChange={e => setEditingUser({...editingUser, wilaya: e.target.value})} className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-light/50 transition-all">
                   <option value="">اختر الولاية</option>
                   {TUNISIAN_GOVERNORATES.map(gov => (
                     <option key={gov} value={gov}>{gov}</option>
                   ))}
                 </select>
               </div>
-            </>
-          )}
-
-          {editingUser.userType === 'parent' && (
-            <div className="space-y-2">
-              <label className="text-xs font-black text-gray-400 uppercase pr-2">الولاية *</label>
-              <select required value={editingUser.wilaya || ''} onChange={e => setEditingUser({...editingUser, wilaya: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
-                <option value="">اختر الولاية</option>
-                {TUNISIAN_GOVERNORATES.map(gov => (
-                  <option key={gov} value={gov}>{gov}</option>
-                ))}
-              </select>
             </div>
-          )}
+          </div>
 
-          {editingUser.userType === 'teacher' && (
-            <>
-              <div className="space-y-2">
-                <label className="text-xs font-black text-gray-400 uppercase pr-2">المادة *</label>
-                <input type="text" value={editingUser.subject || ''} onChange={e => setEditingUser({...editingUser, subject: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black text-gray-400 uppercase pr-2">الولاية *</label>
-                <select required value={editingUser.wilaya || ''} onChange={e => setEditingUser({...editingUser, wilaya: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
-                  <option value="">اختر الولاية</option>
-                  {TUNISIAN_GOVERNORATES.map(gov => (
-                    <option key={gov} value={gov}>{gov}</option>
-                  ))}
-                </select>
-              </div>
-            </>
-          )}
-          <div className="md:col-span-2 flex justify-end gap-3 mt-4">
-            <button type="button" onClick={() => setEditingUser(null)} className="px-8 py-4 rounded-2xl bg-gray-100 text-gray-600 font-black text-sm">إلغاء</button>
-            <button disabled={loading} type="submit" className="px-10 py-4 rounded-2xl bg-blue-dark text-white font-black text-sm shadow-xl flex items-center gap-2">
-              {loading ? <Loader2 className="animate-spin" /> : <Save size={18} />} حفظ التغييرات
+          {/* Action Buttons */}
+          <div className="pt-4 border-t border-gray-100 flex flex-col sm:flex-row justify-end gap-3">
+            <button type="button" onClick={() => setEditingUser(null)} className="px-8 py-3.5 rounded-2xl bg-gray-100 text-gray-600 font-black text-sm hover:bg-gray-200 transition-all">
+              إلغاء
+            </button>
+            <button disabled={loading} type="submit" className="px-10 py-3.5 rounded-2xl bg-blue-dark text-white font-black text-sm shadow-xl shadow-blue-dark/20 hover:bg-blue-800 transition-all flex items-center justify-center gap-2">
+              {loading ? <Loader2 className="animate-spin" /> : <Save size={18} />} حفظ التغييرات والمزامنة
             </button>
           </div>
         </form>
@@ -2804,6 +2939,48 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                             })()}
                           </div>
                         )}
+                        {u.userType === 'student' && (
+                          <div className="text-[0.6rem] font-bold text-gray-400 mt-1 flex flex-col gap-1 items-center justify-center">
+                            {(() => {
+                              const linked = (data.parentChildren || [])
+                                .filter(pc => pc.childId === u.id)
+                                .map(pc => {
+                                  const parent = data.users.find(p => p.id === pc.parentId);
+                                  return parent ? { id: pc.id, name: parent.displayName } : null;
+                                })
+                                .filter(Boolean) as any[];
+                              return linked.length > 0 ? (
+                                <div className="flex flex-col gap-1 items-center">
+                                  <span className="text-[0.55rem] text-gray-400">الولي:</span>
+                                  <div className="flex flex-wrap gap-1 justify-center max-w-[120px]">
+                                    {linked.map((link) => (
+                                      <div key={link.id} className="flex items-center gap-0.5 bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded text-[0.55rem] font-bold">
+                                        <span>{link.name}</span>
+                                        <button
+                                          onClick={async (e) => {
+                                            e.stopPropagation();
+                                            if (confirm(`هل تريد إلغاء ربط الولي ${link.name}؟`)) {
+                                              try {
+                                                await deleteDoc(doc(db, 'parentChildren', link.id));
+                                                toast.success('تم إلغاء الربط بنجاح');
+                                              } catch (err) {
+                                                toast.error('حدث خطأ أثناء إغلاق الربط');
+                                              }
+                                            }
+                                          }}
+                                          className="text-red-400 hover:text-red-600 transition-colors mr-0.5"
+                                          title="إلغاء الربط"
+                                        >
+                                          <X size={8} />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : null;
+                            })()}
+                          </div>
+                        )}
                      </div>
                      <div className="animate-in fade-in slide-in-from-right-1 duration-300">
                         <div className="flex items-center justify-center gap-1.5 text-[0.7rem] font-bold text-gray-500">
@@ -2879,6 +3056,15 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                             onClick={() => { setLinkingParent(u); setStudentSearch(''); }}
                             className="p-2.5 rounded-[14px] bg-emerald-50 border border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm hover:shadow-lg hover:shadow-emerald-900/10 animate-pulse"
                             title="ربط الولي بمنظوره"
+                          >
+                            <Link size={16} />
+                          </button>
+                        )}
+                        {u.userType === 'student' && (
+                          <button 
+                            onClick={() => { setLinkingStudent(u); setParentSearch(''); }}
+                            className="p-2.5 rounded-[14px] bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all shadow-sm hover:shadow-lg hover:shadow-indigo-900/10 animate-pulse"
+                            title="ربط التلميذ بولي أمر"
                           >
                             <Link size={16} />
                           </button>
@@ -4578,8 +4764,19 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   const renderAssignStudentsModal = () => {
     if (!showAssignStudentsModal) return null;
     
+    const candidates = data.users
+      .filter(u => u.userType === 'student' && u.level === showAssignStudentsModal.level && u.group !== showAssignStudentsModal.group)
+      .filter(u => {
+        if (!assignModalSearch) return true;
+        const q = assignModalSearch.toLowerCase();
+        const fullName = `${u.firstName || ''} ${u.lastName || ''} ${u.displayName || ''}`.toLowerCase();
+        const email = (u.email || '').toLowerCase();
+        const phone = (u.phone || '').toLowerCase();
+        return fullName.includes(q) || email.includes(q) || phone.includes(q);
+      });
+
     return (
-      <div key="assign-students-modal" className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-blue-dark/50 backdrop-blur-sm">
+      <div key="assign-students-modal" className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-blue-dark/50 backdrop-blur-sm font-Tajawal">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -4590,42 +4787,52 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
               <h3 className="text-xl font-black text-blue-dark">إضافة تلاميذ إلى {showAssignStudentsModal.group}</h3>
               <p className="text-[0.75rem] text-gray-400 font-bold">تلاميذ السنة {showAssignStudentsModal.level} أساسي</p>
             </div>
-            <button onClick={() => { setShowAssignStudentsModal(null); setSelectedUsers([]); }} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+            <button onClick={() => { setShowAssignStudentsModal(null); setSelectedUsers([]); setAssignModalSearch(''); }} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
               <XCircle size={24} className="text-gray-400" />
             </button>
           </div>
           
-          <div className="p-6 max-h-[60vh] overflow-y-auto">
-             <div className="space-y-3">
-                {data.users
-                  .filter(u => u.userType === 'student' && u.level === showAssignStudentsModal.level && u.group !== showAssignStudentsModal.group)
-                  .map(u => (
-                    <div 
-                      key={u.id} 
-                      onClick={() => {
-                        setSelectedUsers(prev => prev.includes(u.id) ? prev.filter(id => id !== u.id) : [...prev, u.id]);
-                      }}
-                      className={cn(
-                        "p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between",
-                        selectedUsers.includes(u.id) ? "border-blue-light bg-blue-50/30" : "border-gray-50 bg-gray-50/30 hover:border-gray-200"
-                      )}
-                    >
-                      <div className="flex items-center gap-3">
-                         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs", selectedUsers.includes(u.id) ? "bg-blue-light text-white" : "bg-white text-blue-dark border")}>
-                            {u.displayName?.substring(0, 2)}
-                         </div>
-                         <div>
-                            <p className="text-sm font-black text-blue-dark">{u.displayName}</p>
-                            <p className="text-[0.65rem] text-gray-400 font-bold">{u.email}</p>
-                         </div>
-                      </div>
-                      <div className={cn("w-6 h-6 rounded-lg border-2 flex items-center justify-center", selectedUsers.includes(u.id) ? "bg-blue-light border-blue-light text-white" : "border-gray-200")}>
-                         {selectedUsers.includes(u.id) && <CheckCircle size={14} />}
-                      </div>
+          <div className="p-6">
+             <div className="relative mb-4">
+               <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+               <input 
+                 type="text" 
+                 placeholder="ابحث باسم التلميذ، اللقب، البريد الإلكتروني أو رقم الهاتف..." 
+                 value={assignModalSearch}
+                 onChange={(e) => setAssignModalSearch(e.target.value)}
+                 className="w-full rounded-2xl bg-gray-50 border-none pr-12 pl-6 py-3.5 text-xs font-bold outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-blue-light transition-all"
+               />
+             </div>
+
+             <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+                {candidates.map(u => (
+                  <div 
+                    key={u.id} 
+                    onClick={() => {
+                      setSelectedUsers(prev => prev.includes(u.id) ? prev.filter(id => id !== u.id) : [...prev, u.id]);
+                    }}
+                    className={cn(
+                      "p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between",
+                      selectedUsers.includes(u.id) ? "border-blue-light bg-blue-50/30" : "border-gray-50 bg-gray-50/30 hover:border-gray-200"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                       <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs", selectedUsers.includes(u.id) ? "bg-blue-light text-white" : "bg-white text-blue-dark border")}>
+                          {u.displayName?.substring(0, 2)}
+                       </div>
+                       <div>
+                          <p className="text-sm font-black text-blue-dark">{u.displayName}</p>
+                          <p className="text-[0.65rem] text-gray-400 font-bold">{u.email}</p>
+                          {u.phone && <p className="text-[0.65rem] text-emerald-600 font-bold mt-0.5">الهاتف: {u.phone}</p>}
+                       </div>
                     </div>
-                  ))}
-                {data.users.filter(u => u.userType === 'student' && u.level === showAssignStudentsModal.level && u.group !== showAssignStudentsModal.group).length === 0 && (
-                  <div className="py-10 text-center text-gray-300 font-bold text-sm">لا يوجد تلاميذ متاحون للنقل في هذا المستوى</div>
+                    <div className={cn("w-6 h-6 rounded-lg border-2 flex items-center justify-center", selectedUsers.includes(u.id) ? "bg-blue-light border-blue-light text-white" : "border-gray-200")}>
+                       {selectedUsers.includes(u.id) && <CheckCircle size={14} />}
+                    </div>
+                  </div>
+                ))}
+                {candidates.length === 0 && (
+                  <div className="py-10 text-center text-gray-300 font-bold text-sm">لا يوجد تلاميذ متاحون أو مطابقة للبحث</div>
                 )}
              </div>
           </div>
@@ -5026,6 +5233,137 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     );
   };
 
+  const renderLinkParentModal = () => {
+    if (!linkingStudent) return null;
+
+    const parents = data.users.filter(u => u.userType === 'parent');
+
+    const filtered = parents.filter(parent => {
+      if (!parentSearch) return true;
+      const q = parentSearch.toLowerCase();
+      const fullName = `${parent.firstName || ''} ${parent.lastName || ''} ${parent.displayName || ''}`.toLowerCase();
+      const email = (parent.email || '').toLowerCase();
+      const phone = (parent.phone || '');
+      return fullName.includes(q) || email.includes(q) || phone.includes(q);
+    });
+
+    const alreadyLinkedParentIds = (data.parentChildren || [])
+      .filter(pc => pc.childId === linkingStudent.id)
+      .map(pc => pc.parentId);
+
+    return (
+      <div key="link-parent-modal" className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-blue-dark/50 backdrop-blur-sm">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="bg-white rounded-[40px] w-full max-w-2xl shadow-2xl overflow-hidden font-Tajawal"
+        >
+          <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+            <div>
+              <h3 className="text-xl font-black text-blue-dark">ربط التلميذ بولي أمر</h3>
+              <p className="text-[0.75rem] text-gray-400 font-bold">ربط التلميذ {linkingStudent.displayName} بولي أمر مسجل في النظام</p>
+            </div>
+            <button 
+              onClick={() => { setLinkingStudent(null); setParentSearch(''); }} 
+              className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+            >
+              <XCircle size={24} className="text-gray-400" />
+            </button>
+          </div>
+          
+          <div className="p-6">
+            <div className="relative mb-6">
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+              <input 
+                type="text" 
+                placeholder="ابحث عن الولي بالاسم، اللقب، البريد الإلكتروني أو رقم الهاتف..." 
+                value={parentSearch}
+                onChange={(e) => setParentSearch(e.target.value)}
+                className="w-full rounded-2xl bg-gray-50 border-none pr-12 pl-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100 focus:ring-2 focus:ring-blue-light transition-all"
+              />
+            </div>
+
+            <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
+              {filtered.map(parent => {
+                const isLinked = alreadyLinkedParentIds.includes(parent.id);
+                return (
+                  <div 
+                    key={parent.id} 
+                    className={cn(
+                      "p-4 rounded-2xl border transition-all flex items-center justify-between",
+                      isLinked ? "border-emerald-100 bg-emerald-50/10" : "border-gray-50 bg-gray-50/30"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs", 
+                        isLinked ? "bg-emerald-100 text-emerald-600" : "bg-blue-50 text-blue-dark"
+                      )}>
+                        {parent.displayName?.substring(0, 2)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-blue-dark">{parent.displayName}</p>
+                        <p className="text-[0.65rem] text-gray-400 font-bold">{parent.email}</p>
+                        {parent.phone && (
+                          <p className="text-[0.65rem] text-emerald-600 font-bold mt-0.5">الهاتف: {parent.phone}</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      {isLinked ? (
+                        <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-600 text-xs font-black flex items-center gap-1">
+                          <CheckCircle size={12} /> مرتبط
+                        </span>
+                      ) : (
+                        <button
+                          disabled={loading}
+                          onClick={async () => {
+                            setLoading(true);
+                            try {
+                              const linkId = `${parent.id}_${linkingStudent.id}`;
+                              await setDoc(doc(db, 'parentChildren', linkId), {
+                                parentId: parent.id,
+                                childId: linkingStudent.id,
+                                createdAt: serverTimestamp()
+                              });
+                              await syncSubscriptionOnLink(parent.id, linkingStudent.id);
+                              toast.success(`تم ربط التلميذ بالولي ${parent.displayName} بنجاح`);
+                            } catch (err) {
+                              toast.error('حدث خطأ أثناء محاولة الربط');
+                            } finally {
+                              setLoading(false);
+                            }
+                          }}
+                          className="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 text-xs font-black shadow-md transition-all flex items-center gap-1"
+                        >
+                          <Link size={12} /> ربط بولي الأمر
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {filtered.length === 0 && (
+                <div className="py-10 text-center text-gray-300 font-bold text-sm">لم يتم العثور على أولياء أمور مطابقة للبحث</div>
+              )}
+            </div>
+          </div>
+
+          <div className="p-8 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+            <button 
+              onClick={() => { setLinkingStudent(null); setParentSearch(''); }} 
+              className="px-6 py-3 rounded-2xl bg-gray-200 hover:bg-gray-300 text-gray-700 font-black text-xs transition-all"
+            >
+              إغلاق
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
   return (
     <>
       <AnimatePresence mode="wait">
@@ -5033,6 +5371,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
         {editingGroup && renderEditGroupModal()}
         {showAssignStudentsModal && renderAssignStudentsModal()}
         {linkingParent && renderLinkStudentModal()}
+        {linkingStudent && renderLinkParentModal()}
         {(showAddContentForm || editingContent) && renderContentModal()}
         {pendingDelete && renderDeleteConfirmModal()}
         {viewingReceipt && renderReceiptPreviewModal()}
