@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SUBSCRIPTION_PLANS, PAYMENT_METHODS, TUNISIAN_GOVERNORATES } from '@/src/constants';
 import { useNavigate } from 'react-router-dom';
 import { db, auth, handleFirestoreError, OperationType } from '@/src/lib/firebase';
-import { activateSubscriptionWithLinkedUsers, syncSubscriptionOnLink, getPlanExpiryDate } from '@/src/lib/subscriptionService';
+import { activateSubscriptionWithLinkedUsers, syncSubscriptionOnLink, getPlanExpiryDate, getLinkedFamilyUserIds } from '@/src/lib/subscriptionService';
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, orderBy, addDoc, deleteDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { User, getAuth, createUserWithEmailAndPassword, signOut, setPersistence, inMemoryPersistence } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
@@ -271,6 +271,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   const [editingGroup, setEditingGroup] = useState<any>(null);
   const [showAddGroupForm, setShowAddGroupForm] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
+  const [offerActionMode, setOfferActionMode] = useState<'edit_current' | 'add_new'>('edit_current');
   const [editingContent, setEditingContent] = useState<any>(null);
   const [showAddContentForm, setShowAddContentForm] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ id: string, label: string, type: string, coll?: string } | null>(null);
@@ -1997,8 +1998,10 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
 
       const planId = editingUser.plan || 'monthly';
       const planObj = SUBSCRIPTION_PLANS.find(p => p.id === planId);
-      const planName = planObj ? planObj.name : 'الاشتراك الشهري';
-      const planPrice = planObj ? planObj.price : '40';
+      const planName = editingUser.currentPlan || (planObj ? planObj.name : 'الاشتراك الشهري');
+      const planPrice = editingUser.planPrice !== undefined && editingUser.planPrice !== ''
+        ? String(editingUser.planPrice)
+        : (planObj ? planObj.price : '40');
       const paymentMethod = editingUser.paymentMethod || 'direct';
 
       let editedPhone = editingUser.phone ? editingUser.phone.trim() : '';
@@ -2040,6 +2043,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
           updatePayload.subscriptionExpiry = null;
         } else {
           updatePayload.plan = planId;
+          updatePayload.planId = planId;
           updatePayload.currentPlan = planName;
           updatePayload.lastPaymentDate = serverTimestamp();
         }
@@ -2049,6 +2053,8 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
 
       if (editingUser.subscriptionStatus === 'active' && editingUser.userType !== 'teacher' && editingUser.userType !== 'admin') {
         const expiryStr = editingUser.subscriptionExpiry || getPlanExpiryDate(planId).toISOString();
+        
+        // 1. Activate/Update & sync across all family network members (parents & children)
         await activateSubscriptionWithLinkedUsers({
           userId: editingUser.id,
           planId,
@@ -2058,7 +2064,47 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
           expiryDateStr: expiryStr
         });
 
-        if (isActivating) {
+        // 2. Synchronize receipts for financial records based on offerActionMode
+        const userFamilyIds = Array.from(await getLinkedFamilyUserIds(editingUser.id));
+        const receiptsToUpdate = data.receipts.filter(r => 
+          (userFamilyIds.includes(r.userId) || (r.parentId && userFamilyIds.includes(r.parentId))) && 
+          r.status === 'approved'
+        );
+
+        if (offerActionMode === 'edit_current') {
+          // Mode: Modify/Correct current offer
+          if (receiptsToUpdate.length > 0) {
+            const latestReceipt = receiptsToUpdate.sort((a, b) => {
+              const timeA = a.createdAt?.seconds || 0;
+              const timeB = b.createdAt?.seconds || 0;
+              return timeB - timeA;
+            })[0];
+
+            await updateDoc(doc(db, 'receipts', latestReceipt.id), {
+              planId,
+              plan: planId,
+              planName,
+              price: planPrice,
+              paymentMethod,
+              updatedAt: serverTimestamp()
+            });
+          } else {
+            await addDoc(collection(db, 'receipts'), {
+              userId: editingUser.id,
+              planId,
+              planName,
+              price: planPrice,
+              status: 'approved',
+              createdAt: serverTimestamp(),
+              approvedAt: serverTimestamp(),
+              paymentMethod,
+              receiptUrl: 'direct_activation',
+              isDirectActivation: true
+            });
+          }
+          toast.success('تم تعديل العرض الحالي ومزامنة السعر وجميع الحسابات المرتبطة بنجاح');
+        } else {
+          // Mode: Add new offer / Renewal
           await addDoc(collection(db, 'receipts'), {
             userId: editingUser.id,
             planId,
@@ -2069,12 +2115,25 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
             approvedAt: serverTimestamp(),
             paymentMethod,
             receiptUrl: 'direct_activation',
-            isDirectActivation: true
+            isDirectActivation: true,
+            isRenewal: true
+          });
+          toast.success('تم إضافة العرض الجديد وتفعيله ومزامنة جميع الحسابات المرتبطة بنجاح');
+        }
+      } else if (editingUser.subscriptionStatus === 'inactive') {
+        // If deactivated by admin, synchronize inactivation across linked family members
+        const familyUserIds = await getLinkedFamilyUserIds(editingUser.id);
+        for (const fId of familyUserIds) {
+          await updateDoc(doc(db, 'users', fId), {
+            subscriptionStatus: 'inactive',
+            updatedAt: serverTimestamp()
           });
         }
+        toast.success('تم إيقاف الاشتراك ومزامنة الحسابات المرتبطة بنجاح');
+      } else {
+        toast.success('تم تحديث البيانات بنجاح');
       }
 
-      toast.success('تم تحديث بيانات المستخدم وتعديل الاشتراك بنجاح');
       setEditingUser(null);
     } catch (err) {
       console.error('Error updating user:', err);
@@ -2195,11 +2254,92 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
           )}
 
           {editingUser.subscriptionStatus === 'active' && editingUser.userType !== 'teacher' && editingUser.userType !== 'admin' && (
-            <div className="md:col-span-2 bg-blue-50/20 border border-blue-100/50 rounded-3xl p-6 space-y-4 font-Tajawal animate-in fade-in slide-in-from-top-1 duration-300">
-              <h4 className="text-xs font-black text-blue-dark border-b border-gray-100 pb-2 flex items-center gap-1.5">
-                <ShieldCheck size={14} className="text-emerald-500" /> تفاصيل تفعيل الاشتراك التلقائي
-              </h4>
+            <div className="md:col-span-2 bg-gradient-to-br from-blue-50/40 via-white to-indigo-50/30 border border-blue-100 rounded-3xl p-6 space-y-5 font-Tajawal animate-in fade-in slide-in-from-top-1 duration-300 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-blue-100/60 pb-3">
+                <div>
+                  <h4 className="text-xs font-black text-blue-dark flex items-center gap-2">
+                    <ShieldCheck size={18} className="text-emerald-500" />
+                    إدارة وتعديل العروض والمزامنة العائلية
+                  </h4>
+                  <p className="text-[11px] text-gray-500 font-bold mt-0.5">
+                    اختر الإجراء المطلوب (تعديل وتصحيح العرض الحالي أو إضافة عرض جديد) للتنفيذ والمزامنة تلقائياً
+                  </p>
+                </div>
+                <span className="self-start md:self-auto text-[10px] bg-blue-100 text-blue-800 font-black px-3 py-1 rounded-full whitespace-nowrap">
+                  مزامنة تلقائية للأولياء والتلاميذ
+                </span>
+              </div>
+
+              {/* Action Mode Toggle */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-1.5 bg-gray-100/70 rounded-2xl">
+                <button
+                  type="button"
+                  onClick={() => setOfferActionMode('edit_current')}
+                  className={cn(
+                    "flex items-center gap-2.5 p-3 rounded-xl text-xs font-black transition-all text-right cursor-pointer",
+                    offerActionMode === 'edit_current'
+                      ? "bg-white text-blue-dark shadow-sm border border-blue-200"
+                      : "text-gray-500 hover:text-gray-800 hover:bg-white/50"
+                  )}
+                >
+                  <div className={cn("p-2 rounded-lg shrink-0", offerActionMode === 'edit_current' ? "bg-blue-50 text-blue-600" : "bg-gray-200/60 text-gray-400")}>
+                    <RefreshCw size={16} />
+                  </div>
+                  <div>
+                    <div className="text-[0.75rem] font-black">تعديل العرض الحالي</div>
+                    <div className="text-[0.62rem] font-bold opacity-75">تصحيح خطة أو سعر العرض القائم والتحديث المباشر</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOfferActionMode('add_new');
+                    const currentPlanId = editingUser.plan || 'monthly';
+                    const expiry = getPlanExpiryDate(currentPlanId);
+                    const planObj = SUBSCRIPTION_PLANS.find(p => p.id === currentPlanId);
+                    setEditingUser((prev: any) => ({
+                      ...prev,
+                      subscriptionExpiry: expiry.toISOString(),
+                      planPrice: planObj ? planObj.price : '40'
+                    }));
+                  }}
+                  className={cn(
+                    "flex items-center gap-2.5 p-3 rounded-xl text-xs font-black transition-all text-right cursor-pointer",
+                    offerActionMode === 'add_new'
+                      ? "bg-white text-emerald-800 shadow-sm border border-emerald-200"
+                      : "text-gray-500 hover:text-gray-800 hover:bg-white/50"
+                  )}
+                >
+                  <div className={cn("p-2 rounded-lg shrink-0", offerActionMode === 'add_new' ? "bg-emerald-50 text-emerald-600" : "bg-gray-200/60 text-gray-400")}>
+                    <PlusCircle size={16} />
+                  </div>
+                  <div>
+                    <div className="text-[0.75rem] font-black">إضافة عرض جديد / تجديد</div>
+                    <div className="text-[0.62rem] font-bold opacity-75">تفعيل عرض جديد كلياً وإصدار وصل مالي جديد</div>
+                  </div>
+                </button>
+              </div>
+
+              {/* Mode Description Banner */}
+              {offerActionMode === 'edit_current' ? (
+                <div className="bg-amber-50/80 border border-amber-200/70 rounded-2xl p-3 text-[11px] font-bold text-amber-800 flex items-start gap-2">
+                  <Zap size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>وضع تعديل العرض الحالي:</strong> مخصص لتصحيح خطأ في تمرير عرض أو سعر معين. سيتم تحديث العرض، السعر، وتاريخ الانتهاء على هذا الحساب وكافة أفراد العائلة المرتبطين، وتعديل السجل المالي القائم.
+                  </span>
+                </div>
+              ) : (
+                <div className="bg-emerald-50/80 border border-emerald-200/70 rounded-2xl p-3 text-[11px] font-bold text-emerald-800 flex items-start gap-2">
+                  <Zap size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>وضع إضافة عرض جديد:</strong> مخصص لتفعيل عرض إضافي أو تجديد الاشتراك. سيتم تسجيل العرض الجديد لكافة أفراد العائلة وإصدار وصل مالي جديد ببيانات العرض والسعر المختارين.
+                  </span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* العرض (الخطة) */}
                 <div className="space-y-2">
                   <label className="text-[11px] font-black text-gray-400 uppercase pr-2">العرض (الخطة) *</label>
                   <select 
@@ -2213,6 +2353,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                         plan: selectedPlanId,
                         planId: selectedPlanId,
                         currentPlan: selectedPlanObj ? selectedPlanObj.name : 'الاشتراك الشهري',
+                        planPrice: selectedPlanObj ? selectedPlanObj.price : '40',
                         subscriptionExpiry: expiry.toISOString()
                       });
                     }} 
@@ -2224,6 +2365,22 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                   </select>
                 </div>
 
+                {/* سعر العرض (مع إمكانية التعديل لتصحيح الأخطاء) */}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black text-gray-400 uppercase pr-2">سعر العرض (دينار تونسي) *</label>
+                  <input 
+                    type="number" 
+                    value={editingUser.planPrice !== undefined ? editingUser.planPrice : (() => {
+                      const p = SUBSCRIPTION_PLANS.find(plan => plan.id === (editingUser.plan || 'monthly'));
+                      return p ? p.price : '40';
+                    })()}
+                    onChange={e => setEditingUser({ ...editingUser, planPrice: e.target.value })}
+                    placeholder="السعر بالدينار"
+                    className="w-full rounded-2xl bg-white border border-gray-100 px-6 py-3 text-xs font-black outline-none ring-1 ring-gray-50 focus:ring-blue-100"
+                  />
+                </div>
+
+                {/* طريقة الدفع */}
                 <div className="space-y-2">
                   <label className="text-[11px] font-black text-gray-400 uppercase pr-2">طريقة الدفع *</label>
                   <select 
@@ -2238,7 +2395,8 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                   </select>
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
+                {/* تاريخ انتهاء الاشتراك */}
+                <div className="space-y-2">
                   <label className="text-[11px] font-black text-gray-400 uppercase pr-2">تاريخ انتهاء الاشتراك *</label>
                   <input 
                     type="datetime-local" 
@@ -2252,7 +2410,6 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                     onChange={e => setEditingUser({...editingUser, subscriptionExpiry: e.target.value})} 
                     className="w-full rounded-2xl bg-white border border-gray-100 px-6 py-3 text-xs font-black outline-none ring-1 ring-gray-50 focus:ring-blue-100" 
                   />
-                  <p className="text-[10px] text-amber-600 font-bold mt-1 pr-2">سيتم احتساب تاريخ الانتهاء تلقائياً بناءً على العرض المختار، ويمكنك تعديله يدوياً</p>
                 </div>
               </div>
             </div>
