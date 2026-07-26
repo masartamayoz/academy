@@ -34,7 +34,7 @@ import {
   Play, ChevronDown,
   Mail, MessageCircle, Facebook, Youtube, Send
 } from 'lucide-react';
-import { cn } from '@/src/lib/utils';
+import { cn, formatContentTitle } from '@/src/lib/utils';
 import { toast } from 'sonner';
 import CountdownTimer from '../common/CountdownTimer';
 import { useContentAccess } from '@/src/lib/accessControl';
@@ -457,7 +457,7 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
                         </div>
                       </div>
                       <div className="p-3 text-right">
-                        <h4 className="truncate text-sm font-black text-blue-dark mb-0.5">{v.title}</h4>
+                        <h4 className="truncate text-sm font-black text-blue-dark mb-0.5">{formatContentTitle(v)}</h4>
                         <div className="flex items-center justify-between">
                           <p className="text-[0.65rem] text-gray-400 font-bold">{v.chapter}</p>
                         </div>

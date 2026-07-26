@@ -41,7 +41,7 @@ import {
   Sun,
   File
 } from 'lucide-react';
-import { cn } from '@/src/lib/utils';
+import { cn, formatContentTitle } from '@/src/lib/utils';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
@@ -1544,11 +1544,11 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                                               <span className="text-[0.62rem] font-black text-blue-brand uppercase">{item.chapter}</span>
                                               <span className="w-1 h-1 rounded-full bg-gray-200" />
                                               <span className="text-[0.62rem] font-bold text-gray-400">
-                                                {item.type === 'lesson' ? 'درس فيديو' : item.type === 'summer_review' ? 'درس مراجعة صيفية' : item.type === 'exercise' ? 'سلسلة تمارين' : 'نموذج فرض'}
+                                                {item.type === 'lesson' ? 'درس فيديو' : item.type === 'summer_review' ? 'مراجعة صيفية' : item.type === 'exercise' ? 'سلسلة تمارين' : 'نموذج فرض'}
                                               </span>
                                             </div>
                                             <h4 className="text-[0.85rem] font-black text-blue-dark truncate leading-tight group-hover:text-blue-brand transition-colors">
-                                              {item.title}
+                                              {formatContentTitle(item)}
                                             </h4>
                                           </div>
 
@@ -2332,7 +2332,7 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                          >
                             <FileText size={18} className="shrink-0" />
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-black truncate">{lessonsViewerItem.type === 'lesson' || lessonsViewerItem.type === 'summer_review' ? "ملخص الدرس" : "نص التمرين / الفرض"}</p>
+                              <p className="text-xs font-black truncate">{lessonsViewerItem.type === 'lesson' ? "ملخص الدرس" : lessonsViewerItem.type === 'summer_review' ? "ملخص المحور" : "نص التمرين / الفرض"}</p>
                               <p className="text-[0.62rem] opacity-60 font-bold mt-0.5">وثيقة بصيغة PDF</p>
                             </div>
                          </button>
