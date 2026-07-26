@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { auth } from '@/src/lib/firebase';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { Menu, X, User as UserIcon, LogOut, LayoutDashboard, BookOpen, UserCircle, ChevronDown } from 'lucide-react';
+import { Menu, X, User as UserIcon, LogOut, LayoutDashboard, BookOpen, UserCircle, LogIn, UserPlus } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
 export default function Navbar() {
@@ -60,16 +60,26 @@ export default function Navbar() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             {!user ? (
-              <div className="hidden items-center gap-2.5 sm:flex">
-                <Link to="/auth" className="rounded-lg border-[1.5px] border-white/40 px-5 py-2 font-Tajawal text-[0.9rem] font-semibold text-white transition-all hover:border-white hover:bg-white/10">
-                  تسجيل الدخول
+              <>
+                <div className="hidden items-center gap-2.5 sm:flex">
+                  <Link to="/auth" className="rounded-lg border-[1.5px] border-white/40 px-5 py-2 font-Tajawal text-[0.9rem] font-semibold text-white transition-all hover:border-white hover:bg-white/10">
+                    تسجيل الدخول
+                  </Link>
+                  <Link to="/auth#register" className="rounded-lg bg-gold-brand px-5 py-2 font-Tajawal text-[0.9rem] font-bold text-blue-dark transition-all hover:bg-gold-light hover:-translate-y-0.5">
+                    إنشاء حساب
+                  </Link>
+                </div>
+                {/* Visible Mobile Login Button */}
+                <Link 
+                  to="/auth" 
+                  className="flex items-center gap-1.5 rounded-xl bg-gold-brand px-3.5 py-2 text-[0.82rem] font-black text-blue-dark shadow-md active:scale-95 transition-all sm:hidden"
+                >
+                  <LogIn size={15} />
+                  <span>دخول الحساب</span>
                 </Link>
-                <Link to="/auth#register" className="rounded-lg bg-gold-brand px-5 py-2 font-Tajawal text-[0.9rem] font-bold text-blue-dark transition-all hover:bg-gold-light hover:-translate-y-0.5">
-                  إنشاء حساب
-                </Link>
-              </div>
+              </>
             ) : (
               <div className="relative">
                 <button 
@@ -129,26 +139,71 @@ export default function Navbar() {
 
       {/* Mobile Nav */}
       {isMenuOpen && (
-        <div className="fixed inset-0 top-[80px] z-[800] bg-blue-dark px-6 py-10 animate-in slide-in-from-right duration-300 lg:hidden flex flex-col gap-2">
-          {navLinks.map((link) => (
-            <Link 
-              key={link.name} 
-              to={link.href} 
-              onClick={() => setIsMenuOpen(false)}
-              className="block border-b border-white/10 py-3.5 text-[1.1rem] font-semibold text-white/85"
-            >
-              {link.name}
-            </Link>
-          ))}
-          {!user && (
-            <Link 
-              to="/auth" 
-              onClick={() => setIsMenuOpen(false)}
-              className="mt-4 block py-3.5 text-[1.1rem] font-semibold text-gold-brand"
-            >
-              تسجيل الدخول
-            </Link>
-          )}
+        <div className="fixed inset-0 top-[75px] z-[800] bg-blue-dark px-6 py-8 animate-in slide-in-from-right duration-300 lg:hidden flex flex-col justify-between overflow-y-auto">
+          <div className="space-y-1">
+            {navLinks.map((link) => (
+              <Link 
+                key={link.name} 
+                to={link.href} 
+                onClick={() => setIsMenuOpen(false)}
+                className="block border-b border-white/10 py-3.5 text-[1.05rem] font-bold text-white/90 hover:text-gold-light"
+              >
+                {link.name}
+              </Link>
+            ))}
+          </div>
+
+          <div className="pt-6 pb-12 border-t border-white/15">
+            {!user ? (
+              <div className="rounded-2xl bg-gradient-to-br from-white/10 to-white/5 p-4 border border-white/20 space-y-3">
+                <div>
+                  <p className="text-xs text-gold-brand font-black">🎓 استغل المنصة وشارك في العروض</p>
+                  <p className="text-xs text-white/80 font-medium leading-relaxed mt-1">
+                    قم بتسجيل الدخول أو بإنشاء حسابك للوصول للدروس والاشتراك في العروض المتاحة.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <Link 
+                    to="/auth" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center justify-center gap-1.5 rounded-xl bg-white/15 border border-white/30 py-3 text-xs font-black text-white hover:bg-white/25 active:scale-95 transition-all"
+                  >
+                    <LogIn size={15} />
+                    تسجيل الدخول
+                  </Link>
+                  <Link 
+                    to="/auth#register" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center justify-center gap-1.5 rounded-xl bg-gold-brand py-3 text-xs font-black text-blue-dark hover:bg-gold-light active:scale-95 transition-all shadow-md"
+                  >
+                    <UserPlus size={15} />
+                    إنشاء حساب
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl bg-white/10 p-4 border border-white/15 space-y-3">
+                <p className="text-xs text-gold-brand font-black">مرحباً بك، {user.displayName || user.email}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Link 
+                    to="/dashboard" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center justify-center gap-1.5 rounded-xl bg-gold-brand py-3 text-xs font-black text-blue-dark"
+                  >
+                    <LayoutDashboard size={15} />
+                    لوحة التحكم
+                  </Link>
+                  <button 
+                    onClick={() => { handleLogout(); setIsMenuOpen(false); }}
+                    className="flex items-center justify-center gap-1.5 rounded-xl bg-red-500/20 text-red-300 border border-red-500/30 py-3 text-xs font-black"
+                  >
+                    <LogOut size={15} />
+                    خروج
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </header>

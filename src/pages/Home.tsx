@@ -5,6 +5,7 @@ import Pricing from '@/src/components/home/Pricing';
 import HowItWorks from '@/src/components/home/HowItWorks';
 import PaymentMethods from '@/src/components/home/PaymentMethods';
 import CTA from '@/src/components/home/CTA';
+import MobileStickyBar from '@/src/components/home/MobileStickyBar';
 import Navbar from '@/src/components/layout/Navbar';
 import Footer from '@/src/components/layout/Footer';
 import SEO from '@/src/components/common/SEO';
@@ -39,6 +40,7 @@ export default function Home() {
         <PaymentMethods />
         <CTA />
       </main>
+      <MobileStickyBar />
       <Footer />
     </div>
   );
