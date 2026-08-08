@@ -4,7 +4,7 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore';
 
 export interface ContentAccessRule {
   id: string;
-  type: 'level_free' | 'user_free' | 'cross_level';
+  type: 'level_free' | 'user_free' | 'cross_level' | 'parent_free';
   level?: string;
   targetLevel?: string;
   userIds?: string[];
@@ -74,11 +74,22 @@ export function useContentAccess(userData: any) {
 
     // Check if there is a matching user_free rule
     const userId = userData.uid || userData.id || '';
+    const parentId = userData.parentId || '';
+    const userEmail = (userData.email || '').toLowerCase();
+    const parentEmail = (userData.parentEmail || '').toLowerCase();
+
     const matchesUserFree = rules.some(rule => {
-      if (rule.type !== 'user_free' || !isRuleActive(rule)) return false;
+      if (!isRuleActive(rule)) return false;
+      if (rule.type !== 'user_free' && rule.type !== 'parent_free') return false;
       
-      // Matches specific user?
-      const matchesUser = rule.userIds?.includes(userId);
+      const ruleEmailsLower = (rule.userEmails || []).map(e => (e || '').toLowerCase());
+
+      // Matches specific user or parent (by ID or Email)?
+      const matchesUser = 
+        (userId && rule.userIds?.includes(userId)) ||
+        (parentId && rule.userIds?.includes(parentId)) ||
+        (userEmail && ruleEmailsLower.includes(userEmail)) ||
+        (parentEmail && ruleEmailsLower.includes(parentEmail));
       
       // Matches content level?
       const matchesContent = !rule.targetLevel || rule.targetLevel === 'all' || rule.targetLevel === lvl;
@@ -134,11 +145,22 @@ export function useContentAccess(userData: any) {
 
     // Check if there is a matching user_free rule
     const userId = userData.uid || userData.id || '';
+    const parentId = userData.parentId || '';
+    const userEmail = (userData.email || '').toLowerCase();
+    const parentEmail = (userData.parentEmail || '').toLowerCase();
+
     const matchesUserFree = rules.some(rule => {
-      if (rule.type !== 'user_free' || !isRuleActive(rule)) return false;
+      if (!isRuleActive(rule)) return false;
+      if (rule.type !== 'user_free' && rule.type !== 'parent_free') return false;
       
-      // Matches specific user?
-      const matchesUser = rule.userIds?.includes(userId);
+      const ruleEmailsLower = (rule.userEmails || []).map(e => (e || '').toLowerCase());
+
+      // Matches specific user or parent (by ID or Email)?
+      const matchesUser = 
+        (userId && rule.userIds?.includes(userId)) ||
+        (parentId && rule.userIds?.includes(parentId)) ||
+        (userEmail && ruleEmailsLower.includes(userEmail)) ||
+        (parentEmail && ruleEmailsLower.includes(parentEmail));
       
       // Matches content level?
       const matchesContent = !rule.targetLevel || rule.targetLevel === 'all' || rule.targetLevel === itemLevel;

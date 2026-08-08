@@ -4224,14 +4224,14 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       return;
     }
     if (ruleType === 'user_free' && ruleUserIds.length === 0) {
-      toast.error('الرجاء تحديد تلميذ واحد على الأقل');
+      toast.error('الرجاء تحديد حساب مستخدم واحد على الأقل (تلميذ أو ولي أمر)');
       return;
     }
 
     setIsSubmittingRule(true);
     try {
       const userEmails = ruleType === 'user_free'
-        ? data.users.filter(u => ruleUserIds.includes(u.id)).map(u => u.email)
+        ? data.users.filter(u => ruleUserIds.includes(u.id)).map(u => u.email).filter(Boolean)
         : [];
 
       const newRule = {
@@ -4293,9 +4293,10 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       '4sec': 'الرابعة ثانوي (باكالوريا)'
     };
 
-    const studentUsers = data.users.filter(u => u.userType === 'student' && 
+    const eligibleUsers = data.users.filter(u => 
+      (u.userType === 'student' || u.userType === 'parent') && 
       (!ruleSearchUser || 
-        `${u.firstName} ${u.lastName}`.toLowerCase().includes(ruleSearchUser.toLowerCase()) || 
+        `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase().includes(ruleSearchUser.toLowerCase()) || 
         u.email?.toLowerCase().includes(ruleSearchUser.toLowerCase()) || 
         u.phone?.includes(ruleSearchUser)
       )
@@ -4343,7 +4344,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {[
                       { id: 'level_free', label: 'وصول مجاني لمستوى دراسي', desc: 'فتح الوصول لمستوى دراسي بالكامل أو مراجعة عابرة للمستويات حسب حيز زمني' },
-                      { id: 'user_free', label: 'وصول مجاني لتلاميذ معينين', desc: 'منح تلاميذ محددين بالاسم صلاحية الوصول لمستويات دراسية معينة' },
+                      { id: 'user_free', label: 'وصول مجاني لمستخدمين محددين (تلاميذ / أولياء أمور)', desc: 'منح تلاميذ أو أولياء أمور محددين بالاسم أو البريد صلاحية الوصول مجاناً بدون اشتراك' },
                     ].map((t) => (
                       <button
                         key={t.id}
@@ -4382,7 +4383,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                         onChange={(e) => setRuleLevel(e.target.value)}
                         className="w-full rounded-2xl border border-gray-100 p-4 text-sm font-black text-blue-dark outline-none bg-gray-50/50 focus:border-blue-brand focus:bg-white transition-all shadow-inner"
                       >
-                        <option value="all">الجميع (كافة الزوار والتلاميذ)</option>
+                        <option value="all">الجميع (كافة الزوار والتلاميذ والأولياء)</option>
                         {Object.entries(LEVELS_MAP).map(([key, name]) => (
                           <option key={key} value={key}>{name}</option>
                         ))}
@@ -4392,14 +4393,14 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
 
                   <div>
                     <label className="text-[0.75rem] font-black text-gray-400 block mb-2">
-                      {ruleType === 'level_free' ? 'المحتوى المتاح مجاناً (مستوى المحتوى الدراسي)' : 'المستوى المسموح بالوصول إليه'}
+                      {ruleType === 'level_free' ? 'المحتوى المتاح مجاناً (مستوى المحتوى الدراسي)' : 'المستوى أو العرض المسموح بالوصول إليه مجاناً'}
                     </label>
                     <select
                       value={ruleTargetLevel}
                       onChange={(e) => setRuleTargetLevel(e.target.value)}
                       className="w-full rounded-2xl border border-gray-100 p-4 text-sm font-black text-blue-dark outline-none bg-gray-50/50 focus:border-blue-brand focus:bg-white transition-all shadow-inner"
                     >
-                      <option value="all">كل المحتويات (جميع المستويات)</option>
+                      <option value="all">كل المحتويات والعروض (جميع المستويات)</option>
                       {Object.entries(LEVELS_MAP).map(([key, name]) => (
                         <option key={key} value={key}>{name}</option>
                       ))}
@@ -4410,8 +4411,8 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                 {ruleType === 'user_free' && (
                   <div className="space-y-4 border-t border-gray-100 pt-6">
                     <div>
-                      <h4 className="text-sm font-black text-blue-dark mb-1">تحديد التلاميذ المستفيدين</h4>
-                      <p className="text-[0.65rem] font-bold text-gray-400">ابحث عن التلاميذ بالاسم، البريد أو الهاتف وقم بالضغط لإضافتهم للقائمة</p>
+                      <h4 className="text-sm font-black text-blue-dark mb-1">تحديد المستفيدين (تلاميذ أو أولياء أمور)</h4>
+                      <p className="text-[0.65rem] font-bold text-gray-400">ابحث بالاسم، البريد الإلكتروني أو رقم الهاتف وقم باختيار الحسابات لمنحهم الوصول المجاني</p>
                     </div>
 
                     <div className="relative">
@@ -4420,15 +4421,16 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                         value={ruleSearchUser}
                         onChange={(e) => setRuleSearchUser(e.target.value)}
                         className="w-full rounded-2xl border border-gray-100 p-4 pr-12 text-sm font-bold outline-none focus:border-blue-light focus:bg-white transition-all shadow-inner bg-gray-50/50"
-                        placeholder="ابحث عن تلميذ..."
+                        placeholder="ابحث عن تلميذ أو ولي أمر بالاسم أو البريد..."
                       />
                       <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     </div>
 
-                    {ruleSearchUser && studentUsers.length > 0 && (
-                      <div className="max-h-[160px] overflow-y-auto border border-gray-100 rounded-2xl p-2 bg-white space-y-1 shadow-sm">
-                        {studentUsers.map(u => {
+                    {ruleSearchUser && eligibleUsers.length > 0 && (
+                      <div className="max-h-[200px] overflow-y-auto border border-gray-100 rounded-2xl p-2 bg-white space-y-1 shadow-sm">
+                        {eligibleUsers.map(u => {
                           const isSelected = ruleUserIds.includes(u.id);
+                          const isParent = u.userType === 'parent';
                           return (
                             <button
                               key={u.id}
@@ -4441,15 +4443,25 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                                 }
                               }}
                               className={cn(
-                                "w-full text-right p-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between",
-                                isSelected ? "bg-blue-50 text-blue-700" : "hover:bg-gray-50 text-gray-600"
+                                "w-full text-right p-2.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between",
+                                isSelected ? "bg-blue-50 text-blue-700 border border-blue-100" : "hover:bg-gray-50 text-gray-600"
                               )}
                             >
                               <div className="flex flex-col">
-                                <span className="font-black text-blue-dark">{u.firstName} {u.lastName}</span>
-                                <span className="text-[0.6rem] text-gray-400">{u.email} {u.phone ? `• ${u.phone}` : ''}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-black text-blue-dark">{u.firstName} {u.lastName}</span>
+                                  <span className={cn(
+                                    "text-[0.6rem] px-2 py-0.5 rounded-full font-black",
+                                    isParent ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
+                                  )}>
+                                    {isParent ? 'ولي أمر' : 'تلميذ'}
+                                  </span>
+                                </div>
+                                <span className="text-[0.6rem] text-gray-400 mt-0.5">{u.email} {u.phone ? `• ${u.phone}` : ''}</span>
                               </div>
-                              <span className="text-[0.6rem] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-bold">{LEVELS_MAP[u.level] || u.level || 'غير محدد'}</span>
+                              {!isParent && (
+                                <span className="text-[0.6rem] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-bold">{LEVELS_MAP[u.level] || u.level || 'غير محدد'}</span>
+                              )}
                             </button>
                           );
                         })}
@@ -4459,13 +4471,18 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                     <div className="flex flex-wrap gap-2 mt-2">
                       {ruleUserIds.map(id => {
                         const s = data.users.find(u => u.id === id);
+                        const isParent = s?.userType === 'parent';
                         return (
-                          <div key={id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-100 text-blue-700 font-bold text-xs">
-                            <span>{s ? `${s.firstName} ${s.lastName || ''}`.trim() : 'تلميذ'}</span>
+                          <div key={id} className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs border",
+                            isParent ? "bg-purple-50 border-purple-100 text-purple-800" : "bg-blue-50 border-blue-100 text-blue-700"
+                          )}>
+                            <span className="text-[0.65rem] font-black opacity-75">{isParent ? 'ولي أمر:' : 'تلميذ:'}</span>
+                            <span>{s ? `${s.firstName} ${s.lastName || ''}`.trim() : 'مستخدم'}</span>
                             <button
                               type="button"
                               onClick={() => setRuleUserIds(prev => prev.filter(item => item !== id))}
-                              className="text-blue-500 hover:text-red-500 hover:bg-white rounded p-0.5 shrink-0"
+                              className="hover:text-red-500 hover:bg-white rounded p-0.5 shrink-0 transition-colors"
                             >
                               <XCircle size={14} />
                             </button>
@@ -4473,7 +4490,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                         );
                       })}
                       {ruleUserIds.length === 0 && (
-                        <p className="text-[0.7rem] font-bold text-amber-500 bg-amber-50/50 p-2 border border-amber-100 rounded-xl">لم يتم اختيار أي تلميذ بعد</p>
+                        <p className="text-[0.7rem] font-bold text-amber-500 bg-amber-50/50 p-2 border border-amber-100 rounded-xl">لم يتم اختيار أي مستخدم (تلميذ أو ولي أمر) بعد</p>
                       )}
                     </div>
                   </div>
@@ -4594,17 +4611,17 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                           rule.type === 'level_free' ? "bg-amber-100 text-amber-800" :
                           "bg-blue-100 text-blue-800"
                         )}>
-                          {rule.type === 'level_free' ? 'وصول مجاني لمستوى دراسي' : 'وصول مجاني لتلاميذ معينين'}
+                          {rule.type === 'level_free' ? 'وصول مجاني لمستوى دراسي' : 'وصول مجاني لمستخدمين محددين'}
                         </span>
                         
                         <h4 className="font-black text-blue-dark text-[0.95rem] leading-snug pt-1">
                           {rule.type === 'level_free' && (
                             rule.level === 'all' || !rule.level
-                              ? `السماح بالوصول لجميع الزوار والتلاميذ إلى ${rule.targetLevel === 'all' || !rule.targetLevel ? 'كل المستويات' : LEVELS_MAP[rule.targetLevel] || rule.targetLevel}`
+                              ? `السماح بالوصول لجميع الزوار والتلاميذ والأولياء إلى ${rule.targetLevel === 'all' || !rule.targetLevel ? 'كل المستويات' : LEVELS_MAP[rule.targetLevel] || rule.targetLevel}`
                               : `تمكين تلاميذ ${LEVELS_MAP[rule.level] || rule.level} من الوصول إلى ${rule.targetLevel === 'all' || !rule.targetLevel ? 'كل المستويات' : LEVELS_MAP[rule.targetLevel] || rule.targetLevel}`
                           )}
                           {rule.type === 'user_free' && (
-                            `وصول استثنائي لعدد ${rule.userIds?.length || 0} من التلاميذ إلى ${rule.targetLevel === 'all' || !rule.targetLevel ? 'كل المستويات' : LEVELS_MAP[rule.targetLevel] || rule.targetLevel}`
+                            `وصول استثنائي لعدد ${rule.userIds?.length || 0} من المستفيدين (تلاميذ / أولياء أمور) إلى ${rule.targetLevel === 'all' || !rule.targetLevel ? 'كل المستويات' : LEVELS_MAP[rule.targetLevel] || rule.targetLevel}`
                           )}
                         </h4>
                       </div>
