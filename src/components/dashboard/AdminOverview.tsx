@@ -228,6 +228,8 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   const [activeSubTab, setActiveSubTab] = useState<'weekly' | 'scheduled' | 'logs'>('weekly');
   const [generateStartDate, setGenerateStartDate] = useState('');
   const [generateEndDate, setGenerateEndDate] = useState('');
+  const [generateLevel, setGenerateLevel] = useState('all');
+  const [generateGroupId, setGenerateGroupId] = useState('all');
   const [newSession, setNewSession] = useState({
     teacherId: '',
     groupId: '',
@@ -739,8 +741,28 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       return;
     }
 
+    // Filter target groups based on selected level and group
+    const targetGroups = data.groups.filter(group => {
+      if (generateLevel !== 'all' && group.level !== generateLevel) return false;
+      if (generateGroupId !== 'all' && group.id !== generateGroupId) return false;
+      return true;
+    });
+
+    if (targetGroups.length === 0) {
+      toast.warning('لا توجد أي مجموعة مطابقة للسنة أو التحديد المختار');
+      return;
+    }
+
+    const groupsWithSchedule = targetGroups.filter(g => g.schedule && g.schedule.length > 0);
+    if (groupsWithSchedule.length === 0) {
+      toast.warning('المجموعات المحددة لا تحتوي على أي توقيت أو جدول أسبوعي معتمد');
+      return;
+    }
+
     setLoading(true);
-    addLog(`بدء توليد حصص تلقائياً من ${generateStartDate} إلى ${generateEndDate}...`);
+    const levelText = generateLevel === 'all' ? 'جميع السنوات الدراسية' : `السنة ${generateLevel}`;
+    const groupText = generateGroupId === 'all' ? `جميع المجموعات (${targetGroups.length})` : (targetGroups[0]?.name || 'المجموعة المحددة');
+    addLog(`بدء توليد حصص تلقائياً للفترة من ${generateStartDate} إلى ${generateEndDate} [${levelText} - ${groupText}]...`);
     
     try {
       const daysMap: { [key: string]: number } = {
@@ -755,7 +777,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       while (current <= end) {
         const currentDayNum = current.getDay();
         
-        for (const group of data.groups) {
+        for (const group of targetGroups) {
           if (!group.schedule || group.schedule.length === 0) continue;
           
           for (const schedItem of group.schedule) {
@@ -798,8 +820,14 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
         current.setDate(current.getDate() + 1);
       }
 
-      addLog(`اكتمل التوليد: تم إنشاء ${generatedCount} حصة، وتخطي ${skippedCount} حصة موجودة.`);
-      toast.success(`اكتمل التوليد: تم إنشاء ${generatedCount} حصة جديدة بنجاح`);
+      addLog(`اكتمل التوليد: تم إنشاء ${generatedCount} حصة، وتخطي ${skippedCount} حصة موجودة مسبقاً.`);
+      if (generatedCount === 0 && skippedCount > 0) {
+        toast.info(`جميع الحصص (${skippedCount}) للفترة والمجموعات المحددة تم إنشاؤها مسبقاً (تم تخطيها لمنع التكرار).`);
+      } else if (generatedCount === 0) {
+        toast.info('لم تصادف أي مواعيد أسبوعية للمجموعات المحددة في هذا النطاق الزمني.');
+      } else {
+        toast.success(`اكتمل التوليد: تم إنشاء ${generatedCount} حصة جديدة بنجاح (${skippedCount > 0 ? `وتخطي ${skippedCount} موجودة مسبقاً` : 'بدون تكرار'})`);
+      }
     } catch (err) {
       console.error(err);
       addLog("خطأ أثناء توليد الحصص.");
@@ -3698,45 +3726,125 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
              {/* Automatic Generation Date Range Form */}
              <div className="bg-gradient-to-br from-[#0B0F19] to-[#1A233A] p-8 rounded-[40px] text-white shadow-2xl relative overflow-hidden border border-white/5">
                 <div className="absolute right-0 top-0 h-48 w-48 translate-x-1/4 -translate-y-1/4 rounded-full bg-blue-light/10 blur-[80px]" />
-                <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-                  <div>
+                <div className="relative z-10 flex flex-col gap-6">
+                  <div className="max-w-3xl">
                     <h3 className="text-xl font-black mb-2 flex items-center gap-2">
                       <Zap className="text-gold-brand animate-bounce" size={24} />
                       التوليد الآلي والذكي للحصص من الجداول المعتمدة
                     </h3>
-                    <p className="text-indigo-200/70 text-xs font-bold leading-relaxed max-w-2xl">
-                      حدد حيزاً زمنياً (من تاريخ إلى تاريخ) لتوليد حصص التدريس آلياً لجميع المجموعات بناءً على أوقاتها المسجلة بالجدول الموحد. لن يقوم النظام بتوليد الحصص المكررة التي تم إنشاؤها مسبقاً.
+                    <p className="text-indigo-200/70 text-xs font-bold leading-relaxed">
+                      حدد حيزاً زمنياً (من تاريخ إلى تاريخ)، مع إمكانية تحديد السنة الدراسية والمجموعة التي ترغب في توليد حصصها آلياً بناءً على مواعيد جداولها المعتمدة، مع تفادي الحصص المكررة المنشأة مسبقاً.
                     </p>
                   </div>
                   
-                  <div className="flex flex-wrap items-end gap-4 bg-white/5 p-4 rounded-3xl border border-white/10">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-indigo-300 uppercase pr-1">من تاريخ</label>
-                      <input 
-                        type="date" 
-                        value={generateStartDate} 
-                        onChange={e => setGenerateStartDate(e.target.value)} 
-                        className="w-full rounded-xl bg-white/10 border-none px-4 py-3 text-xs font-bold text-white outline-none ring-1 ring-white/15 focus:ring-gold-brand"
-                      />
+                  <div className="bg-white/5 p-5 rounded-3xl border border-white/10 flex flex-col gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-indigo-300 uppercase pr-1 flex items-center gap-1">
+                          <Calendar size={12} className="text-gold-brand" />
+                          <span>من تاريخ</span>
+                        </label>
+                        <input 
+                          type="date" 
+                          value={generateStartDate} 
+                          onChange={e => setGenerateStartDate(e.target.value)} 
+                          className="w-full rounded-xl bg-white/10 border-none px-4 py-2.5 text-xs font-bold text-white outline-none ring-1 ring-white/15 focus:ring-gold-brand"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-indigo-300 uppercase pr-1 flex items-center gap-1">
+                          <Calendar size={12} className="text-gold-brand" />
+                          <span>إلى تاريخ</span>
+                        </label>
+                        <input 
+                          type="date" 
+                          value={generateEndDate} 
+                          onChange={e => setGenerateEndDate(e.target.value)} 
+                          className="w-full rounded-xl bg-white/10 border-none px-4 py-2.5 text-xs font-bold text-white outline-none ring-1 ring-white/15 focus:ring-gold-brand"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-indigo-300 uppercase pr-1 flex items-center gap-1">
+                          <Layers size={12} className="text-gold-brand" />
+                          <span>السنة الدراسية</span>
+                        </label>
+                        <select 
+                          value={generateLevel} 
+                          onChange={e => {
+                            const selectedLvl = e.target.value;
+                            setGenerateLevel(selectedLvl);
+                            if (selectedLvl !== 'all' && generateGroupId !== 'all') {
+                              const currGroup = data.groups.find(g => g.id === generateGroupId);
+                              if (currGroup && currGroup.level !== selectedLvl) {
+                                setGenerateGroupId('all');
+                              }
+                            }
+                          }} 
+                          className="w-full rounded-xl bg-white/10 border-none px-3.5 py-2.5 text-xs font-bold text-white outline-none ring-1 ring-white/15 focus:ring-gold-brand cursor-pointer [&>option]:bg-[#1A233A] [&>option]:text-white"
+                        >
+                          <option value="all">كل السنوات الدراسية</option>
+                          <option value="7">السنة السابعة أساسي (7)</option>
+                          <option value="8">السنة الثامنة أساسي (8)</option>
+                          <option value="9">السنة التاسعة أساسي (9)</option>
+                          <option value="1sec">السنة الأولى ثانوي (1ث)</option>
+                          <option value="2sec">السنة الثانية ثانوي (2ث)</option>
+                          <option value="3sec">السنة الثالثة ثانوي (3ث)</option>
+                          <option value="4sec">السنة الرابعة ثانوي (باكالوريا)</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-indigo-300 uppercase pr-1 flex items-center gap-1">
+                          <Users2 size={12} className="text-gold-brand" />
+                          <span>المجموعة</span>
+                        </label>
+                        <select 
+                          value={generateGroupId} 
+                          onChange={e => setGenerateGroupId(e.target.value)} 
+                          className="w-full rounded-xl bg-white/10 border-none px-3.5 py-2.5 text-xs font-bold text-white outline-none ring-1 ring-white/15 focus:ring-gold-brand cursor-pointer [&>option]:bg-[#1A233A] [&>option]:text-white"
+                        >
+                          <option value="all">
+                            {generateLevel === 'all' 
+                              ? `كل المجموعات (${data.groups.length})` 
+                              : `كل مجموعات هذه السنة (${data.groups.filter(g => g.level === generateLevel).length})`}
+                          </option>
+                          {data.groups
+                            .filter(g => generateLevel === 'all' || g.level === generateLevel)
+                            .map(g => (
+                              <option key={g.id} value={g.id}>
+                                {g.name} {generateLevel === 'all' ? `(السنة ${g.level})` : ''} {g.schedule?.length ? `• ${g.schedule.length} حصص` : '• بلا جدول'}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-indigo-300 uppercase pr-1">إلى تاريخ</label>
-                      <input 
-                        type="date" 
-                        value={generateEndDate} 
-                        onChange={e => setGenerateEndDate(e.target.value)} 
-                        className="w-full rounded-xl bg-white/10 border-none px-4 py-3 text-xs font-bold text-white outline-none ring-1 ring-white/15 focus:ring-gold-brand"
-                      />
+
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-3 border-t border-white/10">
+                      <div className="flex items-center gap-2 text-[11px] text-indigo-200/80">
+                        <span className="w-2 h-2 rounded-full bg-gold-brand inline-block shrink-0 animate-pulse" />
+                        <span>
+                          نطاق التوليد المستهدف: <strong className="text-white">{generateLevel === 'all' ? 'جميع السنوات' : `السنة ${generateLevel}`}</strong>
+                          {' '}•{' '}
+                          <strong className="text-white">
+                            {generateGroupId === 'all' 
+                              ? (generateLevel === 'all' ? `كافة المجموعات (${data.groups.length})` : `مجموعات المستوى (${data.groups.filter(g => g.level === generateLevel).length})`)
+                              : (data.groups.find(g => g.id === generateGroupId)?.name || 'مجموعة محددة')}
+                          </strong>
+                        </span>
+                      </div>
+
+                      <button 
+                        type="button"
+                        onClick={handleGenerateWeeklySessions}
+                        disabled={loading}
+                        className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gold-brand hover:bg-yellow-500 text-blue-dark font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-gold-brand/10 active:scale-95 disabled:opacity-50 shrink-0"
+                      >
+                        {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                        توليد الحصص للفترة المحددة
+                      </button>
                     </div>
-                    <button 
-                      type="button"
-                      onClick={handleGenerateWeeklySessions}
-                      disabled={loading}
-                      className="px-6 py-3 rounded-xl bg-gold-brand hover:bg-yellow-500 text-blue-dark font-black text-xs transition-all flex items-center gap-2 shadow-lg shadow-gold-brand/10 active:scale-95 disabled:opacity-50"
-                    >
-                      {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                      توليد الحصص للفترة المحددة
-                    </button>
                   </div>
                 </div>
              </div>
