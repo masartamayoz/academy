@@ -63,6 +63,8 @@ import {
   X
 } from 'lucide-react';
 import { cn, formatContentTitle } from '@/src/lib/utils';
+import PhoneInputWithCountry from '@/src/components/common/PhoneInputWithCountry';
+import { Country, DEFAULT_COUNTRY } from '@/src/constants/countries';
 
 interface Props {
   activeTab: string;
@@ -247,6 +249,8 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     email: '',
     password: '',
     phone: '',
+    parentFirstName: '',
+    parentLastName: '',
     userType: 'student' as 'student' | 'parent' | 'teacher' | 'admin',
     subject: 'الرياضيات',
     level: '7',
@@ -256,6 +260,8 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     wilaya: '',
     linkedUserId: ''
   });
+  const [adminPhoneCountry, setAdminPhoneCountry] = useState<Country>(DEFAULT_COUNTRY);
+  const [adminNationalPhone, setAdminNationalPhone] = useState('');
 
   const [newGroup, setNewGroup] = useState({
     name: '',
@@ -413,20 +419,26 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
           cleaned = '+' + cleaned.slice(2);
         }
         if (/^\d{8}$/.test(cleaned)) {
-          cleaned = '+216' + cleaned;
-        }
-        if (/^216\d{8}$/.test(cleaned)) {
-          cleaned = '+' + cleaned;
+          cleaned = adminPhoneCountry.dialCode + cleaned;
+        } else if (!cleaned.startsWith('+')) {
+          cleaned = adminPhoneCountry.dialCode + cleaned;
         }
         userPhone = cleaned;
       }
 
       // 3. Save user info to Firestore using the generated UID
       const { linkedUserId, ...userDataToSave } = newUser;
+      const parentFirst = newUser.userType === 'student' ? (newUser.parentFirstName || '').trim() : '';
+      const parentLast = newUser.userType === 'student' ? (newUser.parentLastName || '').trim() : '';
+      const parentFullName = (parentFirst || parentLast) ? `${parentFirst} ${parentLast}`.trim() : '';
+
       await setDoc(doc(db, 'users', uid), {
         ...userDataToSave,
         phone: userPhone,
-        displayName: `${newUser.firstName} ${newUser.lastName} `.trim(),
+        parentFirstName: parentFirst,
+        parentLastName: parentLast,
+        parentName: parentFullName,
+        displayName: `${newUser.firstName} ${newUser.lastName}`.trim(),
         subscriptionStatus: 'inactive',
         createdAt: serverTimestamp(),
         uid: uid
@@ -460,7 +472,9 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       await signOut(secondaryAuth);
       
       toast.success(`تمت إضافة المستخدم بنجاح: ${newUser.firstName} ${newUser.lastName}${linkedUserId ? ' وتم الربط بالحساب المختار بنجاح' : ''}`);
-      setNewUser({ firstName: '', lastName: '', email: '', password: '', phone: '', userType: 'student', subject: 'الرياضيات', level: '7', address: '', group: '', birthDate: '', wilaya: '', linkedUserId: '' });
+      setNewUser({ firstName: '', lastName: '', email: '', password: '', phone: '', parentFirstName: '', parentLastName: '', userType: 'student', subject: 'الرياضيات', level: '7', address: '', group: '', birthDate: '', wilaya: '', linkedUserId: '' });
+      setAdminNationalPhone('');
+      setAdminPhoneCountry(DEFAULT_COUNTRY);
     } catch (err: any) {
       console.error('Error creating user:', err);
       let errorMsg = 'حدث خطأ أثناء إضافة المستخدم';
@@ -1056,11 +1070,41 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
           </div>
           <div className="space-y-2">
             <label className="text-xs font-black text-gray-400 uppercase pr-2">رقم الهاتف {newUser.userType === 'teacher' ? '*' : '(اختياري)'}</label>
-            <input required={newUser.userType === 'teacher'} type="tel" placeholder="مثال: 98765432" value={newUser.phone} onChange={e => setNewUser({...newUser, phone: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
+            <PhoneInputWithCountry
+              value={adminNationalPhone}
+              selectedCountry={adminPhoneCountry}
+              onCountryChange={setAdminPhoneCountry}
+              onChange={(nat, full) => {
+                setAdminNationalPhone(nat);
+                setNewUser(prev => ({ ...prev, phone: full || nat }));
+              }}
+              required={newUser.userType === 'teacher'}
+              placeholder="مثال: 98 765 432"
+            />
           </div>
 
           {newUser.userType === 'student' && (
             <>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-400 uppercase pr-2">اسم الولي (اختياري)</label>
+                <input 
+                  type="text" 
+                  placeholder="مثال: محمد" 
+                  value={newUser.parentFirstName || ''} 
+                  onChange={e => setNewUser({...newUser, parentFirstName: e.target.value})} 
+                  className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-400 uppercase pr-2">لقب الولي (اختياري)</label>
+                <input 
+                  type="text" 
+                  placeholder="مثال: بن أحمد" 
+                  value={newUser.parentLastName || ''} 
+                  onChange={e => setNewUser({...newUser, parentLastName: e.target.value})} 
+                  className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" 
+                />
+              </div>
               <div className="space-y-2">
                 <label className="text-xs font-black text-gray-400 uppercase pr-2">المستوى الدراسي *</label>
                 <select value={newUser.level} onChange={e => setNewUser({...newUser, level: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
@@ -2131,6 +2175,15 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
         updatedAt: serverTimestamp()
       };
 
+      if (editingUser.userType === 'student') {
+        const parentFirst = (editingUser.parentFirstName || '').trim();
+        const parentLast = (editingUser.parentLastName || '').trim();
+        const parentFullName = (parentFirst || parentLast) ? `${parentFirst} ${parentLast}`.trim() : '';
+        updatePayload.parentFirstName = parentFirst;
+        updatePayload.parentLastName = parentLast;
+        updatePayload.parentName = parentFullName;
+      }
+
       if (editingUser.subscriptionStatus === 'active') {
         if (editingUser.userType === 'teacher' || editingUser.userType === 'admin') {
           updatePayload.plan = 'teacher_access';
@@ -2600,6 +2653,26 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
               {editingUser.userType === 'student' && (
                 <>
                   <div className="space-y-1.5">
+                    <label className="text-xs font-black text-gray-400 uppercase pr-1">اسم الولي</label>
+                    <input 
+                      type="text" 
+                      placeholder="مثال: محمد" 
+                      value={editingUser.parentFirstName || ''} 
+                      onChange={e => setEditingUser({...editingUser, parentFirstName: e.target.value})} 
+                      className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-light/50 transition-all" 
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-gray-400 uppercase pr-1">لقب الولي</label>
+                    <input 
+                      type="text" 
+                      placeholder="مثال: بن أحمد" 
+                      value={editingUser.parentLastName || ''} 
+                      onChange={e => setEditingUser({...editingUser, parentLastName: e.target.value})} 
+                      className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-light/50 transition-all" 
+                    />
+                  </div>
+                  <div className="space-y-1.5">
                     <label className="text-xs font-black text-gray-400 uppercase pr-1">المستوى التعليمي</label>
                     <select value={editingUser.level || ''} onChange={e => setEditingUser({...editingUser, level: e.target.value})} className="w-full rounded-2xl bg-white border border-gray-100 px-5 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-light/50 transition-all">
                       <option value="">اختر المستوى</option>
@@ -3007,6 +3080,13 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                                       </div>
                                     ))}
                                   </div>
+                                </div>
+                              ) : (u.parentName || u.parentFirstName || u.parentLastName) ? (
+                                <div className="flex flex-col gap-0.5 items-center">
+                                  <span className="text-[0.55rem] text-gray-400">الولي:</span>
+                                  <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[0.55rem] font-bold">
+                                    {u.parentName || `${u.parentFirstName || ''} ${u.parentLastName || ''}`.trim()}
+                                  </span>
                                 </div>
                               ) : null;
                             })()}

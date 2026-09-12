@@ -1,43 +1,49 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 0. Global Safety Net
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
     // 1. Primitives & Helpers
     function isSignedIn() {
       return request.auth != null;
     }
-    
-    function isEmailVerified() {
-      return isSignedIn() && (
-        request.auth.token.email_verified == true || 
-        request.auth.token.firebase.sign_in_provider == 'google.com'
-      );
-    }
 
-    // Performance-optimized admin check using email
+    // Performance-optimized admin check using UID and email
     function isFastAdmin() {
       return isSignedIn() && (
-        request.auth.token.email == 'academy.masartamayoz@gmail.com' ||
-        request.auth.token.email == 'masartamayoz@gmail.com' ||
-        request.auth.token.email == 'centrekhawarizmi2020@gmail.com' ||
-        request.auth.token.email == 'admin@admin.com'
+        request.auth.uid == 'XaJrcf366oPDaeqJkAFtWSiyuJ03' ||
+        ('email' in request.auth.token && (
+          request.auth.token.email in [
+            'academy.masartamayoz@gmail.com',
+            'masartamayoz@gmail.com',
+            'centrekhawarizmi2020@gmail.com',
+            'admin@admin.com'
+          ] ||
+          request.auth.token.email.matches('(?i)^(academy\\.masartamayoz@gmail\\.com|masartamayoz@gmail\\.com|centrekhawarizmi2020@gmail\\.com|admin@admin\\.com)$')
+        ))
       );
     }
 
     function isAdmin() {
-      return isFastAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userType', 'student') == 'admin');
+      return isFastAdmin() || (
+        isSignedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userType', '') == 'admin'
+      );
     }
 
     function isTeacher() {
-      return isFastAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userType', 'student') == 'teacher');
+      return isFastAdmin() || (
+        isSignedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userType', '') == 'teacher'
+      );
     }
 
     function isParent() {
-      return isFastAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userType', 'student') == 'parent');
+      return isFastAdmin() || (
+        isSignedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userType', '') == 'parent'
+      );
     }
 
     function isParentOf(childId) {
@@ -46,47 +52,33 @@ service cloud.firestore {
 
     function isMeSubscribed() {
       return isFastAdmin() || 
-             (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userType', 'student') == 'admin') || 
-             (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('userType', 'student') == 'teacher') || 
+             isAdmin() || 
+             isTeacher() || 
              (isSignedIn() && 
-              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('subscriptionStatus', 'inactive') == 'active' && 
-              (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('subscriptionExpiry', '') == '' || 
-               request.time < timestamp.date(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('subscriptionExpiry', '2000-01-01T00:00:00Z'))));
+              exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('subscriptionStatus', 'inactive') == 'active');
     }
 
     function isChildSubscribed(childId) {
       return isParentOf(childId) && 
-             get(/databases/$(database)/documents/users/$(childId)).data.get('subscriptionStatus', 'inactive') == 'active' && 
-             (get(/databases/$(database)/documents/users/$(childId)).data.get('subscriptionExpiry', '') == '' || 
-              request.time < timestamp.date(get(/databases/$(database)/documents/users/$(childId)).data.get('subscriptionExpiry', '2000-01-01T00:00:00Z')));
+             exists(/databases/$(database)/documents/users/$(childId)) && 
+             get(/databases/$(database)/documents/users/$(childId)).data.get('subscriptionStatus', 'inactive') == 'active';
     }
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
-
     // 2. Collection Rules
 
     // Global Admin Escape Hatch
     match /{allCollections=**} {
-      allow read, write: if isFastAdmin();
+      allow read, write: if isFastAdmin() || isAdmin();
     }
 
     // Users Collection
     match /users/{userId} {
-      allow read, list: if true;
+      allow read: if true;
       allow create: if true;
       allow update: if isSignedIn() && (isFastAdmin() || isAdmin() || isOwner(userId));
       allow delete: if isFastAdmin() || isAdmin();
@@ -94,17 +86,17 @@ service cloud.firestore {
 
     // Wallets
     match /wallets/{userId} {
-      allow read, list: if isFastAdmin() || isAdmin() || isOwner(userId) || isParentOf(userId);
+      allow read: if isFastAdmin() || isAdmin() || isOwner(userId) || isParentOf(userId);
       allow write: if isFastAdmin() || isAdmin();
     }
 
     // Attendance Collection
     match /attendance/{attendanceId} {
-      allow read, list: if isSignedIn() && (
+      allow read: if isSignedIn() && (
         isFastAdmin() || 
         isAdmin() || 
         isTeacher() ||
-        (isOwner(resource.data.userId) && isMeSubscribed()) || 
+        (resource.data.userId == request.auth.uid && isMeSubscribed()) || 
         (isParentOf(resource.data.userId) && isChildSubscribed(resource.data.userId))
       );
       allow create: if isSignedIn() && (isFastAdmin() || isAdmin() || isTeacher() || isMeSubscribed());
@@ -126,22 +118,22 @@ service cloud.firestore {
     // Receipts Collection
     match /receipts/{receiptId} {
       allow read: if isFastAdmin() || isAdmin() || (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.parentId == request.auth.uid));
-      allow create: if isSignedIn() && (incoming().userId == request.auth.uid || incoming().parentId == request.auth.uid);
+      allow create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || request.resource.data.parentId == request.auth.uid);
       allow update, delete: if isFastAdmin() || isAdmin();
     }
 
     // Payout Requests
     match /payoutRequests/{requestId} {
-      allow read, list: if isFastAdmin() || isAdmin() || (isSignedIn() && resource.data.teacherId == request.auth.uid);
+      allow read: if isFastAdmin() || isAdmin() || (isSignedIn() && resource.data.teacherId == request.auth.uid);
       allow create: if isSignedIn();
       allow update, delete: if isFastAdmin() || isAdmin();
     }
 
     // Messages Collection
     match /messages/{messageId} {
-      allow read, list: if isSignedIn() && (isFastAdmin() || isAdmin() || resource.data.recipientId == request.auth.uid);
+      allow read: if isSignedIn() && (isFastAdmin() || isAdmin() || resource.data.recipientId == request.auth.uid);
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && (isFastAdmin() || isAdmin() || (resource.data.recipientId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['isRead'])));
+      allow update: if isSignedIn() && (isFastAdmin() || isAdmin() || (resource.data.recipientId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])));
       allow delete: if isFastAdmin() || isAdmin();
     }
 
@@ -149,16 +141,16 @@ service cloud.firestore {
     match /teacherSessions/{sessionId} {
       allow read: if isSignedIn();
       allow create: if isTeacher() || isFastAdmin() || isAdmin();
-      allow update: if isFastAdmin() || isAdmin() || (isTeacher() && existing().teacherId == request.auth.uid);
+      allow update: if isFastAdmin() || isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
       allow delete: if isFastAdmin() || isAdmin();
     }
 
     // Parent-Child links
     match /parentChildren/{linkId} {
-      allow read, list: if isSignedIn() && (isFastAdmin() || isAdmin() || resource.data.parentId == request.auth.uid || resource.data.childId == request.auth.uid);
-      allow create: if isSignedIn() && (isFastAdmin() || isAdmin() || incoming().parentId == request.auth.uid);
-      allow update: if isFastAdmin() || isAdmin() || (isSignedIn() && (existing().parentId == request.auth.uid || resource.data.parentId == request.auth.uid));
-      allow delete: if isFastAdmin() || isAdmin() || (isSignedIn() && (existing().parentId == request.auth.uid || resource.data.parentId == request.auth.uid));
+      allow read: if isSignedIn() && (isFastAdmin() || isAdmin() || resource.data.parentId == request.auth.uid || resource.data.childId == request.auth.uid);
+      allow create: if isSignedIn() && (isFastAdmin() || isAdmin() || request.resource.data.parentId == request.auth.uid);
+      allow update: if isFastAdmin() || isAdmin() || (isSignedIn() && resource.data.parentId == request.auth.uid);
+      allow delete: if isFastAdmin() || isAdmin() || (isSignedIn() && resource.data.parentId == request.auth.uid);
     }
 
     // Transactions Collection (Legacy/Supporting)
@@ -173,9 +165,15 @@ service cloud.firestore {
       allow write: if isFastAdmin() || isAdmin();
     }
 
+    // Contacts Collection
+    match /contacts/{contactId} {
+      allow create: if true;
+      allow read, update, delete: if isFastAdmin() || isAdmin();
+    }
+
     // Connectivity Test
     match /test/connection {
-      allow read: if true;
+      allow read, write: if true;
     }
   }
 }

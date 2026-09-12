@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { auth, db } from '@/src/lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import AppShell from '@/src/components/layout/AppShell';
 
 // UI Components for roles
@@ -14,6 +14,7 @@ import AdminOverview from '@/src/components/dashboard/AdminOverview';
 type Role = 'student' | 'parent' | 'teacher' | 'admin';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<any>(null);
@@ -36,9 +37,35 @@ export default function Dashboard() {
         }
 
         try {
-          const snap = await getDoc(doc(db, 'users', authUser.uid));
+          const userDocRef = doc(db, 'users', authUser.uid);
+          let snap = await getDoc(userDocRef);
+          const isAdminEmail = authUser.email === 'masartamayoz@gmail.com' || authUser.email === 'academy.masartamayoz@gmail.com';
+
+          if (!snap.exists() && isAdminEmail) {
+            const adminInitialData = {
+              firstName: 'المشرف',
+              lastName: 'العام',
+              email: authUser.email,
+              userType: 'admin',
+              subscriptionStatus: 'active',
+              createdAt: new Date().toISOString()
+            };
+            await setDoc(userDocRef, adminInitialData);
+            snap = await getDoc(userDocRef);
+          }
+
+          if (!snap.exists() && !isAdminEmail) {
+            // User authenticated with Google or phone, but has not completed their registration profile in Firestore!
+            navigate('/auth?complete=google#register', { replace: true });
+            return;
+          }
+
           if (snap.exists()) {
             const data = snap.data();
+            if (isAdminEmail && data.userType !== 'admin') {
+              data.userType = 'admin';
+              await updateDoc(userDocRef, { userType: 'admin' });
+            }
             setUserData(data);
             localStorage.setItem(cachedKey, JSON.stringify(data));
           }

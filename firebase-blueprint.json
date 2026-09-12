@@ -135,7 +135,7 @@
       "description": "Rule defining free or cross-level content access",
       "type": "object",
       "properties": {
-        "type": { "type": "string", "enum": ["level_free", "user_free", "cross_level"] },
+        "type": { "type": "string", "enum": ["level_free", "user_free", "cross_level", "parent_free"] },
         "level": { "type": "string" },
         "targetLevel": { "type": "string" },
         "userIds": { "type": "array" },
@@ -144,6 +144,31 @@
         "endDate": { "type": "string", "format": "date-time" },
         "description": { "type": "string" },
         "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "ParentChild": {
+      "title": "ParentChild",
+      "description": "Links between parents and children",
+      "type": "object",
+      "properties": {
+        "parentId": { "type": "string" },
+        "childId": { "type": "string" },
+        "parentEmail": { "type": "string" },
+        "childEmail": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["parentId", "childId"]
+    },
+    "Contact": {
+      "title": "Contact",
+      "description": "Contact form messages",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "message": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       }
     }
@@ -158,6 +183,8 @@
     "/wallets/{userId}": { "schema": "Wallet", "description": "Financial records" },
     "/payoutRequests/{requestId}": { "schema": "PayoutRequest", "description": "Withdrawal requests" },
     "/messages/{messageId}": { "schema": "Message", "description": "System messages/notifications" },
-    "/contentAccessRules/{ruleId}": { "schema": "ContentAccessRule", "description": "Level or user access overrides" }
+    "/contentAccessRules/{ruleId}": { "schema": "ContentAccessRule", "description": "Level or user access overrides" },
+    "/parentChildren/{linkId}": { "schema": "ParentChild", "description": "Parent child relationship links" },
+    "/contacts/{contactId}": { "schema": "Contact", "description": "Contact inquiries" }
   }
 }
