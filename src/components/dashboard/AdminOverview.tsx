@@ -503,8 +503,8 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       return;
     }
     
-    if ((newContent.type === 'lesson' || newContent.type === 'summer_review') && !newContent.title) {
-      alert(newContent.type === 'summer_review' ? 'يرجى إدخال عنوان المحور' : 'يرجى إدخال عنوان الدرس');
+    if ((newContent.type === 'lesson' || newContent.type === 'summer_review' || newContent.type === 'introductory_session') && !newContent.title) {
+      alert(newContent.type === 'summer_review' ? 'يرجى إدخال عنوان المحور' : newContent.type === 'introductory_session' ? 'يرجى إدخال عنوان الحصة' : 'يرجى إدخال عنوان الدرس');
       return;
     }
 
@@ -525,6 +525,9 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       } else if (newContent.type === 'summer_review') {
           const clean = newContent.title.replace(/^(الحصة|الدرس|درس مراجعة صيفية|المحور)\s*\d+(\s*من\s*\d+)?:?\s*/i, '').trim();
           dataToSave.title = clean ? `المحور ${newContent.order || 1}: ${clean}` : `المحور ${newContent.order || 1}`;
+      } else if (newContent.type === 'introductory_session') {
+          const clean = newContent.title.replace(/^(حصة تمهيدية|حصص تمهيدية|الحصة|حصة|الدرس|درس تمهيدي)\s*\d+(\s*من\s*\d+)?:?\s*/i, '').trim();
+          dataToSave.title = clean ? `حصة ${newContent.order || 1}: ${clean}` : `حصة ${newContent.order || 1}`;
       }
 
       await addDoc(collection(db, 'videos'), dataToSave);
@@ -569,6 +572,9 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       } else if (editingContent.type === 'summer_review') {
           const clean = editingContent.title.replace(/^(الحصة|الدرس|درس مراجعة صيفية|المحور)\s*\d+(\s*من\s*\d+)?:?\s*/i, '').trim();
           dataToSave.title = clean ? `المحور ${editingContent.order || 1}: ${clean}` : `المحور ${editingContent.order || 1}`;
+      } else if (editingContent.type === 'introductory_session') {
+          const clean = editingContent.title.replace(/^(حصة تمهيدية|حصص تمهيدية|الحصة|حصة|الدرس|درس تمهيدي)\s*\d+(\s*من\s*\d+)?:?\s*/i, '').trim();
+          dataToSave.title = clean ? `حصة ${editingContent.order || 1}: ${clean}` : `حصة ${editingContent.order || 1}`;
       }
 
       const { id, ...dataWithoutId } = dataToSave;
@@ -1209,9 +1215,10 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
 
   const renderContentManager = () => {
     const filteredContent = data.content.filter(item => {
-      const displayTitle = item.type === 'lesson' ? item.title : 
+      const displayTitle = (item.type === 'summer_review' || item.type === 'introductory_session') ? formatContentTitle(item) :
+                         (item.type === 'lesson' ? item.title :
                          item.type === 'exercise' ? `سلسلة تمارين - ${item.topics?.join(', ')}` : 
-                         `${item.type === 'assignment' ? 'فرض مراقبة' : 'فرض تأليفي'} - نموذج ${item.modelNumber}`;
+                         `${item.type === 'assignment' ? 'فرض مراقبة' : 'فرض تأليفي'} - نموذج ${item.modelNumber}`);
       
       const matchesSearch = (displayTitle || '').toLowerCase().includes(contentSearch.toLowerCase());
       const matchesLevel = contentLevelFilter === 'all' || item.level === contentLevelFilter;
@@ -1274,9 +1281,10 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                     <option value="synthesis">فرض تأليفي</option>
                     <option value="exercise">سلسلة تمارين</option>
                     <option value="summer_review">مراجعة صيفية</option>
+                    <option value="introductory_session">حصص تمهيدية</option>
                   </select>
                 </div>
-                {(newContent.type === 'lesson' || newContent.type === 'exercise' || newContent.type === 'summer_review') && (
+                {(newContent.type === 'lesson' || newContent.type === 'exercise' || newContent.type === 'summer_review' || newContent.type === 'introductory_session') && (
                   <div className="space-y-2">
                     <label className="text-xs font-black text-gray-400 uppercase pr-2">التصنيف *</label>
                     <select value={newContent.category || 'general'} onChange={e => setNewContent({...newContent, category: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
@@ -1308,10 +1316,10 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {(newContent.type === 'lesson' || newContent.type === 'summer_review') ? (
+                {(newContent.type === 'lesson' || newContent.type === 'summer_review' || newContent.type === 'introductory_session') ? (
                   <div className="md:col-span-2 space-y-2">
-                    <label className="text-xs font-black text-gray-400 uppercase pr-2">{newContent.type === 'summer_review' ? 'عنوان المحور *' : 'عنوان الدرس *'}</label>
-                    <input required type="text" value={newContent.title} onChange={e => setNewContent({...newContent, title: e.target.value})} placeholder={newContent.type === 'summer_review' ? "مثال: مراجعة الحساب الذهني والتناسب" : "مثال: الأعداد الحقيقية"} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
+                    <label className="text-xs font-black text-gray-400 uppercase pr-2">{newContent.type === 'summer_review' ? 'عنوان المحور *' : newContent.type === 'introductory_session' ? 'عنوان الحصة *' : 'عنوان الدرس *'}</label>
+                    <input required type="text" value={newContent.title} onChange={e => setNewContent({...newContent, title: e.target.value})} placeholder={newContent.type === 'summer_review' ? "مثال: مراجعة الحساب الذهني والتناسب" : newContent.type === 'introductory_session' ? "مثال: مكتسبات قبلية وحساب ذهني" : "مثال: الأعداد الحقيقية"} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
                   </div>
                 ) : newContent.type === 'exercise' ? (
                   <div className="md:col-span-2 space-y-2">
@@ -1371,7 +1379,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div className="space-y-2">
-                    <label className="text-xs font-black text-gray-400 uppercase pr-2">{newContent.type === 'summer_review' ? 'رقم المحور' : (newContent.type === 'lesson' ? 'رقم الدرس' : 'رقم')}</label>
+                    <label className="text-xs font-black text-gray-400 uppercase pr-2">{newContent.type === 'summer_review' ? 'رقم المحور' : newContent.type === 'introductory_session' ? 'رقم الحصة' : (newContent.type === 'lesson' ? 'رقم الدرس' : 'رقم')}</label>
                     <input type="number" value={newContent.order} onChange={e => setNewContent({...newContent, order: parseInt(e.target.value)})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
                  </div>
                  <div className="space-y-2">
@@ -1454,6 +1462,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                   <option value="synthesis">فروض تأليفية</option>
                   <option value="exercise">سلاسل تمارين</option>
                   <option value="summer_review">مراجعة صيفية</option>
+                  <option value="introductory_session">حصص تمهيدية</option>
                 </select>
               </div>
             </div>
@@ -1461,7 +1470,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <AnimatePresence mode="popLayout">
                 {filteredContent.map((c) => {
-                  const displayTitle = c.type === 'summer_review' ? formatContentTitle(c) :
+                  const displayTitle = (c.type === 'summer_review' || c.type === 'introductory_session') ? formatContentTitle(c) :
                                      (c.type === 'lesson' ? c.title : 
                                      c.type === 'exercise' ? `سلسلة تمارين - ${c.topics?.join(', ')}` : 
                                      `${c.type === 'assignment' ? 'فرض مراقبة' : 'فرض تأليفي'} - نموذج ${c.modelNumber}`);
@@ -1477,15 +1486,17 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                       <div className="mb-4 flex items-center justify-between">
                         <span className={cn(
                           "px-3 py-1 rounded-full text-[0.6rem] font-black uppercase tracking-wider",
-                          c.type === 'lesson' ? 'bg-blue-50 text-blue-600' : 
+                          c.type === 'lesson' ? 'bg-blue-50 text-blue-600' :
                           c.type === 'assignment' ? 'bg-amber-50 text-amber-600' : 
                           c.type === 'synthesis' ? 'bg-red-50 text-red-600' : 
-                          c.type === 'summer_review' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'
+                          c.type === 'summer_review' ? 'bg-indigo-50 text-indigo-600' :
+                          c.type === 'introductory_session' ? 'bg-purple-50 text-purple-600' : 'bg-emerald-50 text-emerald-600'
                         )}>
                           {c.type === 'lesson' ? 'درس' : 
                           c.type === 'assignment' ? 'فرض مراقبة' : 
                           c.type === 'synthesis' ? 'فرض تأليفي' : 
-                          c.type === 'summer_review' ? 'مراجعة صيفية' : 'سلسلة تمارين'}
+                          c.type === 'summer_review' ? 'مراجعة صيفية' :
+                          c.type === 'introductory_session' ? 'حصص تمهيدية' : 'سلسلة تمارين'}
                         </span>
                         <div className="flex items-center gap-1 text-[0.6rem] font-black text-gray-400">
                           <Tag size={10} className="text-blue-dark/40" />
@@ -4255,10 +4266,11 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                   <option value="synthesis">فرض تأليفي</option>
                   <option value="exercise">سلسلة تمارين</option>
                   <option value="summer_review">مراجعة صيفية</option>
+                  <option value="introductory_session">حصص تمهيدية</option>
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-black text-gray-400 uppercase pr-2">{c.type === 'summer_review' ? 'رقم المحور' : (c.type === 'lesson' ? 'رقم الدرس' : 'رقم')}</label>
+                <label className="text-xs font-black text-gray-400 uppercase pr-2">{c.type === 'summer_review' ? 'رقم المحور' : c.type === 'introductory_session' ? 'رقم الحصة' : (c.type === 'lesson' ? 'رقم الدرس' : 'رقم')}</label>
                 <input type="number" value={c.order} onChange={e => setC({...c, order: parseInt(e.target.value)})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
               </div>
               <div className="space-y-2">
@@ -4286,7 +4298,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                     </button>
                  </div>
               </div>
-              {(c.type === 'lesson' || c.type === 'exercise' || c.type === 'summer_review') && (
+              {(c.type === 'lesson' || c.type === 'exercise' || c.type === 'summer_review' || c.type === 'introductory_session') && (
                 <div className="space-y-2">
                   <label className="text-xs font-black text-gray-400 uppercase pr-2">التصنيف *</label>
                   <select value={c.category || 'general'} onChange={e => setC({...c, category: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100">
@@ -4320,10 +4332,10 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                 </div>
               )}
 
-              {(c.type === 'lesson' || c.type === 'assignment' || c.type === 'synthesis' || c.type === 'summer_review') && (
+              {(c.type === 'lesson' || c.type === 'assignment' || c.type === 'synthesis' || c.type === 'summer_review' || c.type === 'introductory_session') && (
                 <div className="md:col-span-2 space-y-2">
-                  <label className="text-xs font-black text-gray-400 uppercase pr-2">{c.type === 'summer_review' ? 'عنوان المحور *' : `العنوان ${c.type === 'lesson' ? '*' : '(اختياري)'}`}</label>
-                  <input required={c.type === 'lesson' || c.type === 'summer_review'} type="text" value={c.title} onChange={e => setC({...c, title: e.target.value})} placeholder={c.type === 'lesson' ? "مثال: الأعداد الحقيقية" : c.type === 'summer_review' ? "مثال: مراجعة الحساب الذهني والتناسب" : "سيتم توليد عنوان آلي إذا ترك فارغاً"} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
+                  <label className="text-xs font-black text-gray-400 uppercase pr-2">{c.type === 'summer_review' ? 'عنوان المحور *' : c.type === 'introductory_session' ? 'عنوان الحصة *' : `العنوان ${c.type === 'lesson' ? '*' : '(اختياري)'}`}</label>
+                  <input required={c.type === 'lesson' || c.type === 'summer_review' || c.type === 'introductory_session'} type="text" value={c.title} onChange={e => setC({...c, title: e.target.value})} placeholder={c.type === 'lesson' ? "مثال: الأعداد الحقيقية" : c.type === 'summer_review' ? "مثال: مراجعة الحساب الذهني والتناسب" : c.type === 'introductory_session' ? "مثال: مكتسبات قبلية وحساب ذهني" : "سيتم توليد عنوان آلي إذا ترك فارغاً"} className="w-full rounded-2xl bg-gray-50 border-none px-6 py-4 text-sm font-bold outline-none ring-1 ring-gray-100" />
                 </div>
               )}
 

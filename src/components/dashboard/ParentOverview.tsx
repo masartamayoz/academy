@@ -40,7 +40,8 @@ import {
   Award,
   Sun,
   File,
-  GraduationCap
+  GraduationCap,
+  Sparkles
 } from 'lucide-react';
 import { cn, formatContentTitle } from '@/src/lib/utils';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -1468,6 +1469,7 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                       { id: 'lesson', label: 'الدروس المشروحة', icon: BookOpen },
                       { id: 'exercise', label: 'سلاسل التمارين', icon: FileText },
                       { id: 'summer_review', label: 'مراجعة صيفية', icon: Sun },
+                      { id: 'introductory_session', label: 'حصص تمهيدية', icon: Sparkles },
                       { id: 'assignment', label: 'فروض المراقبة', icon: FileText },
                       { id: 'synthesis', label: 'الفروض التأليفية', icon: Award }
                     ].map(subItem => {
@@ -1679,7 +1681,7 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                                             <span className="text-[0.62rem] font-black text-blue-brand uppercase">{item.chapter}</span>
                                             <span className="w-1 h-1 rounded-full bg-gray-200" />
                                             <span className="text-[0.62rem] font-bold text-gray-400">
-                                              {item.type === 'lesson' ? 'درس فيديو' : item.type === 'summer_review' ? 'مراجعة صيفية' : item.type === 'exercise' ? 'سلسلة تمارين' : 'نموذج فرض'}
+                                              {item.type === 'lesson' ? 'درس فيديو' : item.type === 'summer_review' ? 'مراجعة صيفية' : item.type === 'introductory_session' ? 'حصة تمهيدية' : item.type === 'exercise' ? 'سلسلة تمارين' : 'نموذج فرض'}
                                             </span>
                                           </div>
                                           <h4 className="text-[0.85rem] font-black text-blue-dark truncate leading-tight group-hover:text-blue-brand transition-colors">
@@ -2472,7 +2474,7 @@ export default function ParentOverview({ activeTab, userData, user }: Props) {
                          >
                             <FileText size={18} className="shrink-0" />
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-black truncate">{lessonsViewerItem.type === 'lesson' ? "ملخص الدرس" : lessonsViewerItem.type === 'summer_review' ? "ملخص المحور" : "نص التمرين / الفرض"}</p>
+                              <p className="text-xs font-black truncate">{lessonsViewerItem.type === 'lesson' ? "ملخص الدرس" : lessonsViewerItem.type === 'summer_review' ? "ملخص المحور" : lessonsViewerItem.type === 'introductory_session' ? "ملخص الحصة" : "نص التمرين / الفرض"}</p>
                               <p className="text-[0.62rem] opacity-60 font-bold mt-0.5">وثيقة بصيغة PDF</p>
                             </div>
                          </button>

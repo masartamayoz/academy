@@ -6,7 +6,18 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatContentTitle(item: { type?: string; title?: string; order?: number } | null | undefined): string {
-  if (!item || !item.title) return '';
+  if (!item) return '';
+  if (item.type === 'introductory_session') {
+    if (!item.title) return `حصة ${item.order || 1}`;
+    // Remove legacy or redundant prefixes like "حصة 1:", "الحصة 1:", "حصة تمهيدية 1:", etc.
+    let clean = item.title.replace(/^(حصة تمهيدية|حصص تمهيدية|الحصة|حصة|الدرس|درس تمهيدي)\s*\d+(\s*من\s*\d+)?:?\s*/i, '').trim();
+    if (/^(حصة|الحصة)\s*\d+/i.test(clean)) {
+      return clean;
+    }
+    clean = clean.replace(/^(حصة تمهيدية|حصص تمهيدية|الحصة|حصة)\s*:?\s*/i, '').trim();
+    return clean ? `حصة ${item.order || 1}: ${clean}` : `حصة ${item.order || 1}`;
+  }
+  if (!item.title) return '';
   if (item.type === 'summer_review') {
     // Remove legacy session/lesson prefix like "الحصة 1 من 10:", "الحصة 1:", "درس مراجعة صيفية:", etc.
     let clean = item.title.replace(/^(الحصة|الدرس|درس مراجعة صيفية)\s*\d+(\s*من\s*\d+)?:?\s*/i, '').trim();

@@ -6,7 +6,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { 
   Search, BookOpen, FileText, Play, Lock, X, 
   Loader2, Plus, Download, ExternalLink, File,
-  Video, Award, Sun
+  Video, Award, Sun, Sparkles
 } from 'lucide-react';
 import { cn, formatContentTitle } from '@/src/lib/utils';
 import AppShell from '@/src/components/layout/AppShell';
@@ -217,6 +217,7 @@ export default function Courses() {
                <SidebarItem id="lesson" icon={BookOpen} label="الدروس المشروحة" current={currentType} onClick={setCurrentType} />
                <SidebarItem id="exercise" icon={FileText} label="سلاسل التمارين" current={currentType} onClick={setCurrentType} />
                <SidebarItem id="summer_review" icon={Sun} label="مراجعة صيفية" current={currentType} onClick={setCurrentType} />
+               <SidebarItem id="introductory_session" icon={Sparkles} label="حصص تمهيدية" current={currentType} onClick={setCurrentType} />
              </div>
 
              <div className="space-y-1.5">
@@ -295,6 +296,7 @@ export default function Courses() {
                 { id: 'lesson', label: 'الدروس المشروحة', icon: BookOpen },
                 { id: 'exercise', label: 'سلاسل التمارين', icon: FileText },
                 { id: 'summer_review', label: 'مراجعة صيفية', icon: Sun },
+                { id: 'introductory_session', label: 'حصص تمهيدية', icon: Sparkles },
                 { id: 'assignment', label: 'فروض المراقبة', icon: FileText },
                 { id: 'synthesis', label: 'الفروض التأليفية', icon: Award }
               ].map(subItem => {
@@ -401,7 +403,7 @@ export default function Courses() {
                               <div className="flex-1 min-w-0 flex flex-col md:flex-row items-center gap-6 w-full">
                                  {/* Order Number */}
                                  <div className="flex flex-col items-center justify-center h-12 w-12 rounded-2xl bg-gray-50 border border-gray-100 text-blue-dark shrink-0">
-                                    <span className="text-[0.6rem] font-black text-gray-400 uppercase leading-none mb-1">{item.type === 'summer_review' ? 'المحور' : 'الرقم'}</span>
+                                    <span className="text-[0.6rem] font-black text-gray-400 uppercase leading-none mb-1">{item.type === 'summer_review' ? 'المحور' : item.type === 'introductory_session' ? 'الحصة' : 'الرقم'}</span>
                                     <span className="text-sm font-black leading-none">{item.order || (idx + 1)}</span>
                                  </div>
 
@@ -410,7 +412,7 @@ export default function Courses() {
                                        <span className="text-[0.65rem] font-black text-blue-light uppercase tracking-wider">{item.chapter}</span>
                                        <span className="w-1 h-1 rounded-full bg-gray-200" />
                                        <span className="text-[0.65rem] font-bold text-gray-400">
-                                          {item.type === 'lesson' ? 'درس فيديو' : item.type === 'summer_review' ? 'مراجعة صيفية' : item.type === 'exercise' ? 'سلسلة تمارين' : 'نموذج فرض'}
+                                          {item.type === 'lesson' ? 'درس فيديو' : item.type === 'summer_review' ? 'مراجعة صيفية' : item.type === 'introductory_session' ? 'حصة تمهيدية' : item.type === 'exercise' ? 'سلسلة تمارين' : 'نموذج فرض'}
                                        </span>
                                     </div>
                                     <h4 className="text-[0.95rem] font-black text-blue-dark truncate leading-tight tracking-tight group-hover:text-blue-brand transition-colors">
@@ -567,7 +569,7 @@ export default function Courses() {
                     {viewerItem.pdfText && (
                        <ResourceButton 
                           icon={FileText} 
-                          title={viewerItem.type === 'lesson' ? "ملخص الدرس" : viewerItem.type === 'summer_review' ? "ملخص المحور" : "نص التمرين / الفرض"} 
+                          title={viewerItem.type === 'lesson' ? "ملخص الدرس" : viewerItem.type === 'summer_review' ? "ملخص المحور" : viewerItem.type === 'introductory_session' ? "ملخص الحصة" : "نص التمرين / الفرض"}
                           sub="وثيقة بصيغة PDF" 
                           active={activeRes?.url === viewerItem.pdfText} 
                           onClick={() => setActiveRes({ type: 'pdf', url: viewerItem.pdfText, name: 'الوثيقة التعليمية' })}
