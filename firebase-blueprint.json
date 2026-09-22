@@ -147,6 +147,31 @@
         "createdAt": { "type": "string", "format": "date-time" }
       }
     },
+    "FreeOfferRule": {
+      "title": "FreeOfferRule",
+      "description": "Rule converting platform subscription offers to free grants",
+      "type": "object",
+      "properties": {
+        "offerId": { "type": "string" },
+        "offerName": { "type": "string" },
+        "targetType": { "type": "string", "enum": ["level", "student", "parent", "group"] },
+        "level": { "type": "string" },
+        "targetLevel": { "type": "string" },
+        "studentIds": { "type": "array" },
+        "studentNames": { "type": "array" },
+        "studentEmails": { "type": "array" },
+        "parentIds": { "type": "array" },
+        "parentNames": { "type": "array" },
+        "parentEmails": { "type": "array" },
+        "groupId": { "type": "string" },
+        "groupName": { "type": "string" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "description": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "ParentChild": {
       "title": "ParentChild",
       "description": "Links between parents and children",
@@ -184,6 +209,7 @@
     "/payoutRequests/{requestId}": { "schema": "PayoutRequest", "description": "Withdrawal requests" },
     "/messages/{messageId}": { "schema": "Message", "description": "System messages/notifications" },
     "/contentAccessRules/{ruleId}": { "schema": "ContentAccessRule", "description": "Level or user access overrides" },
+    "/freeOfferRules/{ruleId}": { "schema": "FreeOfferRule", "description": "Rules for converting platform offers into free offers" },
     "/parentChildren/{linkId}": { "schema": "ParentChild", "description": "Parent child relationship links" },
     "/contacts/{contactId}": { "schema": "Contact", "description": "Contact inquiries" }
   }

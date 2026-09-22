@@ -24,7 +24,8 @@ import {
   HardDrive,
   ChevronRight,
   ChevronLeft,
-  Lock
+  Lock,
+  Gift
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
@@ -78,6 +79,7 @@ export default function Sidebar({ user, userData, isOpen, setIsOpen, isCollapsed
       { id: 'courses', icon: BookOpen, label: 'تصفح الدروس', href: '/courses' },
       { id: 'content', icon: Video, label: 'إدارة المحتوى', href: '/dashboard?tab=content' },
       { id: 'contentAccess', icon: Lock, label: 'الوصول للمحتوى', href: '/dashboard?tab=contentAccess' },
+      { id: 'freeOffers', icon: Gift, label: 'العروض المجانية', href: '/dashboard?tab=freeOffers' },
       { id: 'addUser', icon: UserPlus, label: 'إضافة مستخدم جديد', href: '/dashboard?tab=addUser' },
       { id: 'users', icon: Users, label: 'قائمة المستخدمين', href: '/dashboard?tab=users' },
       { id: 'subscriptions', icon: CreditCard, label: 'الاشتراكات', href: '/dashboard?tab=subscriptions' },

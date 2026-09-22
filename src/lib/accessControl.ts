@@ -4,7 +4,7 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore';
 
 export interface ContentAccessRule {
   id: string;
-  type: 'level_free' | 'user_free' | 'cross_level' | 'parent_free';
+  type: 'level_free' | 'user_free' | 'cross_level' | 'parent_free' | 'group_free' | 'offer_free';
   level?: string;
   targetLevel?: string;
   userIds?: string[];
@@ -16,15 +16,37 @@ export interface ContentAccessRule {
   createdAt?: any;
 }
 
+export interface FreeOfferRule {
+  id: string;
+  offerId: string;
+  offerName: string;
+  targetType: 'level' | 'student' | 'parent' | 'group';
+  level?: string;
+  targetLevel?: string;
+  studentIds?: string[];
+  studentNames?: string[];
+  studentEmails?: string[];
+  parentIds?: string[];
+  parentNames?: string[];
+  parentEmails?: string[];
+  groupId?: string;
+  groupName?: string;
+  startDate: string;
+  endDate: string;
+  description?: string;
+  isActive: boolean;
+  createdAt?: any;
+}
+
 export function useContentAccess(userData: any) {
   const [rules, setRules] = useState<ContentAccessRule[]>([]);
+  const [freeOffers, setFreeOffers] = useState<FreeOfferRule[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Listen to all active rules
-    const q = query(collection(db, 'contentAccessRules'), where('isActive', '==', true));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    // Listen to all active content access rules
+    const qRules = query(collection(db, 'contentAccessRules'), where('isActive', '==', true));
+    const unsubscribeRules = onSnapshot(qRules, (snapshot) => {
       const activeRules = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -37,16 +59,75 @@ export function useContentAccess(userData: any) {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    // Listen to all active free offer rules
+    const qOffers = query(collection(db, 'freeOfferRules'), where('isActive', '==', true));
+    const unsubscribeOffers = onSnapshot(qOffers, (snapshot) => {
+      const activeOffers = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as FreeOfferRule[];
+
+      setFreeOffers(activeOffers);
+    }, (error) => {
+      console.error("Error fetching free offer rules:", error);
+    });
+
+    return () => {
+      unsubscribeRules();
+      unsubscribeOffers();
+    };
   }, []);
 
-  const isRuleActive = (rule: ContentAccessRule): boolean => {
+  const isRuleActive = (rule: { isActive: boolean; startDate: string; endDate: string }): boolean => {
     if (!rule.isActive) return false;
     const now = new Date();
     const start = new Date(rule.startDate);
     const end = new Date(rule.endDate);
     return now >= start && now <= end;
   };
+
+  const doesFreeOfferMatchUser = (rule: FreeOfferRule, targetLevelCheck?: string): boolean => {
+    if (!userData || !isRuleActive(rule)) return false;
+    const role = userData.userType || 'student';
+    if (role === 'admin' || role === 'teacher') return true;
+
+    const userId = userData.uid || userData.id || '';
+    const parentId = userData.parentId || '';
+    const userEmail = (userData.email || '').toLowerCase();
+    const parentEmail = (userData.parentEmail || '').toLowerCase();
+    const userGroup = userData.group || '';
+
+    let matchesTarget = false;
+    if (rule.targetType === 'level') {
+      matchesTarget = !rule.level || rule.level === 'all' || rule.level === userData.level;
+    } else if (rule.targetType === 'student') {
+      const emailsLower = (rule.studentEmails || []).map(e => (e || '').toLowerCase());
+      matchesTarget = Boolean((userId && rule.studentIds?.includes(userId)) || (userEmail && emailsLower.includes(userEmail)));
+    } else if (rule.targetType === 'parent') {
+      const emailsLower = (rule.parentEmails || []).map(e => (e || '').toLowerCase());
+      matchesTarget = Boolean(
+        (parentId && rule.parentIds?.includes(parentId)) ||
+        (userId && rule.parentIds?.includes(userId)) ||
+        (parentEmail && emailsLower.includes(parentEmail)) ||
+        (userEmail && emailsLower.includes(userEmail))
+      );
+    } else if (rule.targetType === 'group') {
+      matchesTarget = Boolean(userGroup && (rule.groupId === userGroup || rule.groupName === userGroup));
+    }
+
+    if (!matchesTarget) return false;
+
+    if (targetLevelCheck) {
+      if (rule.targetLevel && rule.targetLevel !== 'all' && rule.targetLevel !== targetLevelCheck) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  // Find user's active free offers
+  const userActiveFreeOffers = freeOffers.filter(rule => doesFreeOfferMatchUser(rule));
 
   /**
    * Checks whether the user can browse/select a specific level.
@@ -57,6 +138,10 @@ export function useContentAccess(userData: any) {
     
     // Admins and teachers can browse all levels
     if (role === 'admin' || role === 'teacher') return true;
+
+    // Check if there is a matching free offer rule
+    const hasMatchingFreeOffer = freeOffers.some(rule => doesFreeOfferMatchUser(rule, lvl));
+    if (hasMatchingFreeOffer) return true;
 
     // Check if there is a matching level_free rule
     const matchesLevelFree = rules.some(rule => {
@@ -129,6 +214,10 @@ export function useContentAccess(userData: any) {
     // If item itself is free, anyone can view it
     if (isItemFree) return true;
 
+    // Check if there is a matching free offer rule
+    const hasMatchingFreeOffer = freeOffers.some(rule => doesFreeOfferMatchUser(rule, itemLevel));
+    if (hasMatchingFreeOffer) return true;
+
     // Check if there is a matching level_free rule
     const matchesLevelFree = rules.some(rule => {
       if (rule.type !== 'level_free' || !isRuleActive(rule)) return false;
@@ -189,6 +278,9 @@ export function useContentAccess(userData: any) {
 
   return {
     rules,
+    freeOffers,
+    userActiveFreeOffers,
+    hasStudentFreeAccess: userActiveFreeOffers.length > 0,
     loading,
     isLevelAccessible,
     hasAccess
