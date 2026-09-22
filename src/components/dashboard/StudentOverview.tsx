@@ -434,13 +434,13 @@ export default function StudentOverview({ activeTab, userData, user }: Props) {
                           "absolute bottom-2 right-2 rounded-md px-2 py-0.5 text-[0.65rem] font-bold text-white backdrop-blur-sm",
                           v.type === 'lesson' ? 'bg-blue-dark/80' : 
                           v.type === 'summer_review' ? 'bg-indigo-600/80' : 
-                          v.type === 'introductory_session' ? 'bg-purple-600/80' :
+                          v.type === 'introductory_session' ? 'bg-purple-600/80' : 
                           v.type === 'exercise' ? 'bg-emerald-600/80' : 
                           'bg-amber-600/80'
                         )}>
                           {v.type === 'lesson' ? 'درس فيديو' : 
                            v.type === 'summer_review' ? 'مراجعة صيفية' : 
-                           v.type === 'introductory_session' ? 'حصة تمهيدية' :
+                           v.type === 'introductory_session' ? 'حصة تمهيدية' : 
                            v.type === 'exercise' ? 'تمارين' : 
                            v.type === 'assignment' ? 'فرض مراقبة' : 'فرض تأليفي'}
                         </div>

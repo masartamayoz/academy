@@ -66,7 +66,7 @@ export function useContentAccess(userData: any) {
         id: doc.id,
         ...doc.data()
       })) as FreeOfferRule[];
-
+      
       setFreeOffers(activeOffers);
     }, (error) => {
       console.error("Error fetching free offer rules:", error);

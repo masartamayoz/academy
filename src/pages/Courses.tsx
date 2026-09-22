@@ -569,7 +569,7 @@ export default function Courses() {
                     {viewerItem.pdfText && (
                        <ResourceButton 
                           icon={FileText} 
-                          title={viewerItem.type === 'lesson' ? "ملخص الدرس" : viewerItem.type === 'summer_review' ? "ملخص المحور" : viewerItem.type === 'introductory_session' ? "ملخص الحصة" : "نص التمرين / الفرض"}
+                          title={viewerItem.type === 'lesson' ? "ملخص الدرس" : viewerItem.type === 'summer_review' ? "ملخص المحور" : viewerItem.type === 'introductory_session' ? "ملخص الحصة" : "نص التمرين / الفرض"} 
                           sub="وثيقة بصيغة PDF" 
                           active={activeRes?.url === viewerItem.pdfText} 
                           onClick={() => setActiveRes({ type: 'pdf', url: viewerItem.pdfText, name: 'الوثيقة التعليمية' })}

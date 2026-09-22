@@ -60,11 +60,56 @@ import {
   Lock,
   MapPin,
   Link,
+  Gift,
+  Sparkles,
+  LayoutGrid,
+  CheckSquare,
+  Square,
+  Check,
+  Edit3,
   X
 } from 'lucide-react';
 import { cn, formatContentTitle } from '@/src/lib/utils';
 import PhoneInputWithCountry from '@/src/components/common/PhoneInputWithCountry';
 import { Country, DEFAULT_COUNTRY } from '@/src/constants/countries';
+
+const toDatetimeLocal = (d: Date) => {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+const getPresetEndDate = (baseDateStr: string, preset: '7d' | '15d' | '30d' | 'trimester' | 'year'): Date => {
+  const now = new Date();
+  const base = baseDateStr ? new Date(baseDateStr) : now;
+  const start = base > now ? base : now;
+  const target = new Date(start);
+
+  if (preset === '7d') {
+    target.setDate(target.getDate() + 7);
+  } else if (preset === '15d') {
+    target.setDate(target.getDate() + 15);
+  } else if (preset === '30d') {
+    target.setDate(target.getDate() + 30);
+  } else if (preset === 'trimester') {
+    const year = target.getFullYear();
+    const month = target.getMonth();
+    if (month >= 8 && month <= 11) {
+      return new Date(year, 11, 22, 23, 59, 59);
+    } else if (month >= 0 && month <= 2) {
+      return new Date(year, 2, 22, 23, 59, 59);
+    } else {
+      return new Date(year, 5, 15, 23, 59, 59);
+    }
+  } else if (preset === 'year') {
+    const year = target.getFullYear();
+    const endJune = new Date(year, 5, 30, 23, 59, 59);
+    if (endJune < now) {
+      return new Date(year + 1, 5, 30, 23, 59, 59);
+    }
+    return endJune;
+  }
+  return target;
+};
 
 interface Props {
   activeTab: string;
@@ -85,6 +130,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     subscriptions: [] as any[],
     payoutRequests: [] as any[],
     contentAccessRules: [] as any[],
+    freeOfferRules: [] as any[],
     parentChildren: [] as any[],
   });
   const [stats, setStats] = useState({
@@ -127,16 +173,41 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   const [ruleSearchUser, setRuleSearchUser] = useState('');
   const [showAddRuleForm, setShowAddRuleForm] = useState(false);
 
+  // Content Access Rule Extension State
+  const [ruleToExtend, setRuleToExtend] = useState<any | null>(null);
+  const [extendNewEndDate, setExtendNewEndDate] = useState('');
+  const [extendMakeActive, setExtendMakeActive] = useState(true);
+  const [isExtendingRule, setIsExtendingRule] = useState(false);
+
+  // Free Offers State
+  const [freeOffersActiveTab, setFreeOffersActiveTab] = useState<string>('all');
+  const [showAddFreeOfferModal, setShowAddFreeOfferModal] = useState(false);
+  const [freeOfferToExtend, setFreeOfferToExtend] = useState<any | null>(null);
+  const [extendFreeOfferEndDate, setExtendFreeOfferEndDate] = useState('');
+  const [extendFreeOfferMakeActive, setExtendFreeOfferMakeActive] = useState(true);
+  const [isExtendingFreeOffer, setIsExtendingFreeOffer] = useState(false);
+
+  // New Free Offer Form State
+  const [freeTargetOfferId, setFreeTargetOfferId] = useState('recordings_yearly');
+  const [freeTargetType, setFreeTargetType] = useState<'level' | 'student' | 'parent' | 'group'>('level');
+  const [freeLevel, setFreeLevel] = useState('all');
+  const [freeTargetLevel, setFreeTargetLevel] = useState('all');
+  const [freeSelectedStudentIds, setFreeSelectedStudentIds] = useState<string[]>([]);
+  const [freeSelectedParentIds, setFreeSelectedParentIds] = useState<string[]>([]);
+  const [freeSelectedGroupId, setFreeSelectedGroupId] = useState('');
+  const [freeStartDate, setFreeStartDate] = useState('');
+  const [freeEndDate, setFreeEndDate] = useState('');
+  const [freeDescription, setFreeDescription] = useState('');
+  const [freeSyncActiveSubscription, setFreeSyncActiveSubscription] = useState(true);
+  const [isSubmittingFreeOffer, setIsSubmittingFreeOffer] = useState(false);
+  const [freeOfferSearchQuery, setFreeOfferSearchQuery] = useState('');
+  const [freeOfferUserSearch, setFreeOfferUserSearch] = useState('');
+
   useEffect(() => {
     if (showAddRuleForm) {
       const now = new Date();
       const inAWeek = new Date();
       inAWeek.setDate(now.getDate() + 7);
-      
-      const toDatetimeLocal = (d: Date) => {
-        const pad = (n: number) => n.toString().padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-      };
       
       setRuleStartDate(toDatetimeLocal(now));
       setRuleEndDate(toDatetimeLocal(inAWeek));
@@ -376,6 +447,12 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       setData(prev => ({ ...prev, parentChildren }));
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'parentChildren'));
 
+    const unsubFreeOfferRules = onSnapshot(collection(db, 'freeOfferRules'), (snapshot) => {
+      const rules: any[] = [];
+      snapshot.forEach(d => rules.push({ id: d.id, ...d.data() }));
+      setData(prev => ({ ...prev, freeOfferRules: rules }));
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'freeOfferRules'));
+
     return () => {
       unsubUsers();
       unsubReceipts();
@@ -387,6 +464,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       unsubPayouts();
       unsubAccessRules();
       unsubParentChildren();
+      unsubFreeOfferRules();
     };
   }, []);
 
@@ -1216,7 +1294,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   const renderContentManager = () => {
     const filteredContent = data.content.filter(item => {
       const displayTitle = (item.type === 'summer_review' || item.type === 'introductory_session') ? formatContentTitle(item) :
-                         (item.type === 'lesson' ? item.title :
+                         (item.type === 'lesson' ? item.title : 
                          item.type === 'exercise' ? `سلسلة تمارين - ${item.topics?.join(', ')}` : 
                          `${item.type === 'assignment' ? 'فرض مراقبة' : 'فرض تأليفي'} - نموذج ${item.modelNumber}`);
       
@@ -1486,16 +1564,16 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                       <div className="mb-4 flex items-center justify-between">
                         <span className={cn(
                           "px-3 py-1 rounded-full text-[0.6rem] font-black uppercase tracking-wider",
-                          c.type === 'lesson' ? 'bg-blue-50 text-blue-600' :
+                          c.type === 'lesson' ? 'bg-blue-50 text-blue-600' : 
                           c.type === 'assignment' ? 'bg-amber-50 text-amber-600' : 
                           c.type === 'synthesis' ? 'bg-red-50 text-red-600' : 
-                          c.type === 'summer_review' ? 'bg-indigo-50 text-indigo-600' :
+                          c.type === 'summer_review' ? 'bg-indigo-50 text-indigo-600' : 
                           c.type === 'introductory_session' ? 'bg-purple-50 text-purple-600' : 'bg-emerald-50 text-emerald-600'
                         )}>
                           {c.type === 'lesson' ? 'درس' : 
                           c.type === 'assignment' ? 'فرض مراقبة' : 
                           c.type === 'synthesis' ? 'فرض تأليفي' : 
-                          c.type === 'summer_review' ? 'مراجعة صيفية' :
+                          c.type === 'summer_review' ? 'مراجعة صيفية' : 
                           c.type === 'introductory_session' ? 'حصص تمهيدية' : 'سلسلة تمارين'}
                         </span>
                         <div className="flex items-center gap-1 text-[0.6rem] font-black text-gray-400">
@@ -4482,6 +4560,287 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     });
   };
 
+  const handleOpenExtendRuleModal = (rule: any) => {
+    setRuleToExtend(rule);
+    const now = new Date();
+    const currentEnd = rule.endDate ? new Date(rule.endDate) : now;
+    const defaultNew = currentEnd > now ? currentEnd : new Date(now.getTime() + 30 * 86400000);
+    setExtendNewEndDate(toDatetimeLocal(defaultNew));
+    setExtendMakeActive(true);
+  };
+
+  const handleSaveExtendRule = async () => {
+    if (!ruleToExtend) return;
+    if (!extendNewEndDate) {
+      toast.error('الرجاء تحديد تاريخ الانتهاء الجديد');
+      return;
+    }
+    if (new Date(extendNewEndDate) <= new Date(ruleToExtend.startDate)) {
+      toast.error('تاريخ الانتهاء الجديد يجب أن يكون بعد تاريخ بداية القاعدة');
+      return;
+    }
+    setIsExtendingRule(true);
+    try {
+      await updateDoc(doc(db, 'contentAccessRules', ruleToExtend.id), {
+        endDate: extendNewEndDate,
+        isActive: extendMakeActive ? true : ruleToExtend.isActive,
+        updatedAt: new Date().toISOString()
+      });
+      toast.success(`تم تمديد صلاحية قاعدة الوصول بنجاح حتى ${formatDate(extendNewEndDate)}`);
+      setRuleToExtend(null);
+    } catch (err) {
+      console.error(err);
+      toast.error('فشل في تمديد صلاحية القاعدة');
+    } finally {
+      setIsExtendingRule(false);
+    }
+  };
+
+  // Free Offers Handlers
+  const handleOpenAddFreeOffer = (preselectedOfferId?: string) => {
+    const offerId = preselectedOfferId || (freeOffersActiveTab !== 'all' ? freeOffersActiveTab : 'recordings_yearly');
+    setFreeTargetOfferId(offerId);
+    setFreeTargetType('level');
+    setFreeLevel('all');
+    setFreeTargetLevel('all');
+    setFreeSelectedStudentIds([]);
+    setFreeSelectedParentIds([]);
+    setFreeSelectedGroupId(data.groups[0]?.id || '');
+    setFreeDescription('');
+    setFreeSyncActiveSubscription(true);
+
+    const now = new Date();
+    const defaultExpiry = getPlanExpiryDate(offerId);
+    setFreeStartDate(toDatetimeLocal(now));
+    setFreeEndDate(toDatetimeLocal(defaultExpiry));
+    setShowAddFreeOfferModal(true);
+  };
+
+  const handleSaveFreeOffer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!freeStartDate || !freeEndDate) {
+      toast.error('الرجاء تحديد الحيز الزمني كاملاً');
+      return;
+    }
+    if (new Date(freeStartDate) >= new Date(freeEndDate)) {
+      toast.error('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
+      return;
+    }
+
+    if (freeTargetType === 'student' && freeSelectedStudentIds.length === 0) {
+      toast.error('الرجاء اختيار تلميذ واحد على الأقل للمنحة');
+      return;
+    }
+    if (freeTargetType === 'parent' && freeSelectedParentIds.length === 0) {
+      toast.error('الرجاء اختيار ولي أمر واحد على الأقل للمنحة');
+      return;
+    }
+    if (freeTargetType === 'group' && !freeSelectedGroupId) {
+      toast.error('الرجاء اختيار مجموعة دراسية للمنحة');
+      return;
+    }
+
+    const offerObj = SUBSCRIPTION_PLANS.find(p => p.id === freeTargetOfferId);
+    const offerName = freeTargetOfferId === 'all_offers' 
+      ? 'وصول شامل لكافة العروض' 
+      : (offerObj?.name || freeTargetOfferId);
+
+    setIsSubmittingFreeOffer(true);
+    try {
+      let studentNames: string[] = [];
+      let studentEmails: string[] = [];
+      let parentNames: string[] = [];
+      let parentEmails: string[] = [];
+      let groupName = '';
+
+      if (freeTargetType === 'student') {
+        const selectedUsers = data.users.filter(u => freeSelectedStudentIds.includes(u.id));
+        studentNames = selectedUsers.map(u => `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || 'تلميذ');
+        studentEmails = selectedUsers.map(u => u.email).filter(Boolean);
+      } else if (freeTargetType === 'parent') {
+        const selectedParents = data.users.filter(u => freeSelectedParentIds.includes(u.id));
+        parentNames = selectedParents.map(u => `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || 'ولي أمر');
+        parentEmails = selectedParents.map(u => u.email).filter(Boolean);
+      } else if (freeTargetType === 'group') {
+        const grp = data.groups.find(g => g.id === freeSelectedGroupId || g.name === freeSelectedGroupId);
+        groupName = grp?.name || freeSelectedGroupId;
+      }
+
+      const newRule: any = {
+        offerId: freeTargetOfferId,
+        offerName,
+        targetType: freeTargetType,
+        level: freeTargetType === 'level' ? freeLevel : null,
+        targetLevel: freeTargetLevel,
+        studentIds: freeTargetType === 'student' ? freeSelectedStudentIds : null,
+        studentNames: freeTargetType === 'student' ? studentNames : null,
+        studentEmails: freeTargetType === 'student' ? studentEmails : null,
+        parentIds: freeTargetType === 'parent' ? freeSelectedParentIds : null,
+        parentNames: freeTargetType === 'parent' ? parentNames : null,
+        parentEmails: freeTargetType === 'parent' ? parentEmails : null,
+        groupId: freeTargetType === 'group' ? freeSelectedGroupId : null,
+        groupName: freeTargetType === 'group' ? groupName : null,
+        startDate: freeStartDate,
+        endDate: freeEndDate,
+        description: freeDescription,
+        isActive: true,
+        createdAt: new Date().toISOString()
+      };
+
+      await addDoc(collection(db, 'freeOfferRules'), newRule);
+
+      // Create matching contentAccessRule for universal permission compatibility
+      if (freeTargetType === 'level') {
+        await addDoc(collection(db, 'contentAccessRules'), {
+          type: 'level_free',
+          level: freeLevel,
+          targetLevel: freeTargetLevel,
+          startDate: freeStartDate,
+          endDate: freeEndDate,
+          description: `عرض مجاني: ${offerName} - ${freeDescription || ''}`.trim(),
+          isActive: true,
+          createdAt: new Date().toISOString()
+        });
+      } else if (freeTargetType === 'student' && freeSelectedStudentIds.length > 0) {
+        await addDoc(collection(db, 'contentAccessRules'), {
+          type: 'user_free',
+          userIds: freeSelectedStudentIds,
+          userEmails: studentEmails,
+          targetLevel: freeTargetLevel,
+          startDate: freeStartDate,
+          endDate: freeEndDate,
+          description: `عرض مجاني: ${offerName} - ${freeDescription || ''}`.trim(),
+          isActive: true,
+          createdAt: new Date().toISOString()
+        });
+      } else if (freeTargetType === 'parent' && freeSelectedParentIds.length > 0) {
+        await addDoc(collection(db, 'contentAccessRules'), {
+          type: 'user_free',
+          userIds: freeSelectedParentIds,
+          userEmails: parentEmails,
+          targetLevel: freeTargetLevel,
+          startDate: freeStartDate,
+          endDate: freeEndDate,
+          description: `عرض مجاني للأولياء: ${offerName} - ${freeDescription || ''}`.trim(),
+          isActive: true,
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      // Sync active subscription status to students if option selected
+      if (freeSyncActiveSubscription) {
+        let targetStudentUserIds: string[] = [];
+        if (freeTargetType === 'student') {
+          targetStudentUserIds = freeSelectedStudentIds;
+        } else if (freeTargetType === 'parent') {
+          const childIds = data.parentChildren
+            .filter(pc => freeSelectedParentIds.includes(pc.parentId))
+            .map(pc => pc.childId);
+          targetStudentUserIds = childIds;
+        } else if (freeTargetType === 'group') {
+          const studentsInGroup = data.users
+            .filter(u => u.userType === 'student' && (u.group === freeSelectedGroupId || u.group === groupName))
+            .map(u => u.id);
+          targetStudentUserIds = studentsInGroup;
+        }
+
+        for (const sId of targetStudentUserIds) {
+          try {
+            await updateDoc(doc(db, 'users', sId), {
+              subscriptionStatus: 'active',
+              plan: freeTargetOfferId,
+              planId: freeTargetOfferId,
+              currentPlan: `${offerName} (مجاني)`,
+              subscriptionExpiry: freeEndDate
+            });
+          } catch (e) {
+            console.error(`Failed to update student ${sId}`, e);
+          }
+        }
+      }
+
+      toast.success(`تم تحويل ومنح ${offerName} مجاناً بنجاح!`);
+      setShowAddFreeOfferModal(false);
+    } catch (err) {
+      console.error(err);
+      toast.error('فشل في حفظ العرض المجاني');
+    } finally {
+      setIsSubmittingFreeOffer(false);
+    }
+  };
+
+  const handleOpenExtendFreeOfferModal = (rule: any) => {
+    setFreeOfferToExtend(rule);
+    const now = new Date();
+    const currentEnd = rule.endDate ? new Date(rule.endDate) : now;
+    const defaultNew = currentEnd > now ? currentEnd : new Date(now.getTime() + 30 * 86400000);
+    setExtendFreeOfferEndDate(toDatetimeLocal(defaultNew));
+    setExtendFreeOfferMakeActive(true);
+  };
+
+  const handleSaveExtendFreeOffer = async () => {
+    if (!freeOfferToExtend) return;
+    if (!extendFreeOfferEndDate) {
+      toast.error('الرجاء تحديد تاريخ الانتهاء الجديد');
+      return;
+    }
+    if (new Date(extendFreeOfferEndDate) <= new Date(freeOfferToExtend.startDate)) {
+      toast.error('تاريخ الانتهاء الجديد يجب أن يكون بعد تاريخ البداية');
+      return;
+    }
+    setIsExtendingFreeOffer(true);
+    try {
+      await updateDoc(doc(db, 'freeOfferRules', freeOfferToExtend.id), {
+        endDate: extendFreeOfferEndDate,
+        isActive: extendFreeOfferMakeActive ? true : freeOfferToExtend.isActive,
+        updatedAt: new Date().toISOString()
+      });
+
+      if (freeOfferToExtend.studentIds && freeOfferToExtend.studentIds.length > 0) {
+        for (const sId of freeOfferToExtend.studentIds) {
+          try {
+            await updateDoc(doc(db, 'users', sId), {
+              subscriptionExpiry: extendFreeOfferEndDate,
+              subscriptionStatus: extendFreeOfferMakeActive ? 'active' : undefined
+            });
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+
+      toast.success(`تم تمديد صلاحية العرض المجاني بنجاح حتى ${formatDate(extendFreeOfferEndDate)}`);
+      setFreeOfferToExtend(null);
+    } catch (err) {
+      console.error(err);
+      toast.error('فشل في تمديد صلاحية العرض المجاني');
+    } finally {
+      setIsExtendingFreeOffer(false);
+    }
+  };
+
+  const handleToggleFreeOfferActive = async (ruleId: string, currentStatus: boolean) => {
+    try {
+      await updateDoc(doc(db, 'freeOfferRules', ruleId), {
+        isActive: !currentStatus,
+        updatedAt: new Date().toISOString()
+      });
+      toast.success('تم تعديل حالة العرض المجاني بنجاح');
+    } catch (err) {
+      console.error(err);
+      toast.error('فشل في تعديل حالة العرض');
+    }
+  };
+
+  const handleDeleteFreeOfferRule = (rule: any) => {
+    setPendingDelete({
+      id: rule.id,
+      label: `منحة عرض مجاني: ${rule.offerName || ''}`,
+      type: 'generic',
+      coll: 'freeOfferRules'
+    });
+  };
+
   const renderContentAccessControl = () => {
     const LEVELS_MAP: Record<string, string> = {
       '7': 'السنة السابعة أساسي',
@@ -4870,7 +5229,16 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-gray-50 flex justify-end">
+                  <div className="mt-4 pt-3 border-t border-gray-50 flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => handleOpenExtendRuleModal(rule)}
+                      className="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-dark text-xs font-black hover:bg-blue-dark hover:text-white transition-all flex items-center gap-1.5 border border-blue-100 shadow-sm"
+                      title="تمديد وتعديل تاريخ انتهاء صلاحية القاعدة"
+                    >
+                      <Clock size={13} className="text-blue-500" />
+                      <span>تعديل تاريخ الانتهاء / تمديد الصلاحية</span>
+                    </button>
+
                     <button
                       onClick={() => handleDeleteRule(rule)}
                       className="p-2 text-gray-400 hover:text-red-500 rounded-xl hover:bg-red-50/50 transition-colors"
@@ -4892,6 +5260,1147 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
             )}
           </div>
         </div>
+
+        {/* Modal: Extend Content Access Rule Expiration Date */}
+        {ruleToExtend && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-[32px] p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-gray-100 space-y-6 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-dark flex items-center justify-center">
+                    <Clock size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-blue-dark text-lg">تعديل تاريخ انتهاء الصلاحية</h3>
+                    <p className="text-xs text-gray-400 font-bold">تمديد فترة سريان قاعدة الوصول وجعلها سارية المفعول</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setRuleToExtend(null)} 
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-50"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Current details */}
+              <div className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100 space-y-2">
+                <div className="text-xs font-black text-gray-400">القاعدة المحددة:</div>
+                <div className="text-xs font-black text-blue-dark">
+                  {ruleToExtend.type === 'level_free'
+                    ? `وصول مجاني: ${ruleToExtend.level === 'all' || !ruleToExtend.level ? 'الجميع' : LEVELS_MAP[ruleToExtend.level] || ruleToExtend.level} → ${ruleToExtend.targetLevel === 'all' || !ruleToExtend.targetLevel ? 'كل المستويات' : LEVELS_MAP[ruleToExtend.targetLevel] || ruleToExtend.targetLevel}`
+                    : `وصول استثنائي لـ ${ruleToExtend.userIds?.length || 0} مستخدم → ${ruleToExtend.targetLevel === 'all' || !ruleToExtend.targetLevel ? 'كل المستويات' : LEVELS_MAP[ruleToExtend.targetLevel] || ruleToExtend.targetLevel}`}
+                </div>
+                <div className="flex items-center gap-4 pt-1 text-[0.72rem] font-bold text-gray-500">
+                  <span>تاريخ الانتهاء الحالي: <strong className="text-blue-dark">{formatDate(ruleToExtend.endDate)}</strong></span>
+                  <span className={cn(
+                    "px-2 py-0.5 rounded text-[0.62rem] font-black",
+                    new Date(ruleToExtend.endDate) < new Date() ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
+                  )}>
+                    {new Date(ruleToExtend.endDate) < new Date() ? 'منتهي الصلاحية' : 'ساري المفعول'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Date Presets */}
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-600">اختصارات تمديد سريعة:</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setExtendNewEndDate(toDatetimeLocal(getPresetEndDate(ruleToExtend.endDate, '7d')))}
+                    className="p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-dark transition-all text-center"
+                  >
+                    +7 أيام
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExtendNewEndDate(toDatetimeLocal(getPresetEndDate(ruleToExtend.endDate, '15d')))}
+                    className="p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-dark transition-all text-center"
+                  >
+                    +15 يوماً
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExtendNewEndDate(toDatetimeLocal(getPresetEndDate(ruleToExtend.endDate, '30d')))}
+                    className="p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-dark transition-all text-center"
+                  >
+                    +30 يوماً (شهر)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExtendNewEndDate(toDatetimeLocal(getPresetEndDate(ruleToExtend.endDate, 'trimester')))}
+                    className="p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-dark transition-all text-center"
+                  >
+                    نهاية الثلاثي
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExtendNewEndDate(toDatetimeLocal(getPresetEndDate(ruleToExtend.endDate, 'year')))}
+                    className="p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-dark transition-all text-center col-span-2 sm:col-span-1"
+                  >
+                    نهاية السنة الدراسية
+                  </button>
+                </div>
+              </div>
+
+              {/* Exact Date Input */}
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-600">تاريخ ووقت الانتهاء الجديد:</label>
+                <input
+                  type="datetime-local"
+                  value={extendNewEndDate}
+                  onChange={(e) => setExtendNewEndDate(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-bold text-blue-dark focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+
+              {/* Re-activate checkbox */}
+              <label className="flex items-center gap-3 p-3 rounded-2xl bg-emerald-50/60 border border-emerald-100 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={extendMakeActive}
+                  onChange={(e) => setExtendMakeActive(e.target.checked)}
+                  className="h-4 w-4 rounded text-emerald-600 focus:ring-emerald-500 border-gray-300"
+                />
+                <span className="text-xs font-black text-emerald-900">
+                  تفعيل القاعدة فوراً وجعلها سارية المفعول
+                </span>
+              </label>
+
+              {/* Modal Actions */}
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRuleToExtend(null)}
+                  className="flex-1 py-3.5 rounded-2xl border border-gray-200 text-xs font-black text-gray-600 hover:bg-gray-50 transition-all"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  disabled={isExtendingRule}
+                  onClick={handleSaveExtendRule}
+                  className="flex-1 py-3.5 rounded-2xl bg-blue-dark text-white text-xs font-black hover:bg-blue-900 transition-all shadow-lg shadow-blue-dark/20 flex items-center justify-center gap-2"
+                >
+                  {isExtendingRule ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  <span>حفظ وتمديد الصلاحية</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderFreeOffers = () => {
+    const LEVELS_MAP: Record<string, string> = {
+      '7': 'السنة السابعة أساسي',
+      '8': 'السنة الثامنة أساسي',
+      '9': 'السنة التاسعة أساسي',
+      '1sec': 'الأولى ثانوي',
+      '2sec': 'الثانية ثانوي',
+      '3sec': 'الثالثة ثانوي',
+      '4sec': 'الرابعة ثانوي (باكالوريا)'
+    };
+
+    const ALL_CATALOG_OFFERS: any[] = [
+      ...SUBSCRIPTION_PLANS.map((plan: any) => ({
+        id: plan.id,
+        name: plan.name,
+        price: plan.price,
+        period: plan.period,
+        sessions: plan.sessions || plan.dates || 'حصص مباشرة ومسجلة',
+        desc: plan.description || plan.dates || 'عرض تعليمي مخصص لمنصة مسار التميز'
+      })),
+      {
+        id: 'all_offers',
+        name: 'وصول شامل لكافة العروض والدروس',
+        price: '---',
+        period: 'مفتوح',
+        sessions: 'كافة الحصص والمسجلات',
+        desc: 'منح وصول كامل ومفتوح لجميع المستويات والتسجيلات والحصص المباشرة على المنصة'
+      }
+    ];
+
+    const currentOfferObj = ALL_CATALOG_OFFERS.find(p => p.id === freeOffersActiveTab);
+
+    const rulesList = (data.freeOfferRules || []).filter(rule => {
+      if (freeOffersActiveTab !== 'all' && rule.offerId !== freeOffersActiveTab) {
+        return false;
+      }
+      if (freeOfferSearchQuery.trim()) {
+        const q = freeOfferSearchQuery.toLowerCase();
+        const matchesName = (rule.offerName || '').toLowerCase().includes(q);
+        const matchesDesc = (rule.description || '').toLowerCase().includes(q);
+        const matchesLevel = rule.level && (LEVELS_MAP[rule.level] || rule.level).toLowerCase().includes(q);
+        const matchesGroup = (rule.groupName || '').toLowerCase().includes(q);
+        const matchesStudents = (rule.studentNames || []).some((n: string) => n.toLowerCase().includes(q));
+        const matchesParents = (rule.parentNames || []).some((n: string) => n.toLowerCase().includes(q));
+        const matchesEmails = [
+          ...(rule.studentEmails || []),
+          ...(rule.parentEmails || [])
+        ].some((e: string) => e.toLowerCase().includes(q));
+
+        return matchesName || matchesDesc || matchesLevel || matchesGroup || matchesStudents || matchesParents || matchesEmails;
+      }
+      return true;
+    });
+
+    const totalFreeRulesCount = data.freeOfferRules?.length || 0;
+    const activeFreeRulesCount = (data.freeOfferRules || []).filter(r => r.isActive && new Date() <= new Date(r.endDate)).length;
+
+    const eligibleStudents = data.users.filter(u => u.userType === 'student' && (!freeOfferUserSearch || 
+      `${u.firstName} ${u.lastName}`.toLowerCase().includes(freeOfferUserSearch.toLowerCase()) || 
+      (u.email || '').toLowerCase().includes(freeOfferUserSearch.toLowerCase()) ||
+      (u.phone || '').includes(freeOfferUserSearch)
+    ));
+
+    const eligibleParents = data.users.filter(u => u.userType === 'parent' && (!freeOfferUserSearch || 
+      `${u.firstName} ${u.lastName}`.toLowerCase().includes(freeOfferUserSearch.toLowerCase()) || 
+      (u.email || '').toLowerCase().includes(freeOfferUserSearch.toLowerCase()) ||
+      (u.phone || '').includes(freeOfferUserSearch)
+    ));
+
+    return (
+      <div className="space-y-8 animate-in fade-in pb-12">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 sm:p-8 rounded-[32px] border border-gray-100 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 shadow-inner">
+              <Gift size={28} />
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-blue-dark flex items-center gap-2">
+                <span>العروض المجانية</span>
+                <span className="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-full">
+                  {activeFreeRulesCount} نشط
+                </span>
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-400 font-bold mt-1">
+                التحكم في عروض المنصة وتحويلها إلى عروض مجانية وتحديد المستفيدين حسب المستوى، التلميذ، الولي، أو المجموعة
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => handleOpenAddFreeOffer()}
+              className="px-6 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs sm:text-sm shadow-lg shadow-amber-500/25 flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-95"
+            >
+              <Plus size={18} />
+              <span>تحويل عرض إلى مجاني / منح جديد</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Quick Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+              <Gift size={20} />
+            </div>
+            <div>
+              <div className="text-[0.68rem] font-black text-gray-400">إجمالي منح العروض</div>
+              <div className="text-lg font-black text-blue-dark">{totalFreeRulesCount}</div>
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <CheckCircle size={20} />
+            </div>
+            <div>
+              <div className="text-[0.68rem] font-black text-gray-400">العروض السارية حالياً</div>
+              <div className="text-lg font-black text-emerald-600">{activeFreeRulesCount}</div>
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <UsersIcon size={20} />
+            </div>
+            <div>
+              <div className="text-[0.68rem] font-black text-gray-400">أنواع الاستهداف المتاحة</div>
+              <div className="text-lg font-black text-blue-dark">4 معايير</div>
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+              <Layers size={20} />
+            </div>
+            <div>
+              <div className="text-[0.68rem] font-black text-gray-400">عروض المنصة الأساسية</div>
+              <div className="text-lg font-black text-purple-600">{SUBSCRIPTION_PLANS.length} عروض</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Organized Offer Tabs */}
+        <div className="bg-white p-4 sm:p-6 rounded-[32px] border border-gray-100 shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+            <div>
+              <h3 className="font-black text-blue-dark text-base flex items-center gap-2">
+                <Layers size={18} className="text-blue-500" />
+                <span>عروض المنصة والمنح المجانية</span>
+              </h3>
+              <p className="text-xs text-gray-400 font-bold mt-0.5">
+                تصفح العروض الحالية في المنصة والتحكم في تحويلها إلى مجانية لمستويات أو مستخدمين محددين
+              </p>
+            </div>
+
+            {/* Beneficiaries search input */}
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+              <input
+                type="text"
+                placeholder="بحث في المستفيدين، الأسماء، المستويات..."
+                value={freeOfferSearchQuery}
+                onChange={(e) => setFreeOfferSearchQuery(e.target.value)}
+                className="w-full pl-4 pr-10 py-2.5 rounded-2xl bg-gray-50 border border-gray-100 text-xs font-bold text-blue-dark placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+              />
+            </div>
+          </div>
+
+          {/* Offers Navigation Tabs */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
+            <button
+              onClick={() => setFreeOffersActiveTab('all')}
+              className={cn(
+                "px-4 py-2.5 rounded-2xl text-xs font-black shrink-0 transition-all flex items-center gap-2",
+                freeOffersActiveTab === 'all'
+                  ? "bg-blue-dark text-white shadow-md shadow-blue-dark/20"
+                  : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+              )}
+            >
+              <span>جميع العروض</span>
+              <span className={cn(
+                "px-1.5 py-0.5 rounded-full text-[0.65rem]",
+                freeOffersActiveTab === 'all' ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"
+              )}>
+                {(data.freeOfferRules || []).length}
+              </span>
+            </button>
+
+            {ALL_CATALOG_OFFERS.map(plan => {
+              const count = (data.freeOfferRules || []).filter(r => r.offerId === plan.id).length;
+              return (
+                <button
+                  key={plan.id}
+                  onClick={() => setFreeOffersActiveTab(plan.id)}
+                  className={cn(
+                    "px-4 py-2.5 rounded-2xl text-xs font-black shrink-0 transition-all flex items-center gap-2",
+                    freeOffersActiveTab === plan.id
+                      ? "bg-amber-500 text-white shadow-md shadow-amber-500/25"
+                      : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                  )}
+                >
+                  <span>{plan.name}</span>
+                  {count > 0 && (
+                    <span className={cn(
+                      "px-1.5 py-0.5 rounded-full text-[0.65rem]",
+                      freeOffersActiveTab === plan.id ? "bg-white/20 text-white" : "bg-amber-100 text-amber-800"
+                    )}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Active Offer Details Card */}
+          {currentOfferObj && freeOffersActiveTab !== 'all' && (
+            <div className="p-6 rounded-2xl bg-gradient-to-br from-amber-50/80 via-white to-amber-50/30 border border-amber-200/60 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-black bg-amber-500 text-white px-3 py-1 rounded-xl shadow-sm">
+                    {currentOfferObj.price !== '---' ? `${currentOfferObj.price} د.ت` : 'شامل'}
+                  </span>
+                  <h4 className="text-lg font-black text-blue-dark">{currentOfferObj.name}</h4>
+                  <span className="text-xs text-gray-500 font-bold bg-white px-2.5 py-0.5 rounded-lg border border-gray-100">
+                    المدة: {currentOfferObj.period}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-600 font-bold max-w-2xl leading-relaxed">
+                  {currentOfferObj.desc}
+                </p>
+                <div className="text-[0.72rem] text-amber-900 font-bold flex items-center gap-2 pt-1">
+                  <Sparkles size={14} className="text-amber-600" />
+                  <span>المحتوى: {currentOfferObj.sessions}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  onClick={() => handleOpenAddFreeOffer(currentOfferObj.id)}
+                  className="px-5 py-3 rounded-xl bg-blue-dark text-white font-black text-xs hover:bg-blue-900 transition-all flex items-center gap-2 shadow-md shadow-blue-dark/20"
+                >
+                  <Gift size={16} className="text-amber-400" />
+                  <span>تحويل هذا العرض إلى مجاني لمستفيدين</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Rules / Grants Grid */}
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-black text-blue-dark flex items-center gap-2">
+                <span>قائمة منح العروض المجانية والمستفيدين</span>
+                <span className="text-xs text-gray-400 font-bold">({rulesList.length} منحة)</span>
+              </h4>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {rulesList.map((rule: any) => {
+                const isPast = new Date(rule.endDate) < new Date();
+                const isScheduled = new Date(rule.startDate) > new Date();
+
+                return (
+                  <div
+                    key={rule.id}
+                    className={cn(
+                      "p-6 rounded-[28px] border transition-all relative overflow-hidden flex flex-col justify-between shadow-sm",
+                      !rule.isActive ? "bg-gray-50/60 border-gray-100 opacity-70" :
+                      isPast ? "bg-red-50/20 border-red-100/60" :
+                      "bg-white border-gray-100 hover:border-amber-200 hover:shadow-md"
+                    )}
+                  >
+                    {/* Status Top Strip */}
+                    <div className="flex items-center justify-between gap-2 pb-3 border-b border-gray-50">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded-lg text-[0.65rem] font-black bg-amber-100 text-amber-900 flex items-center gap-1">
+                          <Gift size={11} className="text-amber-600" />
+                          <span>{rule.offerName || 'عرض مجاني'}</span>
+                        </span>
+
+                        <span className={cn(
+                          "px-2.5 py-0.5 rounded-lg text-[0.65rem] font-black flex items-center gap-1",
+                          rule.targetType === 'level' ? "bg-blue-100 text-blue-800" :
+                          rule.targetType === 'student' ? "bg-emerald-100 text-emerald-800" :
+                          rule.targetType === 'parent' ? "bg-purple-100 text-purple-800" :
+                          "bg-orange-100 text-orange-800"
+                        )}>
+                          {rule.targetType === 'level' && <BookOpen size={11} />}
+                          {rule.targetType === 'student' && <UsersIcon size={11} />}
+                          {rule.targetType === 'parent' && <ShieldCheck size={11} />}
+                          {rule.targetType === 'group' && <Layers size={11} />}
+                          <span>
+                            {rule.targetType === 'level' && 'حسب المستوى الدراسي'}
+                            {rule.targetType === 'student' && 'حسب التلميذ'}
+                            {rule.targetType === 'parent' && 'حسب الولي'}
+                            {rule.targetType === 'group' && 'حسب المجموعة'}
+                          </span>
+                        </span>
+                      </div>
+
+                      {/* Active toggle */}
+                      <button
+                        onClick={() => handleToggleFreeOfferActive(rule.id, rule.isActive)}
+                        className={cn(
+                          "relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                          rule.isActive ? "bg-emerald-500" : "bg-gray-200"
+                        )}
+                        title={rule.isActive ? "تعطيل المنحة" : "تفعيل المنحة"}
+                      >
+                        <span
+                          className={cn(
+                            "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                            rule.isActive ? "-translate-x-5" : "translate-x-0"
+                          )}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Beneficiaries Content */}
+                    <div className="py-4 space-y-3">
+                      <div>
+                        {rule.targetType === 'level' && (
+                          <div className="space-y-1">
+                            <div className="text-xs font-black text-gray-400">المستوى المستفيد:</div>
+                            <div className="text-sm font-black text-blue-dark">
+                              {rule.level === 'all' || !rule.level ? 'جميع المستويات الدراسية' : LEVELS_MAP[rule.level] || rule.level}
+                            </div>
+                            <div className="text-[0.7rem] text-gray-400 font-bold">
+                              الوصول متاح إلى: {rule.targetLevel === 'all' || !rule.targetLevel ? 'كافة المستويات' : LEVELS_MAP[rule.targetLevel] || rule.targetLevel}
+                            </div>
+                          </div>
+                        )}
+
+                        {rule.targetType === 'student' && (
+                          <div className="space-y-1.5">
+                            <div className="text-xs font-black text-gray-400">
+                              التلاميذ المستفيدون ({rule.studentIds?.length || 0}):
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                              {(rule.studentNames || []).map((name: string, i: number) => (
+                                <span key={i} className="text-[0.68rem] bg-emerald-50 text-emerald-800 border border-emerald-100 px-2 py-0.5 rounded-lg font-bold">
+                                  {name}
+                                </span>
+                              ))}
+                              {(!rule.studentNames || rule.studentNames.length === 0) && (
+                                <span className="text-[0.68rem] text-gray-400 font-bold">
+                                  {rule.studentIds?.length || 0} تلميذ محدد
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {rule.targetType === 'parent' && (
+                          <div className="space-y-1.5">
+                            <div className="text-xs font-black text-gray-400">
+                              أولياء الأمور المستفيدون ({rule.parentIds?.length || 0}):
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                              {(rule.parentNames || []).map((name: string, i: number) => (
+                                <span key={i} className="text-[0.68rem] bg-purple-50 text-purple-800 border border-purple-100 px-2 py-0.5 rounded-lg font-bold">
+                                  {name} (وأبناؤه)
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {rule.targetType === 'group' && (
+                          <div className="space-y-1">
+                            <div className="text-xs font-black text-gray-400">المجموعة المستفيدة:</div>
+                            <div className="text-sm font-black text-blue-dark flex items-center gap-2">
+                              <Layers size={14} className="text-amber-500" />
+                              <span>{rule.groupName || rule.groupId}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {rule.description && (
+                        <p className="text-xs text-gray-500 font-bold bg-gray-50/80 p-2.5 rounded-xl border border-gray-100 leading-relaxed">
+                          {rule.description}
+                        </p>
+                      )}
+
+                      {/* Dates and Expiry Badge */}
+                      <div className="pt-2 border-t border-gray-50 flex items-center justify-between text-[0.72rem] font-bold text-gray-500">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar size={12} className="text-gray-400" />
+                            <span>من: {formatDate(rule.startDate)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Calendar size={12} className="text-gray-400" />
+                            <span>إلى: <strong className="text-blue-dark">{formatDate(rule.endDate)}</strong></span>
+                          </div>
+                        </div>
+
+                        <div>
+                          {isPast ? (
+                            <span className="px-2 py-0.5 rounded text-[0.62rem] font-black bg-red-100 text-red-700">منتهي</span>
+                          ) : isScheduled ? (
+                            <span className="px-2 py-0.5 rounded text-[0.62rem] font-black bg-blue-100 text-blue-700">مجدول</span>
+                          ) : rule.isActive ? (
+                            <span className="px-2 py-0.5 rounded text-[0.62rem] font-black bg-emerald-100 text-emerald-700">ساري الآن</span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-[0.62rem] font-black bg-gray-200 text-gray-600">معطل</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Actions: Edit Expiration & Delete */}
+                    <div className="mt-2 pt-3 border-t border-gray-50 flex items-center justify-between gap-2">
+                      <button
+                        onClick={() => handleOpenExtendFreeOfferModal(rule)}
+                        className="px-3.5 py-1.5 rounded-xl bg-amber-50 text-amber-900 hover:bg-amber-500 hover:text-white transition-all text-xs font-black flex items-center gap-1.5 border border-amber-200/60 shadow-sm"
+                        title="تعديل تاريخ انتهاء العرض وتمديد صلاحيته"
+                      >
+                        <Clock size={13} className="text-amber-600" />
+                        <span>تعديل تاريخ الانتهاء / تمديد الصلاحية</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteFreeOfferRule(rule)}
+                        className="p-2 text-gray-400 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors"
+                        title="حذف هذه المنحة"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {rulesList.length === 0 && (
+              <div className="py-16 flex flex-col items-center justify-center border-2 border-dashed border-gray-100 rounded-[32px] bg-white text-center p-6 space-y-3">
+                <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center">
+                  <Gift size={28} />
+                </div>
+                <div>
+                  <h4 className="font-black text-blue-dark text-base">لا توجد منح مجانية مسجلة لهذا العرض حالياً</h4>
+                  <p className="text-xs text-gray-400 font-bold mt-1 max-w-sm">
+                    يمكنك تحويل هذا العرض إلى مجاني وتحديد المستفيدين بنقرة واحدة
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleOpenAddFreeOffer(freeOffersActiveTab !== 'all' ? freeOffersActiveTab : undefined)}
+                  className="px-5 py-2.5 rounded-xl bg-blue-dark text-white font-black text-xs hover:bg-blue-900 transition-all flex items-center gap-2"
+                >
+                  <Plus size={16} />
+                  <span>منح هذا العرض مجاناً الآن</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Modal: Grant Free Offer */}
+        {showAddFreeOfferModal && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-[32px] p-6 sm:p-8 max-w-2xl w-full shadow-2xl border border-gray-100 space-y-6 max-h-[92vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <Gift size={22} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-blue-dark text-lg">تحويل عرض إلى مجاني ومنح المستفيدين</h3>
+                    <p className="text-xs text-gray-400 font-bold">تحديد العرض وفئة المستفيدين والصلاحية الزمنية</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowAddFreeOfferModal(false)} 
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-50"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveFreeOffer} className="space-y-6">
+                {/* 1. Select Offer */}
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-blue-dark flex items-center gap-1.5">
+                    <Tag size={14} className="text-amber-500" />
+                    <span>اختر العرض المراد تحويله إلى مجاني:</span>
+                  </label>
+                  <select
+                    value={freeTargetOfferId}
+                    onChange={(e) => {
+                      setFreeTargetOfferId(e.target.value);
+                      const defaultExpiry = getPlanExpiryDate(e.target.value);
+                      setFreeEndDate(toDatetimeLocal(defaultExpiry));
+                    }}
+                    className="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-xs font-bold text-blue-dark focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                  >
+                    {ALL_CATALOG_OFFERS.map(plan => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.name} {plan.price !== '---' ? `(${plan.price} د.ت)` : ''} - {plan.period}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 2. Target Criterion Selector */}
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-blue-dark">معيار استهداف المستفيدين:</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFreeTargetType('level')}
+                      className={cn(
+                        "p-3 rounded-2xl border text-xs font-black flex flex-col items-center gap-1.5 transition-all text-center",
+                        freeTargetType === 'level'
+                          ? "bg-blue-50 border-blue-500 text-blue-dark shadow-sm"
+                          : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                      )}
+                    >
+                      <BookOpen size={18} className={freeTargetType === 'level' ? "text-blue-600" : "text-gray-400"} />
+                      <span>المستوى الدراسي</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFreeTargetType('student')}
+                      className={cn(
+                        "p-3 rounded-2xl border text-xs font-black flex flex-col items-center gap-1.5 transition-all text-center",
+                        freeTargetType === 'student'
+                          ? "bg-emerald-50 border-emerald-500 text-emerald-900 shadow-sm"
+                          : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                      )}
+                    >
+                      <UsersIcon size={18} className={freeTargetType === 'student' ? "text-emerald-600" : "text-gray-400"} />
+                      <span>التلميذ</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFreeTargetType('parent')}
+                      className={cn(
+                        "p-3 rounded-2xl border text-xs font-black flex flex-col items-center gap-1.5 transition-all text-center",
+                        freeTargetType === 'parent'
+                          ? "bg-purple-50 border-purple-500 text-purple-900 shadow-sm"
+                          : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                      )}
+                    >
+                      <ShieldCheck size={18} className={freeTargetType === 'parent' ? "text-purple-600" : "text-gray-400"} />
+                      <span>الولي</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFreeTargetType('group')}
+                      className={cn(
+                        "p-3 rounded-2xl border text-xs font-black flex flex-col items-center gap-1.5 transition-all text-center",
+                        freeTargetType === 'group'
+                          ? "bg-orange-50 border-orange-500 text-orange-900 shadow-sm"
+                          : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                      )}
+                    >
+                      <Layers size={18} className={freeTargetType === 'group' ? "text-orange-600" : "text-gray-400"} />
+                      <span>المجموعة</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sub-selector based on Target Type */}
+                {freeTargetType === 'level' && (
+                  <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-100 space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-blue-dark">المستوى الدراسي المستفيد:</label>
+                      <select
+                        value={freeLevel}
+                        onChange={(e) => setFreeLevel(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs font-bold text-blue-dark"
+                      >
+                        <option value="all">جميع المستويات الدراسية والزوار</option>
+                        {Object.entries(LEVELS_MAP).map(([val, label]) => (
+                          <option key={val} value={val}>{label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-blue-dark">المحتوى المتاح لهم الوصول إليه:</label>
+                      <select
+                        value={freeTargetLevel}
+                        onChange={(e) => setFreeTargetLevel(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs font-bold text-blue-dark"
+                      >
+                        <option value="all">كل المستويات التعليمية</option>
+                        {Object.entries(LEVELS_MAP).map(([val, label]) => (
+                          <option key={val} value={val}>{label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {freeTargetType === 'student' && (
+                  <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-black text-emerald-950">
+                        اختر التلاميذ المستفيدين ({freeSelectedStudentIds.length} محدد):
+                      </label>
+                      {freeSelectedStudentIds.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setFreeSelectedStudentIds([])}
+                          className="text-[0.68rem] text-red-600 font-bold hover:underline"
+                        >
+                          إلغاء التحديد
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="relative">
+                      <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                      <input
+                        type="text"
+                        placeholder="ابحث بالاسم أو البريد أو الهاتف..."
+                        value={freeOfferUserSearch}
+                        onChange={(e) => setFreeOfferUserSearch(e.target.value)}
+                        className="w-full pl-3 pr-9 py-2 rounded-xl bg-white border border-gray-200 text-xs font-bold"
+                      />
+                    </div>
+
+                    <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                      {eligibleStudents.slice(0, 30).map(s => {
+                        const isSelected = freeSelectedStudentIds.includes(s.id);
+                        return (
+                          <div
+                            key={s.id}
+                            onClick={() => {
+                              if (isSelected) {
+                                setFreeSelectedStudentIds(prev => prev.filter(id => id !== s.id));
+                              } else {
+                                setFreeSelectedStudentIds(prev => [...prev, s.id]);
+                              }
+                            }}
+                            className={cn(
+                              "p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all text-xs",
+                              isSelected ? "bg-emerald-100 border-emerald-300" : "bg-white border-gray-200 hover:bg-gray-50"
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              {isSelected ? (
+                                <CheckSquare size={16} className="text-emerald-700" />
+                              ) : (
+                                <Square size={16} className="text-gray-400" />
+                              )}
+                              <span className="font-bold text-blue-dark">
+                                {s.firstName} {s.lastName}
+                              </span>
+                              <span className="text-[0.68rem] text-gray-400">{s.email}</span>
+                            </div>
+                            <span className="text-[0.65rem] bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-bold">
+                              {LEVELS_MAP[s.level] || s.level || 'غير محدد'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {freeTargetType === 'parent' && (
+                  <div className="p-4 rounded-2xl bg-purple-50/50 border border-purple-100 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-black text-purple-950">
+                        اختر أولياء الأمور ({freeSelectedParentIds.length} محدد):
+                      </label>
+                      <span className="text-[0.65rem] text-purple-700 font-bold">
+                        (سيتم منح العرض لجميع أبناء الولي تلقائياً)
+                      </span>
+                    </div>
+
+                    <div className="relative">
+                      <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                      <input
+                        type="text"
+                        placeholder="ابحث باسم الولي أو بريده..."
+                        value={freeOfferUserSearch}
+                        onChange={(e) => setFreeOfferUserSearch(e.target.value)}
+                        className="w-full pl-3 pr-9 py-2 rounded-xl bg-white border border-gray-200 text-xs font-bold"
+                      />
+                    </div>
+
+                    <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                      {eligibleParents.slice(0, 30).map(p => {
+                        const isSelected = freeSelectedParentIds.includes(p.id);
+                        const linkedChildrenCount = data.parentChildren.filter(pc => pc.parentId === p.id).length;
+                        return (
+                          <div
+                            key={p.id}
+                            onClick={() => {
+                              if (isSelected) {
+                                setFreeSelectedParentIds(prev => prev.filter(id => id !== p.id));
+                              } else {
+                                setFreeSelectedParentIds(prev => [...prev, p.id]);
+                              }
+                            }}
+                            className={cn(
+                              "p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all text-xs",
+                              isSelected ? "bg-purple-100 border-purple-300" : "bg-white border-gray-200 hover:bg-gray-50"
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              {isSelected ? (
+                                <CheckSquare size={16} className="text-purple-700" />
+                              ) : (
+                                <Square size={16} className="text-gray-400" />
+                              )}
+                              <span className="font-bold text-blue-dark">
+                                {p.firstName} {p.lastName}
+                              </span>
+                              <span className="text-[0.68rem] text-gray-400">{p.email}</span>
+                            </div>
+                            <span className="text-[0.65rem] bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-bold">
+                              {linkedChildrenCount} أبناء مربوطين
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {freeTargetType === 'group' && (
+                  <div className="p-4 rounded-2xl bg-orange-50/50 border border-orange-100 space-y-3">
+                    <label className="text-xs font-black text-orange-950">اختر المجموعة الدراسية المستفيدة:</label>
+                    <select
+                      value={freeSelectedGroupId}
+                      onChange={(e) => setFreeSelectedGroupId(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs font-bold text-blue-dark"
+                    >
+                      <option value="">-- اختر مجموعة --</option>
+                      {data.groups.map(g => (
+                        <option key={g.id} value={g.id}>
+                          {g.name} ({LEVELS_MAP[g.level] || g.level || ''}) - {g.studentCount || g.membersCount || 0} تلميذ
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* 3. Validity Period */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-blue-dark flex items-center gap-1.5">
+                      <Calendar size={14} className="text-amber-500" />
+                      <span>الحيز الزمني لصلاحية العرض المجاني:</span>
+                    </label>
+                  </div>
+
+                  {/* Date presets */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFreeEndDate(toDatetimeLocal(getPresetEndDate(freeStartDate, '7d')))}
+                      className="p-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:border-amber-500 hover:bg-amber-50/50 hover:text-amber-900 transition-all text-center"
+                    >
+                      +7 أيام
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFreeEndDate(toDatetimeLocal(getPresetEndDate(freeStartDate, '15d')))}
+                      className="p-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:border-amber-500 hover:bg-amber-50/50 hover:text-amber-900 transition-all text-center"
+                    >
+                      +15 يوماً
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFreeEndDate(toDatetimeLocal(getPresetEndDate(freeStartDate, '30d')))}
+                      className="p-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:border-amber-500 hover:bg-amber-50/50 hover:text-amber-900 transition-all text-center"
+                    >
+                      +30 يوماً
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFreeEndDate(toDatetimeLocal(getPresetEndDate(freeStartDate, 'year')))}
+                      className="p-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:border-amber-500 hover:bg-amber-50/50 hover:text-amber-900 transition-all text-center"
+                    >
+                      نهاية السنة الدراسية
+                    </button>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <span className="text-[0.7rem] font-bold text-gray-500">تاريخ ووقت البداية:</span>
+                      <input
+                        type="datetime-local"
+                        value={freeStartDate}
+                        onChange={(e) => setFreeStartDate(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-bold"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[0.7rem] font-bold text-gray-500">تاريخ ووقت الانتهاء:</span>
+                      <input
+                        type="datetime-local"
+                        value={freeEndDate}
+                        onChange={(e) => setFreeEndDate(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-bold"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Description */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-blue-dark">ملاحظات إدارية أو سبب المنحة (اختياري):</label>
+                  <input
+                    type="text"
+                    placeholder="مثال: منحة تفوق دراسي، مكافأة مسابقة، تمديد تشجيعي..."
+                    value={freeDescription}
+                    onChange={(e) => setFreeDescription(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-bold text-blue-dark"
+                  />
+                </div>
+
+                {/* 5. Sync Option */}
+                <label className="flex items-center gap-3 p-3 rounded-2xl bg-amber-50/60 border border-amber-100 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={freeSyncActiveSubscription}
+                    onChange={(e) => setFreeSyncActiveSubscription(e.target.checked)}
+                    className="h-4 w-4 rounded text-amber-600 focus:ring-amber-500 border-gray-300"
+                  />
+                  <span className="text-xs font-black text-amber-900">
+                    مزامنة اشتراك المستفيدين تلقائياً وجعله نشطاً (عرض مجاني) في ملفاتهم الشخصية
+                  </span>
+                </label>
+
+                {/* Submit Actions */}
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddFreeOfferModal(false)}
+                    className="flex-1 py-3.5 rounded-2xl border border-gray-200 text-xs font-black text-gray-600 hover:bg-gray-50 transition-all"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingFreeOffer}
+                    className="flex-1 py-3.5 rounded-2xl bg-amber-500 text-white text-xs font-black hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2"
+                  >
+                    {isSubmittingFreeOffer ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    <span>اعتماد ومنح العرض المجاني</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Modal: Extend Free Offer Expiration Date */}
+        {freeOfferToExtend && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-[32px] p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-gray-100 space-y-6 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <Clock size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-blue-dark text-lg">تعديل تاريخ انتهاء العرض المجاني</h3>
+                    <p className="text-xs text-gray-400 font-bold">تمديد صلاحية العرض وجعله ساري المفعول للمستفيدين</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setFreeOfferToExtend(null)} 
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-50"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Offer Info */}
+              <div className="bg-amber-50/50 rounded-2xl p-4 border border-amber-100 space-y-2">
+                <div className="text-xs font-black text-amber-900">
+                  العرض: {freeOfferToExtend.offerName || 'عرض مجاني'}
+                </div>
+                <div className="text-xs text-gray-600 font-bold">
+                  {freeOfferToExtend.targetType === 'level' && `المستوى: ${freeOfferToExtend.level === 'all' || !freeOfferToExtend.level ? 'الجميع' : LEVELS_MAP[freeOfferToExtend.level] || freeOfferToExtend.level}`}
+                  {freeOfferToExtend.targetType === 'student' && `التلاميذ المستفيدون: ${freeOfferToExtend.studentNames?.join(', ') || `${freeOfferToExtend.studentIds?.length || 0} تلميذ`}`}
+                  {freeOfferToExtend.targetType === 'parent' && `أولياء الأمور المستفيدون: ${freeOfferToExtend.parentNames?.join(', ') || `${freeOfferToExtend.parentIds?.length || 0} ولي أمر`}`}
+                  {freeOfferToExtend.targetType === 'group' && `المجموعة: ${freeOfferToExtend.groupName || freeOfferToExtend.groupId}`}
+                </div>
+                <div className="flex items-center gap-4 pt-1 text-[0.72rem] font-bold text-gray-500">
+                  <span>تاريخ الانتهاء الحالي: <strong className="text-blue-dark">{formatDate(freeOfferToExtend.endDate)}</strong></span>
+                  <span className={cn(
+                    "px-2 py-0.5 rounded text-[0.62rem] font-black",
+                    new Date(freeOfferToExtend.endDate) < new Date() ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
+                  )}>
+                    {new Date(freeOfferToExtend.endDate) < new Date() ? 'منتهي الصلاحية' : 'ساري المفعول'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Presets */}
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-600">اختصارات تمديد سريعة:</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setExtendFreeOfferEndDate(toDatetimeLocal(getPresetEndDate(freeOfferToExtend.endDate, '7d')))}
+                    className="p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:border-amber-500 hover:bg-amber-50/50 hover:text-amber-900 transition-all text-center"
+                  >
+                    +7 أيام
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExtendFreeOfferEndDate(toDatetimeLocal(getPresetEndDate(freeOfferToExtend.endDate, '15d')))}
+                    className="p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:border-amber-500 hover:bg-amber-50/50 hover:text-amber-900 transition-all text-center"
+                  >
+                    +15 يوماً
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExtendFreeOfferEndDate(toDatetimeLocal(getPresetEndDate(freeOfferToExtend.endDate, '30d')))}
+                    className="p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:border-amber-500 hover:bg-amber-50/50 hover:text-amber-900 transition-all text-center"
+                  >
+                    +30 يوماً
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExtendFreeOfferEndDate(toDatetimeLocal(getPresetEndDate(freeOfferToExtend.endDate, 'trimester')))}
+                    className="p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:border-amber-500 hover:bg-amber-50/50 hover:text-amber-900 transition-all text-center"
+                  >
+                    نهاية الثلاثي
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExtendFreeOfferEndDate(toDatetimeLocal(getPresetEndDate(freeOfferToExtend.endDate, 'year')))}
+                    className="p-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:border-amber-500 hover:bg-amber-50/50 hover:text-amber-900 transition-all text-center col-span-2 sm:col-span-1"
+                  >
+                    نهاية السنة الدراسية
+                  </button>
+                </div>
+              </div>
+
+              {/* Exact Date */}
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-600">تاريخ ووقت الانتهاء الجديد:</label>
+                <input
+                  type="datetime-local"
+                  value={extendFreeOfferEndDate}
+                  onChange={(e) => setExtendFreeOfferEndDate(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-bold text-blue-dark focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                />
+              </div>
+
+              {/* Re-activate checkbox */}
+              <label className="flex items-center gap-3 p-3 rounded-2xl bg-emerald-50/60 border border-emerald-100 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={extendFreeOfferMakeActive}
+                  onChange={(e) => setExtendFreeOfferMakeActive(e.target.checked)}
+                  className="h-4 w-4 rounded text-emerald-600 focus:ring-emerald-500 border-gray-300"
+                />
+                <span className="text-xs font-black text-emerald-900">
+                  تفعيل العرض فوراً وجعله ساري المفعول للمستفيدين
+                </span>
+              </label>
+
+              {/* Actions */}
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setFreeOfferToExtend(null)}
+                  className="flex-1 py-3.5 rounded-2xl border border-gray-200 text-xs font-black text-gray-600 hover:bg-gray-50 transition-all"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  disabled={isExtendingFreeOffer}
+                  onClick={handleSaveExtendFreeOffer}
+                  className="flex-1 py-3.5 rounded-2xl bg-amber-500 text-white text-xs font-black hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2"
+                >
+                  {isExtendingFreeOffer ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  <span>حفظ وتمديد الصلاحية</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </div>
     );
   };
@@ -4902,6 +6411,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       case 'addUser': return renderAddUser();
       case 'users': return renderUsers();
       case 'subscriptions': return renderSubscriptions();
+      case 'freeOffers': return renderFreeOffers();
       case 'groups': return renderGroups();
       case 'attendance': return renderAttendance();
       case 'wallets': return renderWallets();
