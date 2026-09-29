@@ -149,7 +149,9 @@ export default function Auth() {
       if (verifier) {
         try {
           verifier.clear();
-        } catch (e) {}
+        } catch (e) {
+          // ignore cleanup error
+        }
         setRecaptchaVerifier(null);
       }
     } finally {

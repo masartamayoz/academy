@@ -9,6 +9,7 @@ import { initializeApp, deleteApp } from 'firebase/app';
 import { firebaseConfig } from '@/src/lib/firebase';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
+import { uploadLessonPdfSigned } from '@/src/lib/cloudinaryService';
 import { 
   Users as UsersIcon, 
   Receipt as ReceiptIcon, 
@@ -259,7 +260,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
   });
 
   const handleFileUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>,
+    e: React.ChangeEvent<HTMLInputElement>, 
     field: 'pdfText' | 'pdfSolution',
     explicitLessonId?: string
   ) => {
@@ -275,15 +276,6 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     }
 
     setUploading(prev => ({ ...prev, [field]: true }));
-    
-    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dv5xhvkr3';
-    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'masartamayoz-content';
-
-    if (!cloudName || !uploadPreset) {
-      toast.error('إعدادات Cloudinary غير مكتملة.');
-      setUploading(prev => ({ ...prev, [field]: false }));
-      return;
-    }
 
     // Determine target lessonId and documentType:
     // exam -> lesson_${lessonId}_exam
@@ -291,35 +283,33 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     const activeLessonId = explicitLessonId || editingContent?.id || newContentId;
     const cleanLessonId = String(activeLessonId).trim().replace(/[^a-zA-Z0-9_-]/g, '_');
     const docType = field === 'pdfText' ? 'exam' : 'correction';
-    const publicId = `lesson_${cleanLessonId}_${docType}`;
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', uploadPreset);
-    formData.append('public_id', publicId);
-    formData.append('overwrite', 'true');
-    formData.append('invalidate', 'true');
 
     try {
-      // Use resource_type: image to preserve existing /image/upload/ structure
-      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-        method: 'POST',
-        body: formData
-      });
-      const data = await response.json();
-      if (data.secure_url) {
+      // Secure Signed Upload via Backend Signature:
+      // - overwrite: true
+      // - invalidate: true
+      // - resource_type: 'image'
+      // - CLOUDINARY_API_SECRET is kept strictly on the backend / Firebase secret
+      const result = await uploadLessonPdfSigned(file, cleanLessonId, docType);
+
+      if (result.secure_url) {
         if (editingContent) {
-          setEditingContent((prev: any) => ({ ...prev, [field]: data.secure_url }));
+          setEditingContent((prev: any) => ({ ...prev, [field]: result.secure_url }));
         } else {
-          setNewContent(prev => ({ ...prev, [field]: data.secure_url }));
+          setNewContent(prev => ({ ...prev, [field]: result.secure_url }));
         }
-        toast.success(`تم رفع وثيقة ${docType === 'exam' ? 'الفرض/النص' : 'الإصلاح'} بنجاح`);
+
+        if (result.overwritten) {
+          toast.success(`تم استبدال وثيقة ${docType === 'exam' ? 'الفرض/النص' : 'الإصلاح'} (${result.public_id}) في Cloudinary بنجاح`);
+        } else {
+          toast.success(`تم رفع وثيقة ${docType === 'exam' ? 'الفرض/النص' : 'الإصلاح'} (${result.public_id}) بنجاح`);
+        }
       } else {
-        throw new Error(data.error?.message || 'Upload failed');
+        throw new Error('لم يتم استلام رابط الملف من Cloudinary');
       }
     } catch (err: any) {
       console.error('Upload Error:', err);
-      toast.error(`فشل رفع الملف: ${err?.message || 'يرجى التحقق من الإعدادات'}`);
+      toast.error(`فشل رفع واستبدال الملف: ${err?.message || 'يرجى التحقق من اتصال الخادم'}`);
     } finally {
       setUploading(prev => ({ ...prev, [field]: false }));
     }
@@ -1521,8 +1511,9 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                   <label className="text-xs font-black text-blue-dark uppercase">PDF النص / الفرض</label>
                   <div className="relative">
                     <input type="text" value={newContent.pdfText} onChange={e => setNewContent({...newContent, pdfText: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-5 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
-                    <label className="absolute left-2 top-2 bottom-2 px-4 bg-blue-dark text-white rounded-xl flex items-center cursor-pointer text-[0.6rem] font-black">
-                      رفع <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => handleFileUpload(e, 'pdfText')} />
+                    <label className={cn("absolute left-2 top-2 bottom-2 px-4 bg-blue-dark text-white rounded-xl flex items-center cursor-pointer text-[0.6rem] font-black transition-all", uploading.pdfText && "opacity-75 cursor-not-allowed")}>
+                      {uploading.pdfText && <Loader2 size={12} className="animate-spin ml-1" />}
+                      رفع <input type="file" accept="application/pdf,.pdf" disabled={uploading.pdfText} className="hidden" onChange={(e) => handleFileUpload(e, 'pdfText')} />
                     </label>
                   </div>
                 </div>
@@ -1530,8 +1521,9 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                   <label className="text-xs font-black text-emerald-600 uppercase">PDF الإصلاح</label>
                   <div className="relative">
                     <input type="text" value={newContent.pdfSolution} onChange={e => setNewContent({...newContent, pdfSolution: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-5 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
-                    <label className="absolute left-2 top-2 bottom-2 px-4 bg-emerald-600 text-white rounded-xl flex items-center cursor-pointer text-[0.6rem] font-black">
-                      رفع <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => handleFileUpload(e, 'pdfSolution')} />
+                    <label className={cn("absolute left-2 top-2 bottom-2 px-4 bg-emerald-600 text-white rounded-xl flex items-center cursor-pointer text-[0.6rem] font-black transition-all", uploading.pdfSolution && "opacity-75 cursor-not-allowed")}>
+                      {uploading.pdfSolution && <Loader2 size={12} className="animate-spin ml-1" />}
+                      رفع <input type="file" accept="application/pdf,.pdf" disabled={uploading.pdfSolution} className="hidden" onChange={(e) => handleFileUpload(e, 'pdfSolution')} />
                     </label>
                   </div>
                 </div>
@@ -4492,8 +4484,9 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                 <label className="text-xs font-black text-blue-dark uppercase">PDF النص / الفرض</label>
                 <div className="relative">
                   <input type="text" value={c.pdfText} onChange={e => setC({...c, pdfText: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-5 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
-                  <label className="absolute left-2 top-2 bottom-2 px-4 bg-blue-dark text-white rounded-xl flex items-center cursor-pointer text-[0.6rem] font-black">
-                    رفع <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => handleFileUpload(e, 'pdfText', c?.id)} />
+                  <label className={cn("absolute left-2 top-2 bottom-2 px-4 bg-blue-dark text-white rounded-xl flex items-center cursor-pointer text-[0.6rem] font-black transition-all", uploading.pdfText && "opacity-75 cursor-not-allowed")}>
+                    {uploading.pdfText && <Loader2 size={12} className="animate-spin ml-1" />}
+                    رفع <input type="file" accept="application/pdf,.pdf" disabled={uploading.pdfText} className="hidden" onChange={(e) => handleFileUpload(e, 'pdfText', c?.id)} />
                   </label>
                 </div>
               </div>
@@ -4501,8 +4494,9 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                 <label className="text-xs font-black text-emerald-600 uppercase">PDF الإصلاح</label>
                 <div className="relative">
                   <input type="text" value={c.pdfSolution} onChange={e => setC({...c, pdfSolution: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-5 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
-                  <label className="absolute left-2 top-2 bottom-2 px-4 bg-emerald-600 text-white rounded-xl flex items-center cursor-pointer text-[0.6rem] font-black">
-                    رفع <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => handleFileUpload(e, 'pdfSolution', c?.id)} />
+                  <label className={cn("absolute left-2 top-2 bottom-2 px-4 bg-emerald-600 text-white rounded-xl flex items-center cursor-pointer text-[0.6rem] font-black transition-all", uploading.pdfSolution && "opacity-75 cursor-not-allowed")}>
+                    {uploading.pdfSolution && <Loader2 size={12} className="animate-spin ml-1" />}
+                    رفع <input type="file" accept="application/pdf,.pdf" disabled={uploading.pdfSolution} className="hidden" onChange={(e) => handleFileUpload(e, 'pdfSolution', c?.id)} />
                   </label>
                 </div>
               </div>
