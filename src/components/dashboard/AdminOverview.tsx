@@ -251,14 +251,28 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
     topics: ['']
   });
 
+  const [newContentId, setNewContentId] = useState<string>(() => doc(collection(db, 'videos')).id);
+
   const [uploading, setUploading] = useState({
     pdfText: false,
     pdfSolution: false
   });
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'pdfText' | 'pdfSolution') => {
+  const handleFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: 'pdfText' | 'pdfSolution',
+    explicitLessonId?: string
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Reset input value to allow re-uploading the same file if needed
+    e.target.value = '';
+
+    if (file.type && file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      toast.error('يرجى اختيار ملف بصيغة PDF فقط.');
+      return;
+    }
 
     setUploading(prev => ({ ...prev, [field]: true }));
     
@@ -271,12 +285,24 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
       return;
     }
 
+    // Determine target lessonId and documentType:
+    // exam -> lesson_${lessonId}_exam
+    // correction -> lesson_${lessonId}_correction
+    const activeLessonId = explicitLessonId || editingContent?.id || newContentId;
+    const cleanLessonId = String(activeLessonId).trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+    const docType = field === 'pdfText' ? 'exam' : 'correction';
+    const publicId = `lesson_${cleanLessonId}_${docType}`;
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', uploadPreset);
+    formData.append('public_id', publicId);
+    formData.append('overwrite', 'true');
+    formData.append('invalidate', 'true');
 
     try {
-      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+      // Use resource_type: image to preserve existing /image/upload/ structure
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
         method: 'POST',
         body: formData
       });
@@ -287,12 +313,13 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
         } else {
           setNewContent(prev => ({ ...prev, [field]: data.secure_url }));
         }
+        toast.success(`تم رفع وثيقة ${docType === 'exam' ? 'الفرض/النص' : 'الإصلاح'} بنجاح`);
       } else {
         throw new Error(data.error?.message || 'Upload failed');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Upload Error:', err);
-      alert('فشل رفع الملف. يرجى التحقق من الإعدادات.');
+      toast.error(`فشل رفع الملف: ${err?.message || 'يرجى التحقق من الإعدادات'}`);
     } finally {
       setUploading(prev => ({ ...prev, [field]: false }));
     }
@@ -608,8 +635,10 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
           dataToSave.title = clean ? `حصة ${newContent.order || 1}: ${clean}` : `حصة ${newContent.order || 1}`;
       }
 
-      await addDoc(collection(db, 'videos'), dataToSave);
+      const targetId = newContentId || doc(collection(db, 'videos')).id;
+      await setDoc(doc(db, 'videos', targetId), dataToSave);
       
+      setNewContentId(doc(collection(db, 'videos')).id);
       setNewContent({ 
         title: '', 
         level: '', 
@@ -1493,7 +1522,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                   <div className="relative">
                     <input type="text" value={newContent.pdfText} onChange={e => setNewContent({...newContent, pdfText: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-5 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
                     <label className="absolute left-2 top-2 bottom-2 px-4 bg-blue-dark text-white rounded-xl flex items-center cursor-pointer text-[0.6rem] font-black">
-                      رفع <input type="file" className="hidden" onChange={(e) => handleFileUpload(e, 'pdfText')} />
+                      رفع <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => handleFileUpload(e, 'pdfText')} />
                     </label>
                   </div>
                 </div>
@@ -1502,7 +1531,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                   <div className="relative">
                     <input type="text" value={newContent.pdfSolution} onChange={e => setNewContent({...newContent, pdfSolution: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-5 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
                     <label className="absolute left-2 top-2 bottom-2 px-4 bg-emerald-600 text-white rounded-xl flex items-center cursor-pointer text-[0.6rem] font-black">
-                      رفع <input type="file" className="hidden" onChange={(e) => handleFileUpload(e, 'pdfSolution')} />
+                      رفع <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => handleFileUpload(e, 'pdfSolution')} />
                     </label>
                   </div>
                 </div>
@@ -4464,7 +4493,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                 <div className="relative">
                   <input type="text" value={c.pdfText} onChange={e => setC({...c, pdfText: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-5 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
                   <label className="absolute left-2 top-2 bottom-2 px-4 bg-blue-dark text-white rounded-xl flex items-center cursor-pointer text-[0.6rem] font-black">
-                    رفع <input type="file" className="hidden" onChange={(e) => handleFileUpload(e, 'pdfText')} />
+                    رفع <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => handleFileUpload(e, 'pdfText', c?.id)} />
                   </label>
                 </div>
               </div>
@@ -4473,7 +4502,7 @@ export default function AdminOverview({ activeTab, userData, user }: Props) {
                 <div className="relative">
                   <input type="text" value={c.pdfSolution} onChange={e => setC({...c, pdfSolution: e.target.value})} className="w-full rounded-2xl bg-gray-50 border-none px-5 py-4 text-xs font-bold outline-none ring-1 ring-gray-100" />
                   <label className="absolute left-2 top-2 bottom-2 px-4 bg-emerald-600 text-white rounded-xl flex items-center cursor-pointer text-[0.6rem] font-black">
-                    رفع <input type="file" className="hidden" onChange={(e) => handleFileUpload(e, 'pdfSolution')} />
+                    رفع <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => handleFileUpload(e, 'pdfSolution', c?.id)} />
                   </label>
                 </div>
               </div>
